@@ -18,7 +18,7 @@ infra/     Deploy no Hetzner, ao lado do Raíces
 
 ```bash
 cd backend
-cp .env.example .env            # preencha GOOGLE_CLIENT_IDS e ALLOWED_EMAILS
+cp .env.example .env            # preencha ALLOWED_EMAILS
 uv sync
 uv run alembic upgrade head     # Postgres 16 em localhost:5432
 uv run uvicorn app.main:app --reload
@@ -46,10 +46,11 @@ uv run ruff check app tests && uv run mypy app tests
 
 ## Login
 
-Só Google. A API confere o token do Google (aceita os client ids de web, iOS e Android
-em `GOOGLE_CLIENT_IDS`) e só deixa entrar os e-mails de `ALLOWED_EMAILS`. O primeiro
-login cria a família com um único membro; os outros membros são adicionados nas
-configurações.
+Por link no e-mail (Resend): o link vale 15 minutos e funciona uma vez. Só entram os
+e-mails de `ALLOWED_EMAILS`; para qualquer outro a API responde igual e não envia nada.
+Sem `RESEND_API_KEY` em desenvolvimento (`DEBUG=true`) o link aparece no log da API.
+O primeiro login cria a família com um único membro; os outros membros são adicionados
+nas configurações. O login com Google já existe na API e entra no app depois.
 
 ## Deploy
 
@@ -58,4 +59,4 @@ próprio. Só a API entra na rede `raices_default` para o Caddy do Raíces alcan
 
 1. Uma vez: copiar `infra/.env.prod.example` para `infra/.env.prod` e preencher.
 2. Uma vez, com o ok do dono: adicionar `infra/Caddyfile.snippet` ao Caddyfile do Raíces.
-3. A cada versão: `infra/deploy.sh`.
+3. A cada versão, do Mac: `infra/deploy.sh` (copia o código por rsync e sobe só o projeto `dailymoney`).

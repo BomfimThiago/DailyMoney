@@ -2,7 +2,7 @@
 # Only the API and the web app join Raíces' network (raices_default) so Raíces' Caddy can reach it;
 # this stack publishes no ports.
 #
-#   cd /opt/dailymoney && infra/deploy.sh
+#   infra/deploy.sh   (from the Mac)
 
 name: dailymoney
 
@@ -20,8 +20,6 @@ services:
       web:
     build:
       context: ../app
-      args:
-        EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${GOOGLE_WEB_CLIENT_ID:-}
     image: dailymoney-web
     container_name: dailymoney-web
     restart: unless-stopped

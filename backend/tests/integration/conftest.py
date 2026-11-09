@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.auth.services.google import GoogleIdentity, get_google_verifier
 from app.core.config import settings
+from app.core.email import Email, get_email_sender
 from app.db.session import get_db
 from app.main import app
 
@@ -55,12 +56,21 @@ async def fake_verifier(token: str) -> GoogleIdentity:
 
 
 @pytest.fixture
-async def client(db: AsyncSession) -> AsyncIterator[AsyncClient]:
+def outbox() -> list[Email]:
+    return []
+
+
+@pytest.fixture
+async def client(db: AsyncSession, outbox: list[Email]) -> AsyncIterator[AsyncClient]:
+    async def _send(email: Email) -> None:
+        outbox.append(email)
+
     async def _get_db() -> AsyncIterator[AsyncSession]:
         yield db
 
     app.dependency_overrides[get_db] = _get_db
     app.dependency_overrides[get_google_verifier] = lambda: fake_verifier
+    app.dependency_overrides[get_email_sender] = lambda: _send
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()

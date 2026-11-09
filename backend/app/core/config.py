@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # Personal app: only these Google accounts may sign in. Empty means nobody (fail closed).
     ALLOWED_EMAILS: Annotated[list[str], NoDecode] = []
 
+    # Public URL of the app; magic links point here.
+    APP_URL: str = "http://localhost:8081"
+    MAGIC_LINK_MINUTES: int = 15
+    MAGIC_LINK_MAX_PER_WINDOW: int = 3
+
+    # Empty key: links are only logged (development). Resend's free tier covers personal use.
+    RESEND_API_KEY: str = ""
+    SENDER_EMAIL: str = "Daily Money <onboarding@resend.dev>"
+
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:8081"]
 
     @field_validator("GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", mode="before")

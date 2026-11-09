@@ -34,7 +34,7 @@ class User(UUIDPk, CreatedAt, Base):
 
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("family.id", ondelete="CASCADE"))
     email: Mapped[str] = mapped_column(String(320), unique=True)
-    google_sub: Mapped[str] = mapped_column(String(255), unique=True)
+    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True)
     name: Mapped[str] = mapped_column(String(200))
     picture_url: Mapped[str | None] = mapped_column(String(1000))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -1,41 +1,86 @@
 import { Redirect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { GoogleButton } from '@/components/GoogleButton';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts } from '@/theme';
 
 export default function LoginScreen() {
-  const { state, signInWithGoogle } = useAuth();
+  const { state, requestLink } = useAuth();
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const onIdToken = useCallback(
-    (idToken: string) => {
-      setBusy(true);
-      setError(null);
-      signInWithGoogle(idToken)
-        .catch((e: unknown) =>
-          setError(e instanceof ApiError ? e.message : 'Não foi possível entrar'),
-        )
-        .finally(() => setBusy(false));
-    },
-    [signInWithGoogle],
-  );
-
   if (state.status === 'signedIn') return <Redirect href="/" />;
+
+  const valid = /^\S+@\S+\.\S+$/.test(email.trim());
+
+  const submit = async () => {
+    if (!valid || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestLink(email.trim());
+      setSentTo(email.trim());
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Não foi possível enviar o link');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <View style={styles.page}>
       <View style={styles.card}>
         <Text style={styles.brand}>Daily Money</Text>
-        <Text style={styles.tagline}>Para onde vai o dinheiro da família, em real, dólar e euro.</Text>
-        <View style={styles.action}>
-          {busy ? <ActivityIndicator color={colors.ink} /> : <GoogleButton onIdToken={onIdToken} />}
-        </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <Text style={styles.tagline}>
+          Para onde vai o dinheiro da família, em real, dólar e euro.
+        </Text>
+
+        {sentTo ? (
+          <View style={styles.sent}>
+            <Text style={styles.sentTitle}>Confira seu e-mail</Text>
+            <Text style={styles.sentBody}>
+              Se {sentTo} tiver acesso, o link para entrar chega em instantes. Ele vale por 15
+              minutos.
+            </Text>
+            <Pressable onPress={() => setSentTo(null)} accessibilityRole="button">
+              <Text style={styles.link}>Usar outro e-mail</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.form}>
+            <Text style={styles.label}>E-MAIL</Text>
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              onSubmitEditing={submit}
+              placeholder="voce@exemplo.com"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              inputMode="email"
+              style={styles.input}
+              accessibilityLabel="E-mail"
+            />
+            <Pressable
+              onPress={submit}
+              disabled={!valid || busy}
+              accessibilityRole="button"
+              style={[styles.button, (!valid || busy) && styles.buttonDisabled]}
+            >
+              {busy ? (
+                <ActivityIndicator color={colors.page} />
+              ) : (
+                <Text style={styles.buttonText}>Enviar link para entrar</Text>
+              )}
+            </Pressable>
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -49,16 +94,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
-  card: { width: '100%', maxWidth: 360, alignItems: 'center' },
+  card: { width: '100%', maxWidth: 360 },
   brand: { fontFamily: fonts.semibold, fontSize: 28, color: colors.ink, letterSpacing: -0.3 },
   tagline: {
     fontFamily: fonts.regular,
     fontSize: 15,
     lineHeight: 22,
     color: colors.muted,
-    textAlign: 'center',
     marginTop: 8,
   },
-  action: { marginTop: 40, minHeight: 44, justifyContent: 'center' },
-  error: { fontFamily: fonts.regular, color: colors.danger, marginTop: 16, textAlign: 'center' },
+  form: { marginTop: 40 },
+  label: { fontFamily: fonts.medium, fontSize: 11, letterSpacing: 1.2, color: colors.muted },
+  input: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: colors.ink,
+  },
+  button: {
+    marginTop: 16,
+    backgroundColor: colors.ink,
+    borderRadius: 999,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  buttonDisabled: { opacity: 0.35 },
+  buttonText: { fontFamily: fonts.medium, fontSize: 15, color: colors.page },
+  error: { fontFamily: fonts.regular, color: colors.danger, marginTop: 12 },
+  sent: { marginTop: 40 },
+  sentTitle: { fontFamily: fonts.semibold, fontSize: 17, color: colors.ink },
+  sentBody: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
+    color: colors.muted,
+    marginTop: 8,
+  },
+  link: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink, marginTop: 20 },
 });

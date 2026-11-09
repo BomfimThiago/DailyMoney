@@ -11,7 +11,8 @@ type AuthState =
 
 interface AuthContextValue {
   state: AuthState;
-  signInWithGoogle: (idToken: string) => Promise<void>;
+  requestLink: (email: string) => Promise<void>;
+  signInWithLink: (token: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,10 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setState({ status: 'signedOut' }));
   }, []);
 
-  const signInWithGoogle = useCallback(async (idToken: string) => {
-    const tokens = await api<TokenPair>('/auth/google', {
+  const requestLink = useCallback(async (email: string) => {
+    await api('/auth/magic-link', { method: 'POST', body: JSON.stringify({ email }) });
+  }, []);
+
+  const signInWithLink = useCallback(async (token: string) => {
+    const tokens = await api<TokenPair>('/auth/magic-link/verify', {
       method: 'POST',
-      body: JSON.stringify({ id_token: idToken }),
+      body: JSON.stringify({ token }),
     });
     await saveTokens(tokens);
     setState({ status: 'signedIn', me: await api<Me>('/auth/me') });
@@ -48,8 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ state, signInWithGoogle, signOut }),
-    [state, signInWithGoogle, signOut],
+    () => ({ state, requestLink, signInWithLink, signOut }),
+    [state, requestLink, signInWithLink, signOut],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

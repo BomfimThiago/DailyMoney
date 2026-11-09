@@ -21,7 +21,9 @@ async def login_with_google(db: AsyncSession, identity: GoogleIdentity) -> User:
     if user is None:
         user = await db.scalar(select(User).where(User.email == identity.email))
     if user is None:
-        user = await _create_user_with_family(db, identity)
+        user = await _create_user_with_family(
+            db, identity.email, identity.name, identity.sub, identity.picture
+        )
     else:
         user.google_sub = identity.sub
         user.email = identity.email
@@ -31,17 +33,32 @@ async def login_with_google(db: AsyncSession, identity: GoogleIdentity) -> User:
     return user
 
 
-async def _create_user_with_family(db: AsyncSession, identity: GoogleIdentity) -> User:
-    first_name = identity.name.split()[0]
+async def login_with_email(db: AsyncSession, email: str) -> User:
+    email = email.lower()
+    if email not in settings.ALLOWED_EMAILS:
+        raise ForbiddenError("Este e-mail não tem acesso ao Daily Money")
+    user = await db.scalar(select(User).where(User.email == email))
+    if user is None:
+        name = email.split("@")[0].split(".")[0].capitalize()
+        user = await _create_user_with_family(db, email, name, None, None)
+    user.last_login_at = datetime.now(UTC)
+    await db.flush()
+    return user
+
+
+async def _create_user_with_family(
+    db: AsyncSession, email: str, name: str, google_sub: str | None, picture: str | None
+) -> User:
+    first_name = name.split()[0]
     family = Family(name=f"Família de {first_name}")
     db.add(family)
     await db.flush()
     user = User(
         family_id=family.id,
-        email=identity.email,
-        google_sub=identity.sub,
-        name=identity.name,
-        picture_url=identity.picture,
+        email=email,
+        google_sub=google_sub,
+        name=name,
+        picture_url=picture,
     )
     db.add(user)
     await db.flush()

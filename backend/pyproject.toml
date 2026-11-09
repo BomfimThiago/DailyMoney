@@ -13,6 +13,8 @@ dependencies = [
     "google-auth>=2.36",
     "requests>=2.32",
     "pyjwt>=2.10",
+    "httpx>=0.28",
+    "email-validator>=2.2",
 ]
 
 [dependency-groups]

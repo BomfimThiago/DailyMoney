@@ -2,10 +2,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from app.auth.schemas import GoogleLoginRequest, RefreshRequest, TokenPair
-from app.auth.services import auth_service
+from app.auth.schemas import (
+    GoogleLoginRequest,
+    MagicLinkRequest,
+    MagicLinkVerify,
+    RefreshRequest,
+    TokenPair,
+)
+from app.auth.services import auth_service, magic_link
 from app.auth.services.google import GoogleVerifier, get_google_verifier
 from app.core.deps import CurrentUser, DbSession
+from app.core.email import EmailSender, get_email_sender
 from app.families.schemas import FamilyOut, MeOut
 from app.families.services import family_service
 
@@ -20,6 +27,26 @@ async def login_google(
 ) -> TokenPair:
     identity = await verify(body.id_token)
     user = await auth_service.login_with_google(db, identity)
+    tokens = await auth_service.issue_tokens(db, user.id)
+    await db.commit()
+    return tokens
+
+
+@router.post("/magic-link", status_code=status.HTTP_202_ACCEPTED)
+async def request_magic_link(
+    body: MagicLinkRequest,
+    db: DbSession,
+    send: Annotated[EmailSender, Depends(get_email_sender)],
+) -> dict[str, str]:
+    await magic_link.request_link(db, body.email, send)
+    await db.commit()
+    return {"detail": "Se o e-mail tiver acesso, o link chega em instantes."}
+
+
+@router.post("/magic-link/verify", response_model=TokenPair)
+async def verify_magic_link(body: MagicLinkVerify, db: DbSession) -> TokenPair:
+    email = await magic_link.consume_link(db, body.token)
+    user = await auth_service.login_with_email(db, email)
     tokens = await auth_service.issue_tokens(db, user.id)
     await db.commit()
     return tokens
