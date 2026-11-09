@@ -1,6 +1,6 @@
 # Daily Money on the Hetzner box, isolated from Raíces: own project, own Postgres.
-# Only the API and the web app join Raíces' network (raices_default) so Raíces' Caddy can reach it;
-# this stack publishes no ports.
+# Only the API and the web app join Raíces' network (raices_default) so Raíces' Caddy
+# can reach them; this stack publishes no ports.
 #
 #   infra/deploy.sh   (from the Mac)
 
@@ -17,20 +17,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://dailymoney:${POSTGRES_PASSWORD}@db:5432/dailymoney
     depends_on:
-      web:
-    build:
-      context: ../app
-    image: dailymoney-web
-    container_name: dailymoney-web
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 64m
-    networks:
-      - edge
-
-  db:
+      db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
@@ -43,6 +30,19 @@ services:
           memory: 512m
     networks:
       - default
+      - edge
+
+  web:
+    build:
+      context: ../app
+    image: dailymoney-web
+    container_name: dailymoney-web
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+    networks:
       - edge
 
   db:
