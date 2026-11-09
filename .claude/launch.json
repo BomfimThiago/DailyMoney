@@ -1,0 +1,27 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["storybook", "dev", "--no-open", "--ci", "-p", "6006"],
+      "port": 6006,
+      "autoPort": false
+    },
+    {
+      "name": "design-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "require('http').createServer((q,s)=>{s.writeHead(200,{'content-type':'text/html; charset=utf-8'});require('fs').createReadStream('design/mock/index.html').pipe(s)}).listen(process.env.PORT||4180)"
+      ],
+      "port": 4180
+    }
+  ]
+}

@@ -1,0 +1,427 @@
+// Daily Money — household multi-currency finance tracker.
+// Money is always Decimal (never float). AI output never writes straight to
+// Transaction; it lands in StagedTransaction and is committed after review.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Currency {
+  BRL
+  USD
+  EUR
+}
+
+enum TxType {
+  EXPENSE
+  INCOME
+  TRANSFER
+}
+
+enum TxState {
+  COMPLETED
+  PENDING
+}
+
+enum CategoryKind {
+  EXPENSE
+  INCOME
+  /// Movimentação: dinheiro que só muda de lugar (entre contas suas, investimento,
+  /// pagamento de cartão). Transação nessa categoria fica fora de Gastos e Entradas.
+  TRANSFER
+}
+
+enum MemberKind {
+  ME
+  SPOUSE
+  FAMILY
+  OTHER
+}
+
+/// Como uma linha da revisão se relaciona com o que já está gravado.
+enum StagedMatch {
+  NEW // não existe: será criada
+  SAME // já existe igual: nada muda
+  UPDATE // já existe com valores diferentes: será corrigida
+  DUPLICATE // já está em Transações vinda de OUTRA fonte (arquivo × banco conectado): não entra
+}
+
+enum UploadStatus {
+  PENDING
+  PARSING
+  STAGED
+  COMMITTED
+  FAILED
+}
+
+enum RuleMatchType {
+  MERCHANT
+  KEYWORD
+  REGEX
+}
+
+enum ProfileSource {
+  AI
+  USER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String
+  /// Dia em que o mês financeiro começa (1–28; 1 = mês do calendário). Ver src/lib/period.ts.
+  monthStartDay Int      @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  members       Member[]
+  categories    Category[]
+  uploads       Upload[]
+  transactions  Transaction[]
+  resetTokens   PasswordResetToken[]
+  refreshTokens RefreshToken[]
+  categoryRules CategoryRule[]
+  connections   BankConnection[]
+  investments   Investment[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Member {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      MemberKind @default(OTHER)
+  color     String     @default("#64748b")
+  createdAt DateTime   @default(now())
+
+  transactions Transaction[]
+
+  @@unique([userId, name])
+}
+
+model Category {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      CategoryKind
+  isDefault Boolean      @default(false)
+  color     String       @default("#64748b")
+  icon      String?
+  createdAt DateTime     @default(now())
+
+  transactions       Transaction[]
+  stagedTransactions StagedTransaction[]
+  rules              CategoryRule[]
+
+  @@unique([userId, name, kind])
+}
+
+model CategoryRule {
+  id         String        @id @default(cuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  matchType  RuleMatchType @default(MERCHANT)
+  pattern    String
+  weight     Int           @default(1)
+  source     ProfileSource @default(USER)
+  hitCount   Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+}
+
+model Upload {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename       String
+  mime           String
+  sizeBytes      Int
+  status         UploadStatus    @default(PENDING)
+  detectedFormat String?
+  error          String?
+  rawStoragePath String?
+  bank           String?
+  /// SHA-256 do arquivo: o mesmo arquivo enviado de novo substitui a importação anterior.
+  contentHash    String?
+  /// Sincronização de banco (Pluggy): a conexão que gerou esta importação.
+  connectionId   String?
+  connection     BankConnection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  /// O que esta importação cobre a partir desta data. Ao confirmar, só some o que é desse
+  /// período em diante e não veio mais (o banco só devolve os últimos 12 meses).
+  coversFrom     DateTime?
+  /// A leitura teve linhas ilegíveis: ao confirmar, nada desta fonte é removido (a linha
+  /// que falhou desta vez pode ser uma já gravada, e sumir com ela perderia dinheiro).
+  partialRead    Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  staged       StagedTransaction[]
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([userId, contentHash])
+}
+
+// AI/parser output lands here first. Reviewed, edited, then committed to Transaction.
+/// Banco conectado por Open Finance: Pluggy (Meu Pluggy, Brasil) ou Enable Banking (Europa,
+/// modo restrito), ambos de uso pessoal. Cada sincronização vira uma importação (uma por
+/// conta do banco) que passa pela Revisão, como um arquivo.
+model BankConnection {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "pluggy" | "enablebanking"
+  provider         String    @default("pluggy")
+  /// Pluggy: id do item (Applications › Demo › Connected Items).
+  /// Enable Banking: id da sessão autorizada (muda a cada nova autorização).
+  itemId           String
+  bank             String
+  /// Enable Banking: o banco na API (nome e país), para autorizar de novo.
+  aspspName        String?
+  aspspCountry     String?
+  /// Enable Banking: as contas autorizadas na sessão (uid da sessão + hash fixo da conta).
+  accounts         Json?
+  /// Só entram transações desta data em diante: o que é anterior já veio por arquivo.
+  syncFrom         DateTime
+  consentExpiresAt DateTime?
+  lastSyncAt       DateTime?
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  uploads     Upload[]
+  investments Investment[]
+
+  @@unique([userId, itemId])
+}
+
+/// Investimento (posição) de um banco conectado, como o banco informa a cada sincronização.
+/// São saldos, não transações: não passam pela Revisão nem entram em Transações (a
+/// aplicação e o resgate já aparecem na conta como movimentação). Lidos sem IA.
+model Investment {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connectionId    String
+  connection      BankConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  /// Id da posição no serviço (Pluggy).
+  externalId      String
+  bank            String
+  name            String
+  /// FIXED_INCOME | SECURITY | MUTUAL_FUND | EQUITY | ETF | COE | OTHER
+  type            String
+  /// CDB, LCI, TREASURY, STOCK, REAL_ESTATE_FUND…
+  subtype         String?
+  issuer          String?
+  /// Código na bolsa (ações, FIIs, ETFs) ou do título.
+  code            String?
+  currency        Currency
+  /// Saldo líquido (depois de IR e taxas), no dia `valueDate`.
+  balance         Decimal        @db.Decimal(18, 4)
+  balanceBRL      Decimal        @db.Decimal(18, 4)
+  balanceUSD      Decimal        @db.Decimal(18, 4)
+  balanceEUR      Decimal        @db.Decimal(18, 4)
+  /// Quanto foi aplicado (o banco nem sempre informa).
+  amountOriginal  Decimal?       @db.Decimal(18, 4)
+  /// Remuneração contratada: "100% do CDI" = rate 100, rateType CDI; "+ 5% a.a." = fixedAnnualRate 5.
+  rate            Decimal?       @db.Decimal(12, 4)
+  rateType        String?
+  fixedAnnualRate Decimal?       @db.Decimal(12, 4)
+  dueDate         DateTime?
+  /// ACTIVE | PENDING | TOTAL_WITHDRAWAL (resgatado) | GONE (o banco parou de informar)
+  status          String
+  /// Dia a que o saldo se refere.
+  valueDate       DateTime
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  snapshots InvestmentSnapshot[]
+
+  @@unique([connectionId, externalId])
+  @@index([userId, status])
+}
+
+/// Saldo de um investimento em um dia (um por dia; a última sincronização do dia vale).
+/// A Pluggy só informa o saldo de hoje: o histórico começa na primeira sincronização.
+model InvestmentSnapshot {
+  id           String     @id @default(cuid())
+  investmentId String
+  investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  date         DateTime
+  balance      Decimal    @db.Decimal(18, 4)
+  balanceBRL   Decimal    @db.Decimal(18, 4)
+  balanceUSD   Decimal    @db.Decimal(18, 4)
+  balanceEUR   Decimal    @db.Decimal(18, 4)
+
+  @@unique([investmentId, date])
+}
+
+model StagedTransaction {
+  id         String    @id @default(cuid())
+  uploadId   String
+  upload     Upload    @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  bank       String?
+  memberId   String?
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  date               DateTime
+  description        String
+  merchantRaw        String?
+  type               TxType
+  baseCurrency       Currency
+  baseAmount         Decimal  @db.Decimal(18, 4)
+  feeAmount          Decimal  @default(0) @db.Decimal(18, 4)
+  state              TxState  @default(COMPLETED)
+  isInternalTransfer Boolean  @default(false)
+  /// Conta do banco de onde veio (banco conectado): "Conta corrente", "Cartão de crédito"…
+  account            String?
+  /// Compra no cartão de crédito: na lista, as compras do cartão ficam juntas numa linha.
+  isCard             Boolean  @default(false)
+  /// Mês da fatura do cartão (yyyy-mm) em que a compra cai.
+  cardBill           String?
+  /// Parcela da compra no cartão ("3/10").
+  installment        String?
+
+  confidence            Float       @default(1)
+  needsReview           Boolean     @default(false)
+  reviewReason          String?
+  sourceRowRaw          String?
+  dedupeHash            String
+  /// Identidade da linha no arquivo (CSV/XLSX), independente do que o leitor extraiu dela.
+  sourceKey             String?
+  /// Transação já gravada que esta linha vai atualizar (reimportação); null = nova.
+  existingTransactionId String?
+  match                 StagedMatch @default(NEW)
+  /// Transação de OUTRA fonte que parece ser esta linha (ver ingest/cross-source.ts).
+  /// Com match DUPLICATE ela não entra; com NEW o usuário decide na revisão. Nunca é
+  /// alterada por esta importação (fontes não se sobrescrevem).
+  duplicateOfId         String?
+
+  createdAt DateTime @default(now())
+
+  @@index([uploadId])
+  @@index([dedupeHash])
+}
+
+model Transaction {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadId   String?
+  upload     Upload?   @relation(fields: [uploadId], references: [id], onDelete: SetNull)
+  bank       String?
+  memberId   String?
+  member     Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  date               DateTime
+  description        String
+  merchantRaw        String?
+  type               TxType
+  state              TxState  @default(COMPLETED)
+  isInternalTransfer Boolean  @default(false)
+  /// Conta do banco de onde veio (banco conectado): "Conta corrente", "Cartão de crédito"…
+  account            String?
+  /// Compra no cartão de crédito: na lista, as compras do cartão ficam juntas numa linha.
+  isCard             Boolean  @default(false)
+  /// Mês da fatura do cartão (yyyy-mm) em que a compra cai.
+  cardBill           String?
+  /// Parcela da compra no cartão ("3/10").
+  installment        String?
+
+  baseCurrency Currency
+  baseAmount   Decimal  @db.Decimal(18, 4)
+  amountBRL    Decimal  @db.Decimal(18, 4)
+  amountUSD    Decimal  @db.Decimal(18, 4)
+  amountEUR    Decimal  @db.Decimal(18, 4)
+  feeAmount    Decimal  @default(0) @db.Decimal(18, 4)
+
+  fxRateDate       DateTime?
+  fxSource         String?
+  manualFxOverride Boolean   @default(false)
+
+  dedupeHash String
+  /// Identidade da linha de origem (ver StagedTransaction.sourceKey).
+  sourceKey  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, dedupeHash])
+  @@index([userId, sourceKey])
+  @@index([userId, date])
+  @@index([userId, type])
+  @@index([userId, isCard, date])
+  @@index([categoryId])
+}
+
+// Cached FX rates (Frankfurter/ECB). rate = 1 base -> quote on `date`.
+model FxRate {
+  id     String   @id @default(cuid())
+  date   DateTime @db.Date
+  base   Currency
+  quote  Currency
+  rate   Decimal  @db.Decimal(18, 8)
+  source String   @default("frankfurter")
+
+  @@unique([date, base, quote])
+}
+
+// Adaptive tabular mapping. AI infers layout once per header fingerprint; the
+// deterministic applier reuses it for every row (AI never reads the numbers).
+model FormatProfile {
+  id                String        @id @default(cuid())
+  userId            String
+  headerFingerprint String        @unique
+  delimiter         String
+  columnRoles       Json
+  decimalSeparator  String
+  dateFormat        String
+  signConvention    String        @default("negative_is_expense")
+  defaultCurrency   Currency?
+  source            ProfileSource @default(AI)
+  sampleRaw         String?
+  confirmedByUser   Boolean       @default(false)
+  hitCount          Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([userId])
+}

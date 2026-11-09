@@ -1,0 +1,13 @@
+#!/bin/sh
+# Antes de cada commit: nada de segredo ou extrato real no git, e o harness inteiro verde.
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+bad=$(printf '%s\n' "$staged" | grep -E '(^|/)\.env($|\.)|^\.secrets/|\.pem$|^fixtures/|^storage/|^receipts/|\.(pdf|ofx|xlsx|csv)$' | grep -v '\.env\.example$' || true)
+if [ -n "$bad" ]; then
+  echo "Commit bloqueado: segredo ou extrato real no commit:" >&2
+  printf '  %s\n' $bad >&2
+  exit 1
+fi
+
+npm run -s check

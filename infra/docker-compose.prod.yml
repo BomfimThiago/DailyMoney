@@ -1,0 +1,105 @@
+# Daily Money — stack de produção na VPS Hetzner (compartilha a box do raices).
+#
+# O Caddy do raices (ports 80/443) faz o TLS e reverse-proxy para `daily-money-app`
+# via a network externa `raices_default`. Este compose NÃO expõe 80/443.
+#
+# Deploy (na VPS, como raices):
+#   cd /opt/daily-money
+#   docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml up -d --build
+#
+# O build usa a RAIZ do repo como contexto (Dockerfile na raiz).
+
+name: daily-money
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: daily-money-app
+    container_name: daily-money-app
+    restart: unless-stopped
+    env_file: .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/storage/uploads
+    networks:
+      - default # fala com o postgres e o ollama
+      - edge # alcançável pelo Caddy do raices
+
+  # Ollama local (grátis, sem chave) para extração por IA de PDFs/imagens.
+  # CPU-only nesta box compartilhada com o raices → limitamos CPU/RAM para a
+  # inferência não sufocar o raices. Modelo baixado no 1º deploy (ver README).
+  ollama:
+    image: ollama/ollama:latest
+    container_name: daily-money-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama # persiste os modelos baixados
+    environment:
+      # Limita a quantidade de modelos carregados em memória simultaneamente.
+      OLLAMA_MAX_LOADED_MODELS: "1"
+      OLLAMA_KEEP_ALIVE: "10m"
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0" # metade dos 8 vCPUs — deixa folga para o raices
+          memory: 6g
+    networks:
+      - default
+
+  # Rotina diária: sincroniza os bancos conectados (Pluggy). A Pluggy atualiza cada banco
+  # 1x por dia; às 10h (Brasília) os dados do dia anterior já chegaram. Chama a rota
+  # /api/cron/sync com o segredo CRON_SECRET (vazio = rota desligada, nada acontece).
+  cron:
+    image: alpine:3.20
+    container_name: daily-money-cron
+    restart: unless-stopped
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-}
+      TZ: America/Sao_Paulo
+    command:
+      - sh
+      - -c
+      - |
+        apk add --no-cache tzdata >/dev/null
+        # o segredo é expandido agora (o crond não repassa o ambiente do contêiner às tarefas)
+        echo "0 10 * * * wget -q -O - --header 'x-cron-secret: $$CRON_SECRET' --post-data '' http://daily-money-app:3000/api/cron/sync >> /proc/1/fd/1 2>&1" > /etc/crontabs/root
+        exec crond -f -l 8
+    depends_on:
+      - app
+    networks:
+      - default
+
+  db:
+    image: postgres:16-alpine
+    container_name: daily-money-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dailymoney}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env.prod}
+      POSTGRES_DB: ${POSTGRES_DB:-dailymoney}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dailymoney}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+volumes:
+  pgdata:
+  uploads:
+  ollama:
+
+networks:
+  default:
+  edge:
+    external: true
+    name: raices_default

@@ -1,0 +1,11 @@
+# Bloco a ADICIONAR no Caddyfile do raices
+# (~/Documents/raices/infra/caddy/Caddyfile) para expor o Daily Money.
+#
+# Hostname via sslip.io: money.91.98.93.31.sslip.io → resolve p/ 91.98.93.31,
+# então o Let's Encrypt (HTTP-01) emite TLS sem precisar de domínio próprio.
+# Requer que o container daily-money-app esteja na network raices_default.
+
+money.91.98.93.31.sslip.io {
+	encode gzip
+	reverse_proxy daily-money-app:3000
+}

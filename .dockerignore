@@ -1,0 +1,26 @@
+node_modules
+.next
+.git
+.env
+.env*.local
+.mcp.json
+npm-debug.log*
+*.md
+tsconfig.tsbuildinfo
+
+# Dados de amostra / extratos — não entram na imagem
+receipts/
+storage/
+*.pdf
+*.csv
+*.xlsx
+
+# Segredos e dados pessoais: nem no estágio de build da imagem
+infra/.env.prod*
+.env.prod*
+.secrets/
+*.pem
+fixtures/
+.e2e-output/
+.claude/
+storybook-static/

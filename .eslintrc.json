@@ -1,0 +1,76 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "@next/next/no-img-element": "off"
+  },
+  "overrides": [
+    {
+      "files": ["src/app/**/*.tsx"],
+      "plugins": ["@typescript-eslint"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@radix-ui/*", "cmdk", "class-variance-authority"],
+                "message": "Telas só montam componentes de @/components/ui e @/components/finance. Faltou um? Crie lá, com story."
+              }
+            ]
+          }
+        ],
+        "@typescript-eslint/no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@tanstack/react-query",
+                "message": "Telas buscam/alteram dados só por hooks de @/hooks."
+              },
+              {
+                "name": "@/hooks/api-client",
+                "importNames": ["api"],
+                "message": "Telas buscam/alteram dados só por hooks de @/hooks."
+              }
+            ]
+          }
+        ],
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "JSXAttribute[name.name='style']",
+            "message": "Sem style inline em telas: use componentes e tokens."
+          },
+          {
+            "selector": "Literal[value=/#[0-9a-fA-F]{3,8}\\b/]",
+            "message": "Sem cor hex em telas: use tokens (bg-primary, text-subtle…)."
+          },
+          {
+            "selector": "Literal[value=/\\b(bg|text|border|ring|fill|stroke|from|to|via|outline|divide)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white)(-\\d{2,3})?\\b/]",
+            "message": "Sem cores da paleta padrão do Tailwind: use tokens (success, warning, destructive, transfer, muted…)."
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/lib/**/*.ts", "src/lib/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/components/*", "@/app/*", "@/hooks", "@/hooks/*"],
+                "message": "src/lib é servidor e funções puras: não importa telas, componentes nem hooks do navegador."
+              },
+              {
+                "group": ["react", "react-dom", "@tanstack/*"],
+                "message": "src/lib não usa React: hooks de tela ficam em src/hooks."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

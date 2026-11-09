@@ -1,0 +1,14 @@
+.next
+node_modules
+fixtures
+storage
+receipts
+storybook-static
+.e2e-output
+.taste-skill
+.claude/skills
+.claude/worktrees
+design
+prisma/migrations
+package-lock.json
+*.md

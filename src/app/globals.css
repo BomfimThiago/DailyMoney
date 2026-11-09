@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Daily Money — design tokens (v3.1: tasteskill pastel-consumer em folha branca; antes: v2 branco com sombra).
+ * Telas NUNCA usam cor solta: só estes tokens via classes do Tailwind
+ * (bg-primary, text-muted-foreground, shadow-surface…). Ver src/components/ui.
+ */
+@layer base {
+  :root {
+    /*
+     * v3.1 — tasteskill "Pastel consumer" (seed 2145661125) sobre fundo branco ("folha branca",
+     * modelo do estudo de telas da Taste): cartões brancos sem sombra (1px de borda), um cobalto
+     * só em dados e na ação principal, tintas pálidas das cores do banco em categorias e
+     * responsáveis, Manrope em tudo.
+     */
+    /* Superfícies (v3.1 "folha branca"): área de trabalho branca; a barra lateral é a segunda
+       camada neutra (quase imperceptível, com linha fina); cartões brancos com borda clara. */
+    --background: 0 0% 100%; /* #FFFFFF área de trabalho */
+    --sidebar: 210 20% 97.3%; /* #F6F8F9 barra lateral e topo do celular */
+    --sidebar-border: 210 14% 92.5%; /* #EAEDF0 linha da barra lateral */
+    --card: 0 0% 100%;
+    --card-border: 210 14% 91%; /* #E6E9EC borda de cartão */
+    --muted: 210 20% 97.3%; /* #F6F8F9 faixas (cabeçalho de tabela, dias), hover */
+    --field: 0 0% 100%; /* controles: sempre brancos */
+    --foreground: 210 7% 11.4%; /* #1B1D1F tinta */
+    --card-foreground: 210 7% 11.4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 7% 11.4%;
+
+    --primary: 219 76% 47.6%; /* #1D5FD6 cobalto: dado principal + 1 ação */
+    --primary-foreground: 0 0% 100%;
+    --primary-soft: 204 100% 93.1%; /* #DCF1FF */
+    --primary-ink: 216 86% 27.1%; /* #0A3A80 */
+
+    --secondary: 210 21% 94.5%; /* #EEF1F4 afundado, pílula ativa */
+    --secondary-foreground: 210 7% 11.4%;
+    --muted-foreground: 210 4% 37.6%; /* #5C6064 texto secundário (6,3:1) */
+    --subtle: 210 4% 42.4%; /* #686C70 meta, legendas (4,8:1 no chão) */
+    --accent: 210 21% 94.5%;
+    --accent-foreground: 210 7% 11.4%;
+
+    --destructive: 355 75% 43.9%; /* #C41C29 só erros e mudanças ruins */
+    --destructive-foreground: 0 0% 100%;
+    --destructive-soft: 9 100% 95.9%; /* #FFEDEA */
+    --success: 138 44% 33.1%; /* #2F7A45 dinheiro que entra */
+    --success-foreground: 0 0% 100%;
+    --success-soft: 138 75% 92.2%; /* #DCFAE5 */
+    --warning: 23 82% 31.4%; /* #92400E pede ação / revisar */
+    --warning-soft: 48 100% 96.1%; /* #FFFBEB */
+    --transfer: 189 57% 30%; /* #21707E transferência interna, IA (era índigo) */
+    --transfer-soft: 189 51% 92%; /* #E0F2F5 */
+
+    --border: 0 0% 90.2%; /* #E6E6E6 divisórias e linhas (o cartão usa --card-border) */
+    --input: 214 9% 85.3%; /* #D6D9DD borda clara (divisória de controle, badge) */
+    --control-border: 214 9% 58%; /* #8A939E contorno de campo, checkbox e switch: 3,1:1 no branco (WCAG 1.4.11) */
+    --ring: 219 76% 47.6%;
+    --radius: 10px; /* controles 10 · cartões 20 · internos 8 e 5 */
+
+    /* Títulos e números grandes: a mesma Manrope. */
+    --font-display: var(--font-sans), "Manrope", system-ui, sans-serif;
+    --display-weight: 600;
+    --display-tracking: -0.02em;
+    --display-xl: 28px; /* título da página */
+    --display-lg: 32px; /* número que responde a tela */
+    --display-md: 24px; /* números irmãos */
+    --display-sm: 20px; /* título de card (peso regular) */
+  }
+
+  /* Ícones Lucide com traço fino e uniforme. */
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    /* tnum: números alinhados em tudo */
+    font-feature-settings: "tnum" 1;
+  }
+
+  /* Toque: sem o atraso de 300ms do duplo-toque em botões e links. */
+  a,
+  button,
+  [role="button"],
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  /* Reduzir movimento: mantém os fades (dão contexto), tira deslocamento e escala. */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-in,
+    .animate-out {
+      --tw-enter-scale: 1 !important;
+      --tw-enter-translate-x: 0 !important;
+      --tw-enter-translate-y: 0 !important;
+      --tw-exit-scale: 1 !important;
+      --tw-exit-translate-x: 0 !important;
+      --tw-exit-translate-y: 0 !important;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+    }
+    .animate-spin {
+      animation-iteration-count: infinite !important;
+    }
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+    font-weight: var(--display-weight);
+    letter-spacing: var(--display-tracking);
+  }
+}
