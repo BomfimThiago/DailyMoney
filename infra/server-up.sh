@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs on the server from /opt/dailymoney (called by deploy.sh).
+# Runs on the server from /home/raices/dailymoney (called by deploy.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

@@ -54,7 +54,7 @@ nas configurações. O login com Google já existe na API e entra no app depois.
 
 ## Deploy
 
-Projeto Docker `dailymoney` em `/opt/dailymoney` no servidor do Raíces, com Postgres
+Projeto Docker `dailymoney` em `/home/raices/dailymoney` no servidor do Raíces, com Postgres
 próprio. Só a API entra na rede `raices_default` para o Caddy do Raíces alcançá-la.
 
 1. Uma vez: copiar `infra/.env.prod.example` para `infra/.env.prod` e preencher.

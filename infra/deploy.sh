@@ -5,7 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 host="${DEPLOY_HOST:-raices@91.98.93.31}"
-dir=/opt/dailymoney
+# /opt is root-only on the server; the app lives in the deploy user's home.
+dir="${DEPLOY_DIR:-/home/raices/dailymoney}"
 
 rsync -az --delete \
   --exclude .git --exclude node_modules --exclude .venv --exclude .expo --exclude dist \
