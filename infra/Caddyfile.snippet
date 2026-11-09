@@ -1,0 +1,13 @@
+# Block to ADD to Raíces' Caddyfile (/opt/raices/infra/caddy/Caddyfile), then reload Caddy.
+# sslip.io resolves dm.91.98.93.31.sslip.io to the server, so Let's Encrypt issues TLS
+# without a domain of our own. The old app keeps money.91.98.93.31.sslip.io.
+
+dm.91.98.93.31.sslip.io {
+	encode gzip
+	handle /api/* {
+		reverse_proxy dailymoney-api:8000
+	}
+	handle {
+		respond "Daily Money" 200
+	}
+}

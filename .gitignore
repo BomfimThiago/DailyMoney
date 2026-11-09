@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+!infra/.env.prod.example
+infra/.env.prod
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+node_modules/
+# Real bank statements used by parser tests stay local, never in git.
+fixtures/

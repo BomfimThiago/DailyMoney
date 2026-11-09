@@ -1,0 +1,49 @@
+# Daily Money
+
+Finanças da família em BRL, USD e EUR: importa extratos, categoriza sozinho e mostra
+para onde o dinheiro vai. App Expo (iPhone, Android e web) + API em Python.
+
+O código do app antigo (Next.js) está na branch `legado`, como referência para portar
+leitores de extrato, deduplicação, câmbio e bancos conectados.
+
+## Estrutura
+
+```
+backend/   API FastAPI (Python 3.12, SQLAlchemy 2, Alembic, uv)
+app/       App Expo (em breve)
+infra/     Deploy no Hetzner, ao lado do Raíces
+```
+
+## Rodar a API localmente
+
+```bash
+cd backend
+cp .env.example .env            # preencha GOOGLE_CLIENT_IDS e ALLOWED_EMAILS
+uv sync
+uv run alembic upgrade head     # Postgres 16 em localhost:5432
+uv run uvicorn app.main:app --reload
+```
+
+## Testes
+
+```bash
+cd backend
+uv run pytest --cov=app         # precisa do banco dailymoney_test em localhost:5432
+uv run ruff check app tests && uv run mypy app tests
+```
+
+## Login
+
+Só Google. A API confere o token do Google (aceita os client ids de web, iOS e Android
+em `GOOGLE_CLIENT_IDS`) e só deixa entrar os e-mails de `ALLOWED_EMAILS`. O primeiro
+login cria a família com um único membro; os outros membros são adicionados nas
+configurações.
+
+## Deploy
+
+Projeto Docker `dailymoney` em `/opt/dailymoney` no servidor do Raíces, com Postgres
+próprio. Só a API entra na rede `raices_default` para o Caddy do Raíces alcançá-la.
+
+1. Uma vez: copiar `infra/.env.prod.example` para `infra/.env.prod` e preencher.
+2. Uma vez, com o ok do dono: adicionar `infra/Caddyfile.snippet` ao Caddyfile do Raíces.
+3. A cada versão: `infra/deploy.sh`.

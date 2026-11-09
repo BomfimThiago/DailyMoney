@@ -1,0 +1,32 @@
+name: backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dailymoney
+          POSTGRES_PASSWORD: dailymoney
+          POSTGRES_DB: dailymoney_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dailymoney" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - run: uv run ruff check app tests
+      - run: uv run ruff format --check app tests
+      - run: uv run mypy app tests
+      - run: uv run pytest --cov=app --cov-fail-under=80
