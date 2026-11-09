@@ -10,7 +10,7 @@ leitores de extrato, deduplicação, câmbio e bancos conectados.
 
 ```
 backend/   API FastAPI (Python 3.12, SQLAlchemy 2, Alembic, uv)
-app/       App Expo (em breve)
+app/       App Expo (iPhone, Android e web; hoje: tela de login e início provisório)
 infra/     Deploy no Hetzner, ao lado do Raíces
 ```
 
@@ -23,6 +23,18 @@ uv sync
 uv run alembic upgrade head     # Postgres 16 em localhost:5432
 uv run uvicorn app.main:app --reload
 ```
+
+## Rodar o app localmente
+
+```bash
+cd app
+cp .env.example .env            # EXPO_PUBLIC_API_URL=http://localhost:8000
+npm install
+npx expo start --web
+```
+
+O login do Google no celular precisa de um build de desenvolvimento (não roda no
+Expo Go); por enquanto o login é pelo navegador.
 
 ## Testes
 

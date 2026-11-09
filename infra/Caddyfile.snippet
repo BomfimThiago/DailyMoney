@@ -8,6 +8,6 @@ dm.91.98.93.31.sslip.io {
 		reverse_proxy dailymoney-api:8000
 	}
 	handle {
-		respond "Daily Money" 200
+		reverse_proxy dailymoney-web:80
 	}
 }

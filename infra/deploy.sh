@@ -10,7 +10,7 @@ git fetch --quiet origin
 git reset --hard "origin/${DEPLOY_BRANCH:-main}"
 
 compose=(docker compose --env-file infra/.env.prod -f infra/docker-compose.prod.yml)
-"${compose[@]}" build api
+"${compose[@]}" build api web
 "${compose[@]}" up -d --remove-orphans
 
 for _ in $(seq 1 30); do
