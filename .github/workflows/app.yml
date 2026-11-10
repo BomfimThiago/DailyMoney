@@ -23,3 +23,13 @@ jobs:
       - run: npm run format:check
       - run: npx tsc --noEmit
       - run: npx expo export --platform web --output-dir dist
+      - name: UI check (web)
+        run: |
+          npm install -g playwright@1.63.0
+          playwright install --with-deps chromium
+          DIST=dist OUT=ui-check npm run check:ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-check-web
+          path: app/ui-check
