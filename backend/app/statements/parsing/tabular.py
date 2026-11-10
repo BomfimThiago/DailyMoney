@@ -116,7 +116,11 @@ def _read_row(
     amount = _to_decimal(amount_cell, decimal_sep)
     if layout and layout.layout.invert_sign:
         amount = -amount
-    description = re.sub(r"\s+", " ", _text(_cell(cells, columns.description))).strip()
+    if layout and layout.describe:
+        description = layout.describe(texts)
+    else:
+        description = _text(_cell(cells, columns.description))
+    description = re.sub(r"\s+", " ", description).strip()
     if not description:
         raise ValueError("Linha sem descrição")
     return ParsedRow(

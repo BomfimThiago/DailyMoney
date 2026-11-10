@@ -5,7 +5,7 @@ _KNOWN: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"revolut", re.I), "Revolut"),
     (re.compile(r"\bwise\b|transferwise", re.I), "Wise"),
     (re.compile(r"caixa\s*bank|\bla\s*caixa\b", re.I), "CaixaBank"),
-    (re.compile(r"\bbanco\s+inter\b|\binter\s*&?\s*co\b", re.I), "Inter"),
+    (re.compile(r"\bbanco\s+inter\b|\binter\s*&?\s*co\b|intermedium", re.I), "Inter"),
     (re.compile(r"nubank|nu\s+pagamentos", re.I), "Nubank"),
     (re.compile(r"\bbbva\b", re.I), "BBVA"),
     (re.compile(r"santander", re.I), "Santander"),

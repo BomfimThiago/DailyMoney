@@ -1,5 +1,6 @@
 """One entry point for every statement file: picks the reader by content."""
 
+import re
 from dataclasses import replace
 from datetime import date, datetime
 from io import BytesIO
@@ -12,17 +13,26 @@ from app.statements.parsing.tabular import Cell, read_csv, read_grid
 from app.statements.parsing.types import ParsedStatement
 
 MAX_BYTES = 10 * 1024 * 1024
+# Inter writes the payer's bank code into Pix descriptions: 'Pix recebido: "Cp :1823-Ana"'.
+_BANK_CODE = re.compile(r'"?\bCp\s*:\s*\d+-')
 
 
 def read_statement(
     filename: str, data: bytes, default_currency: str | None = None
 ) -> ParsedStatement:
     statement = _read(filename, data, default_currency)
-    statement.rows = [
-        replace(r, is_transfer=True) if not r.is_transfer and is_own_move(r.description) else r
-        for r in statement.rows
-    ]
+    rows = []
+    for row in statement.rows:
+        description = _tidy(row.description)
+        is_transfer = row.is_transfer or is_own_move(description)
+        rows.append(replace(row, description=description, is_transfer=is_transfer))
+    statement.rows = rows
     return statement
+
+
+def _tidy(description: str) -> str:
+    text = _BANK_CODE.sub("", description).replace('"', "")
+    return re.sub(r"\s+", " ", text).strip() or description
 
 
 def _read(filename: str, data: bytes, default_currency: str | None) -> ParsedStatement:

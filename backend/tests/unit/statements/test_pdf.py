@@ -263,3 +263,176 @@ def test_ocr_reads_rendered_page() -> None:
 def test_ocr_of_blank_page() -> None:
     with pytest.raises(StatementError, match="texto legível"):
         pdf._ocr(make_pdf([[]]), 1, True)
+
+
+# ── Inter and Revolut (text PDFs) ────────────────────────────────────────────
+
+INTER = make_pdf(
+    [
+        [
+            (40, 76, "FULANO DE TAL"),
+            (40, 93, "CPF/CNPJ: 000, Instituição: Banco Inter, Agência: 0001-9, Conta: 1234567-8"),
+            (40, 137, "Saldo total"),
+            (40, 147, "R$ 1,87"),
+            (120, 147, "R$ 1,87"),
+            (200, 147, "R$ 0,00"),
+            (42, 197, "15 de Agosto de 2026 Saldo do dia: -R$ 199,43"),
+            (435, 197, "Valor"),
+            (479, 197, "Saldo por transação"),
+            (44, 224, "IOF Global Account"),
+            (420, 224, "-R$ 6,76"),
+            (515, 224, "-R$ 6,19"),
+            (44, 244, "Deposito Global Account"),
+            (415, 244, "-R$ 193,24"),
+            (510, 244, "-R$ 199,43"),
+            (42, 273, "19 de Agosto de 2026 Saldo do dia: R$ 1.469,57"),
+            (44, 298, 'Pix recebido: "Cp :12345678-Fulano de Tal"'),
+            (410, 298, "R$ 1.669,00"),
+            (510, 298, "R$ 1.469,57"),
+            (38, 795, "SAC: 0800 940 9999"),
+            (211, 795, "Ouvidoria: 0800 940 7772"),
+            (385, 795, "Outro: 0800 979 7099"),
+        ],
+        [
+            (42, 43, "20 de Agosto de 2026 Saldo do dia: R$ 25,09"),
+            (44, 72, 'Pix enviado: "Cp :03816413-LOJA"'),
+            (420, 72, "-R$ 44,48"),
+            (515, 72, "R$ 25,09"),
+        ],
+    ]
+)
+
+
+def test_inter_pdf_reads_days_and_checks_daily_balance() -> None:
+    st = read_statement("inter.pdf", INTER)
+    assert (st.format, st.bank) == ("pdf", "Inter")
+    assert [(r.date, r.amount, r.description, r.is_transfer) for r in st.rows] == [
+        (date(2026, 8, 15), Decimal("-6.76"), "IOF Global Account", False),
+        (date(2026, 8, 15), Decimal("-193.24"), "Deposito Global Account", True),
+        (date(2026, 8, 19), Decimal("1669.00"), "Pix recebido: Fulano de Tal", False),
+    ]
+    # 25,09 is not 1.469,57 − 44,48: that day stays out.
+    assert [(e.row, e.raw[:10]) for e in st.errors] == [(4, "2026-08-20")]
+    assert "20/08" in st.errors[0].message
+
+
+def test_inter_pdf_without_entries_is_empty() -> None:
+    data = make_pdf(
+        [
+            [
+                (40, 60, "Instituição: Banco Inter, Agência: 0001-9, Conta: 1234567-8"),
+                (
+                    40,
+                    80,
+                    "Período: 01/10/2026 a 31/10/2026 Saldo do dia R$ 1.234.567,89 0123456789",
+                ),
+            ]
+        ]
+    )
+    with pytest.raises(StatementError, match="nenhuma transação"):
+        read_statement("inter.pdf", data)
+
+
+def _revolut(summary_out: str, summary_in: str, currency: str = "EUR") -> bytes:
+    header = [
+        (43, 507, "Transaction"),
+        (104, 514, "Value date"),
+        (166, 514, "Description"),
+        (335, 514, "Money out"),
+        (417, 514, "Money in"),
+        (526, 514, "Balance"),
+    ]
+    return make_pdf(
+        [
+            [
+                (285, 70, f"Joint Account {currency} Statement"),
+                (416, 104, "Revolut Bank UAB Sucursal En España"),
+                (43, 354, "Product"),
+                (253, 354, "Opening balance"),
+                (335, 354, "Money out"),
+                (417, 354, "Money in"),
+                (43, 380, "Account (Current Account)"),
+                (253, 380, "€100.00"),
+                (335, 380, summary_out),
+                (417, 380, summary_in),
+                (535, 380, "€1,021.50"),
+                (43, 478, "Account transactions from October 1, 2026 to October 31, 2026"),
+                *header,
+                (43, 539, "Oct 1, 2026"),
+                (104, 539, "Oct 1, 2026"),
+                (166, 539, "Ahorra Mas"),
+                (335, 539, "€13.50"),
+                (526, 539, "€86.50"),
+                (166, 549, "To: Grupo Ahorramas 1377"),
+                (166, 554, "Card: 416598******1234"),
+                (43, 568, "Oct 2, 2026"),
+                (104, 568, "Oct 2, 2026"),
+                (166, 568, "Payment from FULANO DE"),
+                (417, 568, "€1,000.00"),
+                (519, 568, "€1,086.50"),
+                (166, 578, "TAL"),
+                (166, 588, "Reference: Pagos de la"),
+                (166, 593, "casa"),
+                (166, 600, "From: FULANO DE TAL, ES00"),
+                (85, 735, "Report lost or stolen card"),
+                (188, 741, "regulated by the Bank of Spain 2026 08130"),
+            ],
+            [
+                *[(x, y - 365, t) for x, y, t in header],
+                (43, 174, "Oct 3, 2026"),
+                (104, 174, "Oct 3, 2026"),
+                (166, 174, "To EUR SAVINGS"),
+                (335, 174, "€65.00"),
+                (526, 174, "€1,021.50"),
+                (40, 388, "Deposit transactions from October 1, 2026 to October 31, 2026"),
+                *[(x, y - 100, t) for x, y, t in header],
+                (43, 449, "Oct 1, 2026"),
+                (104, 449, "Oct 1, 2026"),
+                (166, 449, "Net interest paid"),
+                (417, 449, "€0.01"),
+                (526, 449, "€443.92"),
+            ],
+        ]
+    )
+
+
+def test_revolut_pdf_reads_current_account_only() -> None:
+    st = read_statement("revolut.pdf", _revolut("€78.50", "€1,000.00"))
+    assert (st.format, st.bank, st.errors) == ("pdf", "Revolut", [])
+    assert [(r.date, r.amount, r.currency, r.description, r.is_transfer) for r in st.rows] == [
+        (date(2026, 10, 1), Decimal("-13.50"), "EUR", "Ahorra Mas", False),
+        (
+            date(2026, 10, 2),
+            Decimal("1000.00"),
+            "EUR",
+            "Payment from FULANO DE TAL - Pagos de la casa",
+            False,
+        ),
+        (date(2026, 10, 3), Decimal("-65.00"), "EUR", "To EUR SAVINGS", True),
+    ]
+
+
+def test_revolut_pdf_totals_that_do_not_match_import_nothing() -> None:
+    st = read_statement("revolut.pdf", _revolut("€78.50", "€999.00"))
+    assert st.rows == []
+    assert len(st.errors) == 3
+    assert "resumo" in st.errors[0].message
+
+
+def test_revolut_pdf_unsupported_currency() -> None:
+    with pytest.raises(StatementError, match="Moeda"):
+        read_statement("revolut.pdf", _revolut("€78.50", "€1,000.00", currency="GBP"))
+
+
+def test_revolut_pdf_without_summary() -> None:
+    data = make_pdf(
+        [
+            [
+                (285, 70, "Account EUR Statement 2026 2026 2026 2026 2026 2026 2026"),
+                (40, 90, "Revolut Bank UAB 0123456789"),
+                (40, 110, "Account transactions from October 1, 2026 to October 31, 2026"),
+            ]
+        ]
+    )
+    with pytest.raises(StatementError, match="resumo de saldos"):
+        read_statement("revolut.pdf", data)

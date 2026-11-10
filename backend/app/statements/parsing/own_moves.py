@@ -12,9 +12,16 @@ _PATTERNS = [
     r"^(aplicacao|resgate)\b",
     r"^(compra|venda) de acoes\b",
     r"\b(rdb|cdb|lci|lca|tesouro (direto|selic|prefixado|ipca))\b",
+    # Inter: the dollar Global Account, Tesouro Direto and stock purchases at B3. Rent and
+    # dividend credits ("Credito B3 Btb", "Credito Evento B3") are income and stay out.
+    r"^deposito:? global account\b",
+    r"^debito online td\b",
+    r"^(debito|credito) b3\b(?! btb)",
     # CaixaBank and other Spanish banks
     r"^traspaso propio\b",
     r"^inversion(es)?\b",
+    # Revolut pockets and savings: "To EUR <pocket>", "From EUR <pocket>"
+    r"^(to|from) (eur|usd|gbp|brl) ",
 ]
 _OWN_MOVE = re.compile("|".join(f"(?:{p})" for p in _PATTERNS))
 

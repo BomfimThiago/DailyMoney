@@ -21,6 +21,8 @@ class KnownLayout:
     # Column and values the bank uses for money moving between its own balances.
     transfer_column: str | None = None
     transfer_values: frozenset[str] = frozenset()
+    # Columns joined into the description when one column alone says too little.
+    description_columns: tuple[str, ...] = ()
 
 
 _WISE = (
@@ -67,6 +69,12 @@ LAYOUTS = (
         "Revolut",
     ),  # fmt: skip
     KnownLayout(
+        ("data lançamento", "histórico", "descrição", "valor", "saldo"),
+        "Inter",
+        currency="BRL",
+        description_columns=("histórico", "descrição"),
+    ),
+    KnownLayout(
         _WISE,
         "Wise",
         transfer_column="transaction details type",
@@ -83,6 +91,7 @@ def normalise_header(cell: str) -> str:
 class LayoutMatch:
     layout: KnownLayout
     is_transfer: Callable[[list[str]], bool]
+    describe: Callable[[list[str]], str] | None = None
 
 
 def match_layout(headers: list[str]) -> LayoutMatch | None:
@@ -99,4 +108,10 @@ def match_layout(headers: list[str]) -> LayoutMatch | None:
             return False
         return cells[col].strip().upper() in layout.transfer_values
 
-    return LayoutMatch(layout, is_transfer)
+    parts = [got.index(c) for c in layout.description_columns]
+
+    def describe(cells: list[str]) -> str:
+        texts = [cells[i].strip() for i in parts if i < len(cells) and cells[i].strip()]
+        return ": ".join(texts)
+
+    return LayoutMatch(layout, is_transfer, describe if parts else None)
