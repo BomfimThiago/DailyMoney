@@ -85,9 +85,9 @@ def test_nubank_pdf_signs_come_from_sections() -> None:
     ]
 
 
-def test_nubank_investment_is_marked_as_transfer() -> None:
+def test_nubank_investment_is_marked_as_investment() -> None:
     st = read_statement("nubank.pdf", NUBANK)
-    assert [r.is_transfer for r in st.rows] == [False, False, True]
+    assert [r.kind for r in st.rows] == ["regular", "regular", "investment"]
 
 
 def test_nubank_day_that_does_not_add_up_is_not_imported() -> None:
@@ -236,7 +236,7 @@ def test_scanned_pdf_goes_through_ocr_passes(monkeypatch: pytest.MonkeyPatch) ->
     st = read_statement("caixa.pdf", SCANNED)
     assert calls == list(pdf._OCR_PASSES)
     assert st.bank == "CaixaBank"
-    assert [r.is_transfer for r in st.rows] == [False, True, False, False]
+    assert [r.kind for r in st.rows] == ["regular", "investment", "regular", "regular"]
 
 
 def test_scanned_pdf_from_unknown_bank(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -306,10 +306,10 @@ INTER = make_pdf(
 def test_inter_pdf_reads_days_and_checks_daily_balance() -> None:
     st = read_statement("inter.pdf", INTER)
     assert (st.format, st.bank) == ("pdf", "Inter")
-    assert [(r.date, r.amount, r.description, r.is_transfer) for r in st.rows] == [
-        (date(2026, 8, 15), Decimal("-6.76"), "IOF Global Account", False),
-        (date(2026, 8, 15), Decimal("-193.24"), "Deposito Global Account", True),
-        (date(2026, 8, 19), Decimal("1669.00"), "Pix recebido: Fulano de Tal", False),
+    assert [(r.date, r.amount, r.description, r.kind) for r in st.rows] == [
+        (date(2026, 8, 15), Decimal("-6.76"), "IOF Global Account", "regular"),
+        (date(2026, 8, 15), Decimal("-193.24"), "Deposito Global Account", "transfer"),
+        (date(2026, 8, 19), Decimal("1669.00"), "Pix recebido: Fulano de Tal", "regular"),
     ]
     # 25,09 is not 1.469,57 − 44,48: that day stays out.
     assert [(e.row, e.raw[:10]) for e in st.errors] == [(4, "2026-08-20")]
@@ -399,16 +399,16 @@ def _revolut(summary_out: str, summary_in: str, currency: str = "EUR") -> bytes:
 def test_revolut_pdf_reads_current_account_only() -> None:
     st = read_statement("revolut.pdf", _revolut("€78.50", "€1,000.00"))
     assert (st.format, st.bank, st.errors) == ("pdf", "Revolut", [])
-    assert [(r.date, r.amount, r.currency, r.description, r.is_transfer) for r in st.rows] == [
-        (date(2026, 10, 1), Decimal("-13.50"), "EUR", "Ahorra Mas", False),
+    assert [(r.date, r.amount, r.currency, r.description, r.kind) for r in st.rows] == [
+        (date(2026, 10, 1), Decimal("-13.50"), "EUR", "Ahorra Mas", "regular"),
         (
             date(2026, 10, 2),
             Decimal("1000.00"),
             "EUR",
             "Payment from FULANO DE TAL - Pagos de la casa",
-            False,
+            "regular",
         ),
-        (date(2026, 10, 3), Decimal("-65.00"), "EUR", "To EUR SAVINGS", True),
+        (date(2026, 10, 3), Decimal("-65.00"), "EUR", "To EUR SAVINGS", "investment"),
     ]
 
 

@@ -7,8 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.families.models import Currency
 from app.imports.models import ImportStatus
+from app.transactions.models import TxKind
 
-RowStatus = Literal["new", "duplicate", "transfer", "skipped"]
+RowStatus = Literal["new", "duplicate", "skipped"]
 
 
 class PreviewRow(BaseModel):
@@ -19,6 +20,7 @@ class PreviewRow(BaseModel):
     currency: Currency
     category: str | None
     status: RowStatus
+    kind: TxKind
 
 
 class RowErrorOut(BaseModel):
@@ -34,7 +36,6 @@ class AccountRef(BaseModel):
 class GroupCounts(BaseModel):
     new: int = 0
     duplicate: int = 0
-    transfer: int = 0
     skipped: int = 0
 
 
@@ -103,7 +104,6 @@ class ImportSummary(BaseModel):
     period_end: date | None
     imported_count: int
     duplicate_count: int
-    transfer_count: int
     skipped_count: int
     created_at: datetime
     finished_at: datetime | None

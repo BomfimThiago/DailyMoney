@@ -27,9 +27,10 @@ from app.imports.schemas import (
     RowStatus,
 )
 from app.imports.services.dedup import NEAR_DAYS, Existing, Incoming, find_duplicates, source_keys
+from app.imports.services.self_transfer import looks_like_self_transfer
 from app.imports.services.transfers import MAX_DAYS, Candidate, pair_transfers
 from app.statements.parsing.reader import read_statement
-from app.transactions.models import Transaction
+from app.transactions.models import Transaction, TxKind
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
 
@@ -48,13 +49,14 @@ class _Row:
     raw: str
     source_key: str
     external_id: str | None
-    bank_transfer: bool
+    kind: TxKind
 
 
 @dataclass
 class _Planned:
     index: int
     status: RowStatus
+    kind: TxKind
     category: str | None
     pair_id: uuid.UUID | None = None
 
@@ -89,7 +91,7 @@ async def create_import(
             "raw": r.raw,
             "source_key": key,
             "external_id": r.external_id[:200] if r.external_id else None,
-            "bank_transfer": r.is_transfer,
+            "kind": r.kind,
         }
         for r, key in zip(statement.rows, keys, strict=True)
     ]
@@ -161,6 +163,7 @@ async def preview(
             currency=Currency(rows[p.index].currency),
             category=p.category,
             status=p.status,
+            kind=p.kind,
         )
         for plan in plans
         for p in plan.rows
@@ -218,7 +221,8 @@ def _rows(imp: StatementImport) -> list[_Row]:
             raw=r["raw"],
             source_key=r["source_key"],
             external_id=r["external_id"],
-            bank_transfer=r["bank_transfer"],
+            # Previews saved before kinds existed only had the bank's transfer flag.
+            kind=TxKind(r.get("kind") or ("transfer" if r.get("bank_transfer") else "regular")),
         )
         for r in (imp.rows or [])
     ]
@@ -232,6 +236,11 @@ async def _plan(
 ) -> list[_GroupPlan]:
     rows = _rows(imp)
     categorizer = await category_service.categorizer_for(db, imp.family_id)
+    # Users carry the full name; members often only a first name.
+    names = [
+        *await db.scalars(select(User.name).where(User.family_id == imp.family_id)),
+        *await db.scalars(select(Member.name).where(Member.family_id == imp.family_id)),
+    ]
     by_currency: dict[str, list[int]] = {}
     for i, row in enumerate(rows):
         by_currency.setdefault(row.currency, []).append(i)
@@ -264,15 +273,17 @@ async def _plan(
             existing,
         )
         statuses: dict[int, RowStatus] = {}
+        kinds: dict[int, TxKind] = {}
         for i, is_dup in zip(indexes, duplicates, strict=True):
             if first_import and since and rows[i].date < since:
                 statuses[i] = "skipped"
             elif is_dup:
                 statuses[i] = "duplicate"
-            elif rows[i].bank_transfer:
-                statuses[i] = "transfer"
             else:
                 statuses[i] = "new"
+            kinds[i] = rows[i].kind
+            if kinds[i] == TxKind.REGULAR and looks_like_self_transfer(rows[i].description, names):
+                kinds[i] = TxKind.PENDING
 
         others = await _transfer_candidates(
             db,
@@ -292,24 +303,25 @@ async def _plan(
                     currency=currency,
                 )
                 for i in indexes
-                if statuses[i] == "new"
+                if statuses[i] == "new" and kinds[i] != TxKind.INVESTMENT
             ],
             others,
         )
         for i in indexes:
             pair = pairs.get(str(i))
-            status: RowStatus = "transfer" if pair else statuses[i]
+            kind = TxKind.TRANSFER if pair else kinds[i]
             category = (
                 categorizer.category_for(
-                    rows[i].description, rows[i].amount, is_transfer=status == "transfer"
+                    rows[i].description, rows[i].amount, is_transfer=kind == TxKind.TRANSFER
                 )
-                if status in ("new", "transfer")
+                if statuses[i] == "new" and kind in (TxKind.REGULAR, TxKind.TRANSFER)
                 else None
             )
             plan.rows.append(
                 _Planned(
                     index=i,
-                    status=status,
+                    status=statuses[i],
+                    kind=kind,
                     category=category,
                     pair_id=uuid.UUID(pair) if pair else None,
                 )
@@ -390,7 +402,8 @@ async def _transfer_candidates(
     query = select(Transaction).where(
         Transaction.family_id == family_id,
         Transaction.currency == Currency(currency),
-        Transaction.is_transfer.is_(False),
+        Transaction.kind != TxKind.INVESTMENT,
+        Transaction.transfer_pair_id.is_(None),
         Transaction.date.between(lo, hi),
     )
     if account is not None:
@@ -457,7 +470,7 @@ async def confirm(
         assert account is not None
         for p in plan.rows:
             setattr(counts, p.status, getattr(counts, p.status) + 1)
-            if p.status not in ("new", "transfer"):
+            if p.status != "new":
                 continue
             row = rows[p.index]
             category = categories.get(p.category) if p.category else None
@@ -475,7 +488,7 @@ async def confirm(
                 external_id=row.external_id,
                 source_key=row.source_key,
                 source_format=imp.format,
-                is_transfer=p.status == "transfer",
+                kind=p.kind,
                 transfer_pair_id=p.pair_id,
             )
             db.add(tx)
@@ -483,13 +496,12 @@ async def confirm(
                 await db.flush()
                 other = await db.get(Transaction, p.pair_id)
                 if other is not None:
-                    other.is_transfer = True
+                    other.kind = TxKind.TRANSFER
                     other.transfer_pair_id = tx.id
                     if transfer_category is not None:
                         other.category_id = transfer_category.id
 
-    imp.imported_count = counts.new + counts.transfer
-    imp.transfer_count = counts.transfer
+    imp.imported_count = counts.new
     imp.duplicate_count = counts.duplicate
     imp.skipped_count = counts.skipped
     _finish(imp, ImportStatus.IMPORTED)

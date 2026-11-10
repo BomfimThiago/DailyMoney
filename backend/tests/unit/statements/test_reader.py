@@ -79,10 +79,10 @@ Data Lançamento;Histórico;Descrição;Valor;Saldo
 def test_inter_csv_joins_history_and_description() -> None:
     st = read_statement("inter.csv", INTER_CSV.encode())
     assert (st.bank, st.errors) == ("Inter", [])
-    assert [(str(r.amount), r.currency, r.description, r.is_transfer) for r in st.rows] == [
-        ("100.00", "BRL", "Pix recebido: Fulano De Tal", False),
-        ("-90.00", "BRL", "Depósito: Global Account", True),
-        ("-1000.00", "BRL", "Débito B3: Nota Bov 30/09/2026", True),
+    assert [(str(r.amount), r.currency, r.description, r.kind) for r in st.rows] == [
+        ("100.00", "BRL", "Pix recebido: Fulano De Tal", "regular"),
+        ("-90.00", "BRL", "Depósito: Global Account", "transfer"),
+        ("-1000.00", "BRL", "Débito B3: Nota Bov 30/09/2026", "investment"),
     ]
 
 

@@ -5,6 +5,8 @@ from typing import Literal
 
 Format = Literal["csv", "ofx", "xlsx", "pdf"]
 SUPPORTED_CURRENCIES = ("BRL", "USD", "EUR")
+# regular: spending or income. investment and transfer count as neither.
+RowKind = Literal["regular", "investment", "transfer"]
 
 
 @dataclass(frozen=True)
@@ -19,6 +21,8 @@ class ParsedRow:
     external_id: str | None = None
     # The bank itself says this is money moving between the holder's own balances.
     is_transfer: bool = False
+    # Set by read_statement from the bank's flag and the description.
+    kind: RowKind = "regular"
 
 
 @dataclass(frozen=True)

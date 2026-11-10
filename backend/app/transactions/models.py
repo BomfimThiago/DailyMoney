@@ -1,9 +1,9 @@
+import enum
 import uuid
 from datetime import date
 from decimal import Decimal
 
 from sqlalchemy import (
-    Boolean,
     Date,
     Enum,
     ForeignKey,
@@ -16,6 +16,18 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAt, UUIDPk
 from app.families.models import Currency
+
+
+class TxKind(enum.StrEnum):
+    # Spending (negative) or income (positive).
+    REGULAR = "regular"
+    # Money put into or taken out of an investment: neither spending nor income.
+    INVESTMENT = "investment"
+    # Money moving between the family's own accounts.
+    TRANSFER = "transfer"
+    # Looks like a transfer to the family's own account, but the other side wasn't found:
+    # stays out of spending and income until the person says what it was.
+    PENDING = "pending"
 
 
 class Transaction(UUIDPk, CreatedAt, Base):
@@ -46,7 +58,10 @@ class Transaction(UUIDPk, CreatedAt, Base):
     external_id: Mapped[str | None] = mapped_column(String(200))
     source_key: Mapped[str | None] = mapped_column(String(64))
     source_format: Mapped[str] = mapped_column(String(10))
-    is_transfer: Mapped[bool] = mapped_column(Boolean, default=False)
+    kind: Mapped[TxKind] = mapped_column(
+        Enum(TxKind, name="tx_kind", values_callable=lambda e: [m.value for m in e]),
+        default=TxKind.REGULAR,
+    )
     transfer_pair_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("transaction.id", ondelete="SET NULL")
     )

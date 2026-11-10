@@ -48,7 +48,7 @@ async def test_upload_preview_and_import(client: AsyncClient) -> None:
         "account": None,
         "suggested_name": "Nubank BRL",
         "first_import": True,
-        "counts": {"new": 4, "duplicate": 0, "transfer": 0, "skipped": 0},
+        "counts": {"new": 4, "duplicate": 0, "skipped": 0},
     }
     by_desc = {r["description"]: r for r in preview["rows"]}
     assert by_desc["Uber Trip"]["category"] == "Transporte"
@@ -94,7 +94,7 @@ async def test_reupload_shows_duplicates_and_imports_only_new(client: AsyncClien
     [group] = second["groups"]
     assert group["account"]["name"] == "Nu"  # same bank and currency: suggested
     assert group["first_import"] is False
-    assert group["counts"] == {"new": 1, "duplicate": 4, "transfer": 0, "skipped": 0}
+    assert group["counts"] == {"new": 1, "duplicate": 4, "skipped": 0}
     summary = await _confirm(
         client,
         h,
@@ -133,8 +133,8 @@ async def test_card_bill_payment_is_paired_as_transfer(client: AsyncClient) -> N
     assert card["is_card"] is True
     [group] = card["groups"]
     assert group["suggested_name"] == "Nubank cartão"
-    assert group["counts"]["transfer"] == 1
     rows = {r["description"]: r for r in card["rows"]}
+    assert rows["Pagamento recebido"]["kind"] == "transfer"
     assert rows["Pagamento recebido"]["category"] == "Transferência"
     assert rows["Netflix.com"]["category"] == "Assinaturas"
     assert rows["Netflix.com"]["amount"] == "-39.90"
@@ -146,7 +146,7 @@ async def test_card_bill_payment_is_paired_as_transfer(client: AsyncClient) -> N
     )
     items = (await client.get("/api/v1/transactions", headers=h)).json()["items"]
     paid = next(t for t in items if t["description"] == "Pagamento de fatura")
-    assert paid["is_transfer"] is True
+    assert paid["kind"] == "transfer"
     assert paid["category_name"] == "Transferência"
 
 

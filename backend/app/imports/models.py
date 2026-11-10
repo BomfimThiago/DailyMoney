@@ -42,6 +42,5 @@ class StatementImport(UUIDPk, CreatedAt, Base):
     errors: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
     imported_count: Mapped[int] = mapped_column(Integer, default=0)
     duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
-    transfer_count: Mapped[int] = mapped_column(Integer, default=0)
     skipped_count: Mapped[int] = mapped_column(Integer, default=0)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

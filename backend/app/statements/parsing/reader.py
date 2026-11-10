@@ -7,10 +7,10 @@ from io import BytesIO
 
 from app.statements.parsing.errors import StatementError
 from app.statements.parsing.ofx import is_ofx, read_ofx
-from app.statements.parsing.own_moves import is_own_move
+from app.statements.parsing.own_moves import own_move_kind
 from app.statements.parsing.pdf import read_pdf
 from app.statements.parsing.tabular import Cell, read_csv, read_grid
-from app.statements.parsing.types import ParsedStatement
+from app.statements.parsing.types import ParsedStatement, RowKind
 
 MAX_BYTES = 10 * 1024 * 1024
 # Inter writes the payer's bank code into Pix descriptions: 'Pix recebido: "Cp :1823-Ana"'.
@@ -24,8 +24,8 @@ def read_statement(
     rows = []
     for row in statement.rows:
         description = _tidy(row.description)
-        is_transfer = row.is_transfer or is_own_move(description)
-        rows.append(replace(row, description=description, is_transfer=is_transfer))
+        kind: RowKind = own_move_kind(description) or ("transfer" if row.is_transfer else "regular")
+        rows.append(replace(row, description=description, kind=kind))
     statement.rows = rows
     return statement
 
