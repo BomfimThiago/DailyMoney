@@ -4,6 +4,8 @@ import type {
   Account,
   AccountChoice,
   BankRequest,
+  ConnectionsOverview,
+  SyncResult,
   Category,
   Currency,
   ImportPreview,
@@ -140,4 +142,33 @@ export function askForBank(bankName: string, note?: string) {
     method: 'POST',
     body: JSON.stringify({ bank_name: bankName, note: note || null }),
   });
+}
+
+// Banks read automatically: Wise, Revolut and CaixaBank (Enable Banking) and the
+// Brazilian banks authorized in Meu Pluggy.
+export function getConnections() {
+  return api<ConnectionsOverview>('/connections');
+}
+
+// The bank's own page to authorize the app; it comes back to /conexoes/retorno.
+export function startConnection(bank: string) {
+  return api<{ url: string }>('/connections/europe', {
+    method: 'POST',
+    body: JSON.stringify({ bank }),
+  });
+}
+
+export function finishConnection(code: string, state: string) {
+  return api<SyncResult>('/connections/europe/finish', {
+    method: 'POST',
+    body: JSON.stringify({ code, state }),
+  });
+}
+
+export function syncConnection(id: string) {
+  return api<SyncResult>(`/connections/${id}/sync`, { method: 'POST' });
+}
+
+export function disconnectBank(id: string) {
+  return api<void>(`/connections/${id}`, { method: 'DELETE' });
 }

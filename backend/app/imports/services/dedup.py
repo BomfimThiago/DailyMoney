@@ -68,7 +68,7 @@ def find_duplicates(rows: list[Incoming], existing: list[Existing]) -> list[bool
     by_key = {e.source_key: e for e in existing if e.source_key}
     by_ext = {e.external_id: e for e in existing if e.external_id}
     used: set[str] = set()
-    result: list[bool] = []
+    result: list[bool | None] = [None] * len(rows)
 
     def take(candidate: Existing | None) -> bool:
         if candidate is None or candidate.id in used:
@@ -76,12 +76,15 @@ def find_duplicates(rows: list[Incoming], existing: list[Existing]) -> list[bool
         used.add(candidate.id)
         return True
 
-    for row in rows:
-        if take(by_key.get(row.source_key)):
-            result.append(True)
-            continue
-        if row.external_id and take(by_ext.get(row.external_id)):
-            result.append(True)
+    # Exact matches first: a saved line must not be taken by a look-alike row that comes
+    # earlier in the file (a second coffee the same day), leaving its own line "new".
+    for i, row in enumerate(rows):
+        if take(by_key.get(row.source_key)) or (
+            row.external_id and take(by_ext.get(row.external_id))
+        ):
+            result[i] = True
+    for i, row in enumerate(rows):
+        if result[i]:
             continue
         same_day = next(
             (
@@ -92,7 +95,7 @@ def find_duplicates(rows: list[Incoming], existing: list[Existing]) -> list[bool
             None,
         )
         if take(same_day):
-            result.append(True)
+            result[i] = True
             continue
         near = next(
             (
@@ -106,5 +109,5 @@ def find_duplicates(rows: list[Incoming], existing: list[Existing]) -> list[bool
             ),
             None,
         )
-        result.append(take(near))
-    return result
+        result[i] = take(near)
+    return [bool(r) for r in result]

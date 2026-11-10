@@ -56,6 +56,13 @@ def test_each_existing_matches_only_once() -> None:
     assert find_duplicates(rows, [_ex("2026-10-01", "-3", "Cafe")]) == [True, False]
 
 
+def test_a_saved_line_is_not_taken_by_a_new_look_alike_before_it() -> None:
+    # A second coffee bought the same day comes first in the bank's list; the first one
+    # was synced before. The new coffee must stay new, not steal the saved line's match.
+    rows = [_in("2026-10-01", "-3", "Cafe", key="new"), _in("2026-10-01", "-3", "Cafe", key="a")]
+    assert find_duplicates(rows, [_ex("2026-10-01", "-3", "Cafe", key="a")]) == [False, True]
+
+
 def test_near_date_similar_description_from_another_format_is_duplicate() -> None:
     rows = [_in("2026-10-03", "-45.20", "COMPRA MERCADONA MADRID")]
     existing = [_ex("2026-10-01", "-45.20", "Mercadona", fmt="ofx")]

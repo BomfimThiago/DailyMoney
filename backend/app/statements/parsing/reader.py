@@ -10,7 +10,7 @@ from app.statements.parsing.ofx import is_ofx, read_ofx
 from app.statements.parsing.own_moves import own_move_kind
 from app.statements.parsing.pdf import read_pdf
 from app.statements.parsing.tabular import Cell, read_csv, read_grid
-from app.statements.parsing.types import ParsedStatement, RowKind
+from app.statements.parsing.types import ParsedRow, ParsedStatement, RowKind
 
 MAX_BYTES = 10 * 1024 * 1024
 # Inter writes the payer's bank code into Pix descriptions: 'Pix recebido: "Cp :1823-Ana"'.
@@ -21,13 +21,26 @@ def read_statement(
     filename: str, data: bytes, default_currency: str | None = None
 ) -> ParsedStatement:
     statement = _read(filename, data, default_currency)
-    rows = []
-    for row in statement.rows:
-        description = _tidy(row.description)
-        kind: RowKind = own_move_kind(description) or ("transfer" if row.is_transfer else "regular")
-        rows.append(replace(row, description=description, kind=kind))
-    statement.rows = rows
+    statement.rows = finish_rows(statement.rows)
     return statement
+
+
+def finish_rows(rows: list[ParsedRow]) -> list[ParsedRow]:
+    """Tidy descriptions and say which rows are investments or own-account moves.
+
+    Rows read from a connected bank go through here too, so both sources agree.
+    """
+    finished = []
+    for row in rows:
+        description = _tidy(row.description)
+        # A connected bank may already say what the row is; a file only flags transfers.
+        kind: RowKind = (
+            own_move_kind(description)
+            or (row.kind if row.kind != "regular" else None)
+            or ("transfer" if row.is_transfer else "regular")
+        )
+        finished.append(replace(row, description=description, kind=kind))
+    return finished
 
 
 def _tidy(description: str) -> str:

@@ -120,6 +120,34 @@ export const fixtures = {
     },
   },
   '/accounts': Object.values(accounts),
+  // Wise read through Enable Banking; Nubank through Meu Pluggy, its card unreadable.
+  '/connections': {
+    connections: [
+      {
+        id: 'conn-wise',
+        provider: 'enablebanking',
+        bank: 'Wise',
+        accounts: [{ account_id: 'acc-wise', name: 'Wise EUR', currency: 'EUR', is_card: false }],
+        consent_expires_at: `${ym(6)}-01T00:00:00Z`,
+        last_sync_at: new Date(new Date().setHours(6, 2, 0, 0)).toISOString(),
+        last_error: null,
+      },
+      {
+        id: 'conn-nu',
+        provider: 'pluggy',
+        bank: 'Nubank',
+        accounts: [
+          { account_id: 'acc-nu', name: 'Nubank', currency: 'BRL', is_card: false },
+          { account_id: null, name: 'Cartão de crédito BRL', currency: 'BRL', is_card: true },
+        ],
+        consent_expires_at: null,
+        last_sync_at: new Date(new Date().setHours(6, 3, 0, 0)).toISOString(),
+        last_error: 'Cartão de crédito: A Pluggy respondeu 500: erro temporário',
+      },
+    ],
+    european_banks: ['Wise', 'Revolut', 'CaixaBank'],
+    brazil_ready: true,
+  },
   '/categories': [
     ...['Mercado', 'Restaurantes', 'Casa', 'Saúde', 'Transporte', 'Assinaturas', 'Outros'].map(
       (name) => ({ id: `cat-${name}`, name, kind: 'expense', color: '#8A8799' }),

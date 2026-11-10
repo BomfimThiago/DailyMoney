@@ -32,6 +32,25 @@ services:
       - default
       - edge
 
+  # Reads the connected banks once a day (06:00 Madrid). Same image as the API.
+  sync:
+    image: dailymoney-api
+    container_name: dailymoney-sync
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      DATABASE_URL: postgresql+asyncpg://dailymoney:${POSTGRES_PASSWORD}@db:5432/dailymoney
+    command: ["python", "-m", "app.connections.daily"]
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+    networks:
+      - default
+
   web:
     build:
       context: ../app

@@ -778,6 +778,203 @@
         ]
       }
     },
+    "/api/v1/connections": {
+      "get": {
+        "tags": ["connections"],
+        "summary": "List Connections",
+        "operationId": "list_connections_api_v1_connections_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionsOverview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/europe": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Start",
+        "operationId": "start_api_v1_connections_europe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/europe/finish": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Finish",
+        "operationId": "finish_api_v1_connections_europe_finish_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FinishIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/{connection_id}/sync": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Sync",
+        "operationId": "sync_api_v1_connections__connection_id__sync_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Connection Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/connections/{connection_id}": {
+      "delete": {
+        "tags": ["connections"],
+        "summary": "Disconnect",
+        "operationId": "disconnect_api_v1_connections__connection_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "connection_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Connection Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions": {
       "get": {
         "tags": ["transactions"],
@@ -1389,6 +1586,36 @@
         "required": ["id", "name"],
         "title": "AccountRef"
       },
+      "AccountSyncOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "new": {
+            "type": "integer",
+            "title": "New"
+          },
+          "duplicate": {
+            "type": "integer",
+            "title": "Duplicate"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": ["name", "new", "duplicate", "error"],
+        "title": "AccountSyncOut"
+      },
       "Analysis": {
         "properties": {
           "month": {
@@ -1563,6 +1790,140 @@
         "type": "object",
         "required": ["accounts"],
         "title": "ConfirmRequest"
+      },
+      "ConnectedAccount": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "is_card": {
+            "type": "boolean",
+            "title": "Is Card"
+          }
+        },
+        "type": "object",
+        "required": ["account_id", "name", "currency", "is_card"],
+        "title": "ConnectedAccount"
+      },
+      "ConnectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "provider": {
+            "type": "string",
+            "enum": ["enablebanking", "pluggy"],
+            "title": "Provider"
+          },
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectedAccount"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "consent_expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consent Expires At"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "provider",
+          "bank",
+          "accounts",
+          "consent_expires_at",
+          "last_sync_at",
+          "last_error"
+        ],
+        "title": "ConnectionOut"
+      },
+      "ConnectionsOverview": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionOut"
+            },
+            "type": "array",
+            "title": "Connections"
+          },
+          "european_banks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "European Banks"
+          },
+          "brazil_ready": {
+            "type": "boolean",
+            "title": "Brazil Ready"
+          }
+        },
+        "type": "object",
+        "required": ["connections", "european_banks", "brazil_ready"],
+        "title": "ConnectionsOverview"
       },
       "Currency": {
         "type": "string",
@@ -1797,6 +2158,25 @@
         },
         "type": "object",
         "title": "FamilyUpdate"
+      },
+      "FinishIn": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Code"
+          },
+          "state": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": ["code", "state"],
+        "title": "FinishIn"
       },
       "GoogleLoginRequest": {
         "properties": {
@@ -2684,6 +3064,47 @@
         "type": "object",
         "required": ["name", "amount"],
         "title": "SpendingShare"
+      },
+      "StartIn": {
+        "properties": {
+          "bank": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Bank"
+          }
+        },
+        "type": "object",
+        "required": ["bank"],
+        "title": "StartIn"
+      },
+      "StartOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": ["url"],
+        "title": "StartOut"
+      },
+      "SyncOut": {
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/ConnectionOut"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountSyncOut"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": ["connection", "accounts"],
+        "title": "SyncOut"
       },
       "TokenPair": {
         "properties": {

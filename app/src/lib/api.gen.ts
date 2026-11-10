@@ -280,6 +280,91 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/connections': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Connections */
+    get: operations['list_connections_api_v1_connections_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/connections/europe': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start */
+    post: operations['start_api_v1_connections_europe_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/connections/europe/finish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Finish */
+    post: operations['finish_api_v1_connections_europe_finish_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/connections/{connection_id}/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Sync */
+    post: operations['sync_api_v1_connections__connection_id__sync_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/connections/{connection_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Disconnect */
+    delete: operations['disconnect_api_v1_connections__connection_id__delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions': {
     parameters: {
       query?: never;
@@ -471,6 +556,17 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** AccountSyncOut */
+    AccountSyncOut: {
+      /** Name */
+      name: string;
+      /** New */
+      new: number;
+      /** Duplicate */
+      duplicate: number;
+      /** Error */
+      error: string | null;
+    };
     /** Analysis */
     Analysis: {
       /** Month */
@@ -543,6 +639,49 @@ export interface components {
       accounts: components['schemas']['AccountChoice'][];
       /** Since */
       since?: string | null;
+    };
+    /** ConnectedAccount */
+    ConnectedAccount: {
+      /** Account Id */
+      account_id: string | null;
+      /** Name */
+      name: string;
+      /** Currency */
+      currency: string | null;
+      /** Is Card */
+      is_card: boolean;
+    };
+    /** ConnectionOut */
+    ConnectionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Provider
+       * @enum {string}
+       */
+      provider: 'enablebanking' | 'pluggy';
+      /** Bank */
+      bank: string;
+      /** Accounts */
+      accounts: components['schemas']['ConnectedAccount'][];
+      /** Consent Expires At */
+      consent_expires_at: string | null;
+      /** Last Sync At */
+      last_sync_at: string | null;
+      /** Last Error */
+      last_error: string | null;
+    };
+    /** ConnectionsOverview */
+    ConnectionsOverview: {
+      /** Connections */
+      connections: components['schemas']['ConnectionOut'][];
+      /** European Banks */
+      european_banks: string[];
+      /** Brazil Ready */
+      brazil_ready: boolean;
     };
     /**
      * Currency
@@ -619,6 +758,13 @@ export interface components {
       display_currency?: components['schemas']['Currency'] | null;
       /** Month Start Day */
       month_start_day?: number | null;
+    };
+    /** FinishIn */
+    FinishIn: {
+      /** Code */
+      code: string;
+      /** State */
+      state: string;
     };
     /** GoogleLoginRequest */
     GoogleLoginRequest: {
@@ -970,6 +1116,22 @@ export interface components {
       name: string;
       /** Amount */
       amount: string;
+    };
+    /** StartIn */
+    StartIn: {
+      /** Bank */
+      bank: string;
+    };
+    /** StartOut */
+    StartOut: {
+      /** Url */
+      url: string;
+    };
+    /** SyncOut */
+    SyncOut: {
+      connection: components['schemas']['ConnectionOut'];
+      /** Accounts */
+      accounts: components['schemas']['AccountSyncOut'][];
     };
     /** TokenPair */
     TokenPair: {
@@ -1671,6 +1833,152 @@ export interface operations {
         content: {
           'application/json': components['schemas']['BankRequestOut'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_connections_api_v1_connections_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConnectionsOverview'];
+        };
+      };
+    };
+  };
+  start_api_v1_connections_europe_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['StartIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  finish_api_v1_connections_europe_finish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FinishIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SyncOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  sync_api_v1_connections__connection_id__sync_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        connection_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SyncOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  disconnect_api_v1_connections__connection_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        connection_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

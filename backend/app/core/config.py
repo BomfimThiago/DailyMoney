@@ -40,7 +40,23 @@ class Settings(BaseSettings):
 
     CORS_ORIGINS: Annotated[list[str], NoDecode] = ["http://localhost:8081"]
 
-    @field_validator("GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", mode="before")
+    # Enable Banking (Open Banking in Europe: Wise, Revolut, CaixaBank), restricted mode,
+    # free for the owner's own accounts. The private key is the .pem the control panel
+    # downloads when the application is registered: PEM text, or the PEM in base64.
+    ENABLE_BANKING_APP_ID: str = ""
+    ENABLE_BANKING_PRIVATE_KEY: str = ""
+    ENABLE_BANKING_API_URL: str = "https://api.enablebanking.com"
+
+    # Meu Pluggy (Open Finance in Brazil: Nubank, Inter), free for personal use. Items are
+    # connected in Pluggy's own app; their ids go here, comma separated.
+    PLUGGY_CLIENT_ID: str = ""
+    PLUGGY_CLIENT_SECRET: str = ""
+    PLUGGY_ITEM_IDS: Annotated[list[str], NoDecode] = []
+    PLUGGY_API_URL: str = "https://api.pluggy.ai"
+
+    @field_validator(
+        "GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", "PLUGGY_ITEM_IDS", mode="before"
+    )
     @classmethod
     def _csv(cls, value: object) -> object:
         return _split_csv(value)

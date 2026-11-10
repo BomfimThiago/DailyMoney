@@ -30,6 +30,7 @@ from app.imports.services.dedup import NEAR_DAYS, Existing, Incoming, find_dupli
 from app.imports.services.self_transfer import looks_like_self_transfer
 from app.imports.services.transfers import MAX_DAYS, Candidate, pair_transfers
 from app.statements.parsing.reader import read_statement
+from app.statements.parsing.types import ParsedStatement
 from app.transactions.models import Transaction, TxKind
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
@@ -81,6 +82,17 @@ async def create_import(
 ) -> StatementImport:
     # Scanned PDFs take seconds of OCR; keep the event loop free for other requests.
     statement = await asyncio.to_thread(read_statement, filename, data, default_currency)
+    return await store_statement(db, user.family_id, user.id, filename, statement)
+
+
+async def store_statement(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    user_id: uuid.UUID | None,
+    filename: str,
+    statement: ParsedStatement,
+) -> StatementImport:
+    """Keep the rows read from a statement (or a connected bank) until they are confirmed."""
     keys = source_keys([r.raw for r in statement.rows])
     rows = [
         {
@@ -97,8 +109,8 @@ async def create_import(
     ]
     dates = [r.date for r in statement.rows]
     imp = StatementImport(
-        family_id=user.family_id,
-        user_id=user.id,
+        family_id=family_id,
+        user_id=user_id,
         filename=filename[:255],
         format=statement.format,
         bank=statement.bank,
@@ -129,6 +141,8 @@ async def list_imports(db: AsyncSession, family_id: uuid.UUID) -> list[Statement
         .where(
             StatementImport.family_id == family_id,
             StatementImport.status == ImportStatus.IMPORTED,
+            # Reads of connected banks show on Conexões, not as sent statements.
+            StatementImport.format.not_in(("eb", "pluggy")),
         )
         .order_by(StatementImport.created_at.desc())
         .limit(30)

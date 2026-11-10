@@ -77,6 +77,11 @@ function answer(url, method) {
     recategorized.push(p.split('/').pop());
     return { status: 200, body: {} };
   }
+  if (method === 'POST' && p === '/connections/conn-wise/sync') {
+    const connection = fixtures['/connections'].connections[0];
+    const accounts = [{ name: 'Wise EUR', new: 4, duplicate: 2, error: null }];
+    return { status: 200, body: { connection, accounts } };
+  }
   if (p === '/bank-requests') {
     if (method === 'POST') {
       bankRequests.push({ id: `r-${bankRequests.length}`, bank_name: 'Santander', note: null });
@@ -257,8 +262,16 @@ async function checkScreens(page, tag) {
       await shot('upload-pedido');
       // Conexões is its own page in the sidebar too.
       await tab('Conexões').filter({ visible: true }).first().click();
-      await seen('Wise EUR').waitFor();
+      await seen('Bancos conectados').waitFor();
+      await seen('Automática').first().waitFor();
       await shot('conexoes');
+      // Reading a bank now says what arrived.
+      await page.getByRole('button', { name: 'Sincronizar agora' }).first().click();
+      await seen('Wise EUR: 4 novas, 2 já existiam').waitFor({ timeout: 3000 });
+      await page.getByText('Desconectar', { exact: true }).first().click();
+      await seen('Parar de ler o Wise? As transações ficam.').waitFor({ timeout: 3000 });
+      await shot('conexoes-sincronizado');
+      await page.getByRole('button', { name: 'Cancelar' }).click();
       // These two pages stay mounted like the tabs: going back and forth never blanks or
       // rebuilds the page, so the sidebar on screen stays the very same element.
       const visibleSide = () =>
@@ -273,6 +286,10 @@ async function checkScreens(page, tag) {
       await page.goto(`${base}/upload`);
       await page.waitForLoadState('networkidle');
       await shot('upload');
+      await page.goto(`${base}/conexoes`);
+      await seen('Bancos conectados').waitFor();
+      await page.waitForLoadState('networkidle');
+      await shot('conexoes');
     }
   } catch (e) {
     flag(`roteiro parou: ${e.message.split('\n').slice(0, 12).join(' | ')}`);

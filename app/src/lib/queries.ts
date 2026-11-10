@@ -9,6 +9,7 @@ import { AppState, Platform } from 'react-native';
 
 import {
   getAnalysis,
+  getConnections,
   getDashboard,
   getInvestments,
   getSummary,
@@ -114,6 +115,11 @@ export function useImports(enabled: boolean) {
 
 export function useCategories(enabled: boolean) {
   return useQuery({ queryKey: ['money', 'categories'], queryFn: listCategories, enabled });
+}
+
+// Under "money": a sync brings transactions, so it refreshes with the rest.
+export function useConnections(enabled: boolean) {
+  return useQuery({ queryKey: ['money', 'connections'], queryFn: getConnections, enabled });
 }
 
 // Not money data: kept out of the "money" key so imports don't refetch it.

@@ -3,7 +3,8 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-Format = Literal["csv", "ofx", "xlsx", "pdf"]
+# "eb" and "pluggy": read from a connected bank, not from a file.
+Format = Literal["csv", "ofx", "xlsx", "pdf", "eb", "pluggy"]
 SUPPORTED_CURRENCIES = ("BRL", "USD", "EUR")
 # regular: spending or income. investment and transfer count as neither.
 RowKind = Literal["regular", "investment", "transfer"]

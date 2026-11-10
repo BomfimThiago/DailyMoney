@@ -12,6 +12,9 @@ export type TokenPair = S['TokenPair'];
 export type Account = S['AccountOut'];
 export type Category = S['CategoryOut'];
 export type BankRequest = S['BankRequestOut'];
+export type Connection = S['ConnectionOut'];
+export type ConnectionsOverview = S['ConnectionsOverview'];
+export type SyncResult = S['SyncOut'];
 
 // regular: spending (negative) or income. pending: looks like money to an account of the
 // family, waiting for the person to confirm. Only regular counts as spending or income.
