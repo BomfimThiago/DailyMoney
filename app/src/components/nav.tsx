@@ -1,5 +1,4 @@
 import { router, usePathname } from 'expo-router';
-import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Logo } from '@/components/Logo';
@@ -135,17 +134,6 @@ function SideLink({
   );
 }
 
-// A page outside the tabs (upload, connections): on a computer it keeps the sidebar.
-export function WithSideBar({ wide, children }: { wide: boolean; children: ReactNode }) {
-  if (!wide) return <>{children}</>;
-  return (
-    <View style={styles.shell}>
-      <SideBar />
-      <View style={styles.shellMain}>{children}</View>
-    </View>
-  );
-}
-
 export function MonthNav({
   month,
   onChange,
@@ -250,8 +238,6 @@ const styles = StyleSheet.create({
     marginTop: 22,
     marginBottom: 6,
   },
-  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.page },
-  shellMain: { flex: 1 },
   me: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
   avatar: {
     width: 30,

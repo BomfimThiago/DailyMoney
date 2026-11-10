@@ -252,6 +252,16 @@ async function checkScreens(page, tag) {
       await tab('Conexões').filter({ visible: true }).first().click();
       await seen('Wise EUR').waitFor();
       await shot('conexoes');
+      // These two pages stay mounted like the tabs: going back and forth never blanks or
+      // rebuilds the page, so the sidebar on screen stays the very same element.
+      const visibleSide = () =>
+        [...document.querySelectorAll('[role=navigation]')].find((e) => e.offsetParent);
+      for (const name of ['Enviar extrato', 'Início', 'Conexões', 'Transações']) {
+        await page.evaluate((f) => (window.__side = eval(f)()), `(${visibleSide})`);
+        await noBlankWhile(name, () => tab(name).filter({ visible: true }).first().click());
+        const same = await page.evaluate((f) => eval(f)() === window.__side, `(${visibleSide})`);
+        if (!same) flag(`${name}: a página inteira foi refeita ao abrir (pisca)`);
+      }
     } else {
       await page.goto(`${base}/upload`);
       await page.waitForLoadState('networkidle');

@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Link, Redirect, router } from 'expo-router';
-import { type ComponentRef, useEffect, useRef, useState } from 'react';
+import { Link, Redirect, router, useFocusEffect } from 'expo-router';
+import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -13,7 +13,6 @@ import {
   View,
 } from 'react-native';
 
-import { WithSideBar } from '@/components/nav';
 import { SupportedBanks } from '@/components/SupportedBanks';
 import { Button, Card, Chip, SectionTitle, ui } from '@/components/ui';
 import { ApiError } from '@/lib/api';
@@ -123,6 +122,17 @@ export default function UploadScreen() {
     setError(null);
     setDone(null);
   };
+
+  // The page stays mounted between visits: once a statement is in, leaving the page
+  // starts the next visit fresh. A statement still being reviewed is kept.
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        if (done) reset();
+      },
+      [done],
+    ),
+  );
 
   const read = async (picked: PickedFile, currency?: Currency) => {
     setFile(picked);
@@ -315,18 +325,16 @@ export default function UploadScreen() {
   // which banks the app can read.
   if (wide) {
     return (
-      <WithSideBar wide>
-        <ScrollView style={styles.page} contentContainerStyle={styles.wideContent}>
-          <Text style={[styles.title, styles.wideTitle]}>Enviar extrato</Text>
-          <View style={styles.wideRow}>
-            <View style={styles.wideMain}>{flow}</View>
-            <View style={styles.aside}>
-              <SupportedBanks />
-              <History items={history} />
-            </View>
+      <ScrollView style={styles.page} contentContainerStyle={styles.wideContent}>
+        <Text style={[styles.title, styles.wideTitle]}>Enviar extrato</Text>
+        <View style={styles.wideRow}>
+          <View style={styles.wideMain}>{flow}</View>
+          <View style={styles.aside}>
+            <SupportedBanks />
+            <History items={history} />
           </View>
-        </ScrollView>
-      </WithSideBar>
+        </View>
+      </ScrollView>
     );
   }
 
@@ -687,7 +695,7 @@ function Done({ summary, onAgain }: { summary: ImportSummary; onAgain: () => voi
         <Button
           primary
           label="Ver no início"
-          onPress={() => router.replace('/')}
+          onPress={() => router.navigate('/')}
           style={styles.flex1}
         />
       </View>

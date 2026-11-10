@@ -5,9 +5,10 @@ import { SideBar, TabBar } from '@/components/nav';
 import { WIDE_MIN } from '@/lib/dashboard';
 import { colors } from '@/theme';
 
-// The three main screens live in one tab navigator, so they stay mounted and switching
+// Every signed-in page lives in one tab navigator, so pages stay mounted and switching
 // between them is instant instead of rebuilding the page (which blinked). On a wide
-// window the same screens sit next to a sidebar instead of over bottom tabs.
+// window they sit next to a sidebar instead of over bottom tabs. Enviar extrato and
+// Conexões have no bottom tab on a phone; they open from links on the screens.
 export default function TabsLayout() {
   const wide = useWindowDimensions().width >= WIDE_MIN;
   return (
@@ -25,6 +26,8 @@ export default function TabsLayout() {
           <Tabs.Screen name="index" />
           <Tabs.Screen name="investimentos" />
           <Tabs.Screen name="transacoes" />
+          <Tabs.Screen name="upload" />
+          <Tabs.Screen name="conexoes" />
         </Tabs>
       </View>
     </View>

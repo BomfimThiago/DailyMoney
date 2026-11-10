@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 
-import { WithSideBar } from '@/components/nav';
 import { Button, SectionTitle, ui } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
 import { PAGE_PAD, WIDE_MIN } from '@/lib/dashboard';
@@ -35,61 +34,59 @@ export default function ConnectionsScreen() {
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
   return (
-    <WithSideBar wide={wide}>
-      <ScrollView
-        style={styles.page}
-        contentContainerStyle={wide ? styles.wideContent : styles.content}
-      >
-        <View style={styles.column}>
-          {wide ? null : (
-            <Link href="/" style={styles.back}>
-              ‹ Início
-            </Link>
-          )}
-          <Text style={[styles.title, wide && styles.wideTitle]}>Conexões</Text>
-          <Text style={styles.lead}>
-            As contas que o Daily Money acompanha. Por enquanto elas são atualizadas pelos extratos
-            que você envia.
-          </Text>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={wide ? styles.wideContent : styles.content}
+    >
+      <View style={styles.column}>
+        {wide ? null : (
+          <Link href="/" style={styles.back}>
+            ‹ Início
+          </Link>
+        )}
+        <Text style={[styles.title, wide && styles.wideTitle]}>Conexões</Text>
+        <Text style={styles.lead}>
+          As contas que o Daily Money acompanha. Por enquanto elas são atualizadas pelos extratos
+          que você envia.
+        </Text>
 
-          <SectionTitle>Suas contas</SectionTitle>
-          {accounts.isError ? (
-            <Text style={styles.muted}>Não consegui carregar as contas.</Text>
-          ) : !accounts.data ? (
-            <ActivityIndicator color={colors.muted} />
-          ) : accounts.data.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.muted}>
-                Nenhuma conta ainda. Ela aparece aqui depois do primeiro extrato.
-              </Text>
-              <Button primary label="Enviar extrato" onPress={() => router.navigate('/upload')} />
-            </View>
-          ) : (
-            <View style={ui.rowList}>
-              {accounts.data.map((a, i) => (
-                <AccountRow key={a.id} account={a} first={i === 0} />
-              ))}
-            </View>
-          )}
-
-          <SectionTitle>Conexão automática</SectionTitle>
-          <Text style={styles.muted}>
-            Com o banco conectado, as transações chegam sozinhas, sem enviar arquivo.
-          </Text>
-          <View style={[ui.rowList, styles.planned]}>
-            {PLANNED.map((p, i) => (
-              <View key={p.banks} style={[ui.row, i === 0 && ui.rowFirst, styles.line]}>
-                <View style={ui.rowMain}>
-                  <Text style={ui.rowTitle}>{p.banks}</Text>
-                  <Text style={ui.rowSub}>{p.via}</Text>
-                </View>
-                <Text style={styles.soon}>Em breve</Text>
-              </View>
+        <SectionTitle>Suas contas</SectionTitle>
+        {accounts.isError ? (
+          <Text style={styles.muted}>Não consegui carregar as contas.</Text>
+        ) : !accounts.data ? (
+          <ActivityIndicator color={colors.muted} />
+        ) : accounts.data.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.muted}>
+              Nenhuma conta ainda. Ela aparece aqui depois do primeiro extrato.
+            </Text>
+            <Button primary label="Enviar extrato" onPress={() => router.navigate('/upload')} />
+          </View>
+        ) : (
+          <View style={ui.rowList}>
+            {accounts.data.map((a, i) => (
+              <AccountRow key={a.id} account={a} first={i === 0} />
             ))}
           </View>
+        )}
+
+        <SectionTitle>Conexão automática</SectionTitle>
+        <Text style={styles.muted}>
+          Com o banco conectado, as transações chegam sozinhas, sem enviar arquivo.
+        </Text>
+        <View style={[ui.rowList, styles.planned]}>
+          {PLANNED.map((p, i) => (
+            <View key={p.banks} style={[ui.row, i === 0 && ui.rowFirst, styles.line]}>
+              <View style={ui.rowMain}>
+                <Text style={ui.rowTitle}>{p.banks}</Text>
+                <Text style={ui.rowSub}>{p.via}</Text>
+              </View>
+              <Text style={styles.soon}>Em breve</Text>
+            </View>
+          ))}
         </View>
-      </ScrollView>
-    </WithSideBar>
+      </View>
+    </ScrollView>
   );
 }
 
