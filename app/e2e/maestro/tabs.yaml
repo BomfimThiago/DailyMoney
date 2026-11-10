@@ -4,6 +4,11 @@ appId: com.bomfimthiago.dailymoney
 ---
 - launchApp:
     clearState: true
+# Open the link once the app is up, as a person does from their e-mail; a link that
+# arrives while the app is still starting can be dropped by the router.
+- extendedWaitUntil:
+    visible: 'Enviar link para entrar'
+    timeout: 60000
 - openLink: dailymoney://entrar?token=${TOKEN}
 - extendedWaitUntil:
     visible: '(?i)últimos movimentos'
