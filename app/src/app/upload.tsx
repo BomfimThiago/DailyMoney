@@ -9,12 +9,15 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
+import { SideBar } from '@/components/nav';
 import { Button, Card, Chip, SectionTitle, ui } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { PAGE_PAD, WIDE_MIN } from '@/lib/dashboard';
 import {
   addDays,
   dayMonth,
@@ -102,6 +105,7 @@ export default function UploadScreen() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<ImportSummary | null>(null);
   const request = useRef(0);
+  const wide = useWindowDimensions().width >= WIDE_MIN;
 
   const signedIn = state.status === 'signedIn';
 
@@ -236,6 +240,96 @@ export default function UploadScreen() {
       })
     : false;
 
+  const flow = (
+    <>
+      {done ? (
+        <Done summary={done} onAgain={reset} />
+      ) : (
+        <>
+          {!preview || preview.needs_currency ? (
+            <DropZone onPick={pick} onFile={(f) => void read(f)} reading={reading} />
+          ) : null}
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {preview?.needs_currency ? (
+            <Card style={styles.gap}>
+              <Text style={styles.cardTitle}>Em que moeda está este extrato?</Text>
+              <Text style={styles.note}>
+                O arquivo {preview.filename} não diz a moeda dos valores.
+              </Text>
+              <View style={styles.chips}>
+                {CURRENCIES.map((c) => (
+                  <Chip key={c} label={c} selected={false} onPress={() => void chooseCurrency(c)} />
+                ))}
+              </View>
+            </Card>
+          ) : null}
+
+          {preview && count && !preview.needs_currency ? (
+            <>
+              <FileCard preview={preview} count={count} refreshing={refreshing} />
+
+              {preview.groups.map((g) => (
+                <AccountPicker
+                  key={g.currency}
+                  group={g}
+                  many={preview.groups.length > 1}
+                  accounts={accounts.filter((a) => a.currency === g.currency)}
+                  choice={choices[g.currency]}
+                  onSelect={(c) => selectAccount(g.currency, c)}
+                  onRename={(name) => renameNew(g.currency, name)}
+                />
+              ))}
+
+              {preview.groups.some((g) => g.first_import) ? (
+                <SincePicker preview={preview} since={since} onSelect={selectSince} />
+              ) : null}
+
+              <Rows rows={preview.rows} />
+
+              <View style={styles.actions}>
+                <Button label="Cancelar" onPress={() => void cancel()} style={styles.flex1} />
+                <Button
+                  primary
+                  label={
+                    toImport === 0
+                      ? 'Nada novo para importar'
+                      : `Importar ${toImport} ${toImport === 1 ? 'transação' : 'transações'}`
+                  }
+                  onPress={() => void submit()}
+                  disabled={toImport === 0 || !namesOk || refreshing}
+                  busy={importing}
+                  style={styles.flex2}
+                />
+              </View>
+            </>
+          ) : null}
+        </>
+      )}
+    </>
+  );
+
+  // On a computer: the sidebar, the upload flow, and next to it what was sent before and
+  // which banks the app can read.
+  if (wide) {
+    return (
+      <View style={styles.shell}>
+        <SideBar />
+        <ScrollView style={styles.page} contentContainerStyle={styles.wideContent}>
+          <Text style={[styles.title, styles.wideTitle]}>Enviar extrato</Text>
+          <View style={styles.wideRow}>
+            <View style={styles.wideMain}>{flow}</View>
+            <View style={styles.aside}>
+              <Banks />
+              <History items={history} />
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={styles.column}>
@@ -243,81 +337,37 @@ export default function UploadScreen() {
           ‹ Início
         </Link>
         <Text style={styles.title}>Enviar extrato</Text>
-
-        {done ? (
-          <Done summary={done} onAgain={reset} />
-        ) : (
-          <>
-            {!preview || preview.needs_currency ? (
-              <DropZone onPick={pick} onFile={(f) => void read(f)} reading={reading} />
-            ) : null}
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            {preview?.needs_currency ? (
-              <Card style={styles.gap}>
-                <Text style={styles.cardTitle}>Em que moeda está este extrato?</Text>
-                <Text style={styles.note}>
-                  O arquivo {preview.filename} não diz a moeda dos valores.
-                </Text>
-                <View style={styles.chips}>
-                  {CURRENCIES.map((c) => (
-                    <Chip
-                      key={c}
-                      label={c}
-                      selected={false}
-                      onPress={() => void chooseCurrency(c)}
-                    />
-                  ))}
-                </View>
-              </Card>
-            ) : null}
-
-            {preview && count && !preview.needs_currency ? (
-              <>
-                <FileCard preview={preview} count={count} refreshing={refreshing} />
-
-                {preview.groups.map((g) => (
-                  <AccountPicker
-                    key={g.currency}
-                    group={g}
-                    many={preview.groups.length > 1}
-                    accounts={accounts.filter((a) => a.currency === g.currency)}
-                    choice={choices[g.currency]}
-                    onSelect={(c) => selectAccount(g.currency, c)}
-                    onRename={(name) => renameNew(g.currency, name)}
-                  />
-                ))}
-
-                {preview.groups.some((g) => g.first_import) ? (
-                  <SincePicker preview={preview} since={since} onSelect={selectSince} />
-                ) : null}
-
-                <Rows rows={preview.rows} />
-
-                <View style={styles.actions}>
-                  <Button label="Cancelar" onPress={() => void cancel()} style={styles.flex1} />
-                  <Button
-                    primary
-                    label={
-                      toImport === 0
-                        ? 'Nada novo para importar'
-                        : `Importar ${toImport} ${toImport === 1 ? 'transação' : 'transações'}`
-                    }
-                    onPress={() => void submit()}
-                    disabled={toImport === 0 || !namesOk || refreshing}
-                    busy={importing}
-                    style={styles.flex2}
-                  />
-                </View>
-              </>
-            ) : null}
-          </>
-        )}
-
+        {flow}
         <History items={history} />
       </View>
     </ScrollView>
+  );
+}
+
+// What the statement readers in the API recognise (backend/app/statements/parsing).
+const BANKS: { name: string; formats: string }[] = [
+  { name: 'Nubank', formats: 'CSV, OFX ou PDF' },
+  { name: 'Inter', formats: 'CSV, OFX ou PDF' },
+  { name: 'Itaú', formats: 'PDF' },
+  { name: 'Wise', formats: 'CSV' },
+  { name: 'Revolut', formats: 'PDF' },
+  { name: 'CaixaBank', formats: 'PDF' },
+];
+
+function Banks() {
+  return (
+    <View>
+      <SectionTitle>Bancos que já sei ler</SectionTitle>
+      <View style={ui.rowList}>
+        {BANKS.map((b, i) => (
+          <View key={b.name} style={[ui.row, i === 0 && ui.rowFirst, styles.bankRow]}>
+            <Text style={styles.bankName}>{b.name}</Text>
+            <Text style={styles.bankFormats}>{b.formats}</Text>
+          </View>
+        ))}
+      </View>
+      <Text style={styles.bankNote}>De outros bancos, o OFX costuma funcionar.</Text>
+    </View>
   );
 }
 
@@ -812,4 +862,15 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   flex2: { flex: 2 },
   history: { marginTop: 12 },
+  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.page },
+  wideContent: { paddingHorizontal: PAGE_PAD, paddingTop: 28, paddingBottom: 48 },
+  wideTitle: { marginTop: 0, fontSize: 20, letterSpacing: 0 },
+  wideRow: { flexDirection: 'row', gap: 32, alignItems: 'flex-start', maxWidth: 1040 },
+  wideMain: { flex: 1, minWidth: 0, maxWidth: 680 },
+  // The drop zone has no title above it; pull the first section title level with it.
+  aside: { width: 300, gap: 8, marginTop: -28 },
+  bankRow: { justifyContent: 'space-between' },
+  bankName: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
+  bankFormats: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  bankNote: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 8 },
 });

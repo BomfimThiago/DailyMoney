@@ -159,9 +159,15 @@ async function checkScreens(page, tag) {
     const tab = (name) => page.getByTestId(`tab-${name}`);
     await tab('Investimentos').click();
     await seen('Seus produtos').waitFor();
-    await shot('investimentos-produtos');
-    await page.getByRole('tab', { name: 'Movimentos' }).click();
-    await shot('investimentos-movimentos');
+    if (tag === 'computador') {
+      // Products and the month's movements side by side, no Produtos/Movimentos switch.
+      await seen('Aplicação RDB').waitFor();
+      await shot('investimentos');
+    } else {
+      await shot('investimentos-produtos');
+      await page.getByRole('tab', { name: 'Movimentos' }).click();
+      await shot('investimentos-movimentos');
+    }
 
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
@@ -221,7 +227,14 @@ async function checkScreens(page, tag) {
       .waitFor({ state: 'detached', timeout: 3000 })
       .catch(() => flag('Início ainda mostra a transferência já confirmada'));
 
-    await page.goto(`${base}/upload`);
+    if (tag === 'computador') {
+      // The sidebar stays on the upload page, next to the banks the app can read.
+      await page.getByRole('button', { name: 'Enviar extrato' }).click();
+      await seen('Bancos que já sei ler').waitFor();
+      await tab('Transações').filter({ visible: true }).first().waitFor();
+    } else {
+      await page.goto(`${base}/upload`);
+    }
     await page.waitForLoadState('networkidle');
     await shot('upload');
   } catch (e) {

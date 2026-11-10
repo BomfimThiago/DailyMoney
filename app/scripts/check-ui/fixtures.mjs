@@ -90,6 +90,21 @@ const shares = (key) =>
     .sort((a, b) => b[1] - a[1])
     .map(([name, amount]) => ({ name, amount: amount.toFixed(2) }));
 
+const importDone = (filename, format, bank, imported, duplicates, d) => ({
+  id: `imp-${filename}`,
+  filename,
+  format,
+  bank,
+  status: 'imported',
+  period_start: day(1),
+  period_end: day(d),
+  imported_count: imported,
+  duplicate_count: duplicates,
+  skipped_count: 0,
+  created_at: `${day(d)}T12:00:00Z`,
+  finished_at: `${day(d)}T12:00:05Z`,
+});
+
 export const fixtures = {
   '/auth/me': {
     id: 'user-1',
@@ -112,7 +127,10 @@ export const fixtures = {
     { id: 'cat-Salário', name: 'Salário', kind: 'income', color: '#178A55' },
     { id: 'cat-Transferência', name: 'Transferência', kind: 'transfer', color: '#8A8799' },
   ],
-  '/imports': [],
+  '/imports': [
+    importDone('nubank-outubro.ofx', 'ofx', 'Nubank', 42, 3, 4),
+    importDone('extrato-inter.pdf', 'pdf', 'Inter', 18, 0, 9),
+  ],
   '/transactions/summary': {
     month,
     currencies: [

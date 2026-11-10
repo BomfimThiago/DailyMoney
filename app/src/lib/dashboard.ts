@@ -3,6 +3,15 @@ import { monthLabel, shiftMonth } from './format';
 // Below this width the app uses the phone layout (bottom tabs, one column).
 export const WIDE_MIN = 900;
 export const SIDEBAR_WIDTH = 232;
+// Computer pages: side padding, widest the content gets, and the content width from
+// which two cards sit side by side instead of stacking.
+export const PAGE_PAD = 36;
+export const PAGE_MAX = 1180;
+export const TWO_COLUMNS = 760;
+
+export function contentWidth(windowWidth: number): number {
+  return Math.min(windowWidth - SIDEBAR_WIDTH, PAGE_MAX) - PAGE_PAD * 2;
+}
 
 // Running total of a per-day list (index 0 is day 1).
 export function cumulative(daily: string[]): number[] {

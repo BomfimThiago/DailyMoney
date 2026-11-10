@@ -88,11 +88,14 @@ export function SideBar() {
         })}
       </View>
       <Pressable
-        onPress={() => router.push('/upload')}
+        onPress={() => router.navigate('/upload')}
         accessibilityRole="button"
-        style={styles.send}
+        accessibilityState={{ selected: path === '/upload' }}
+        style={[styles.send, path === '/upload' && styles.sendOn]}
       >
-        <Text style={styles.sendText}>Enviar extrato</Text>
+        <Text style={[styles.sendText, path === '/upload' && styles.sendTextOn]}>
+          Enviar extrato
+        </Text>
       </Pressable>
       <View style={styles.me}>
         <View style={styles.avatar}>
@@ -217,7 +220,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  sendOn: { backgroundColor: colors.soft, borderColor: colors.soft },
   sendText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  sendTextOn: { fontFamily: fonts.semibold },
   me: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
   avatar: {
     width: 30,

@@ -16,22 +16,21 @@ import { Button, Chip } from '@/components/ui';
 import {
   axisLabel,
   calendarWeeks,
+  contentWidth as contentWidthFor,
   cumulative,
   niceMax,
+  PAGE_MAX,
+  PAGE_PAD as PAD,
   paceChange,
   paceDay,
   paceSentence,
-  SIDEBAR_WIDTH,
   topShares,
+  TWO_COLUMNS,
 } from '@/lib/dashboard';
 import { money, monthLabel, plain, shiftMonth } from '@/lib/format';
 import { useDashboard } from '@/lib/queries';
 import type { Currency, CurrencyDashboard, CurrencySummary, MonthSummary } from '@/lib/types';
 import { colors, fonts } from '@/theme';
-
-const PAD = 36;
-// Below this content width the two cards under the chart stack.
-const TWO_COLUMNS = 760;
 
 // Início on a computer: the old web's dashboard, in the new white style (variant B).
 export function HomeDashboard({
@@ -53,7 +52,7 @@ export function HomeDashboard({
 }) {
   const { width } = useWindowDimensions();
   const dashQuery = useDashboard(month, summary !== null && summary.currencies.length > 0);
-  const contentWidth = Math.min(width - SIDEBAR_WIDTH, 1180) - PAD * 2;
+  const contentWidth = contentWidthFor(width);
   const twoColumns = contentWidth >= TWO_COLUMNS;
   const dash = dashQuery.data?.currencies.find((c) => c.currency === shown?.currency) ?? null;
   const noAccounts = summary !== null && summary.currencies.length === 0;
@@ -389,7 +388,7 @@ function SpendingCalendar({ month, dash }: { month: string; dash: CurrencyDashbo
 const styles = StyleSheet.create({
   page: { flex: 1, backgroundColor: colors.page },
   content: { paddingHorizontal: PAD, paddingTop: 28, paddingBottom: 48 },
-  column: { width: '100%', maxWidth: 1180 - PAD * 2, gap: 16 },
+  column: { width: '100%', maxWidth: PAGE_MAX - PAD * 2, gap: 16 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   chips: { flexDirection: 'row', gap: 6 },
   loading: { marginVertical: 32 },
