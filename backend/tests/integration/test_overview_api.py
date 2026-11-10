@@ -231,3 +231,35 @@ async def test_other_family_cannot_change_kind(client: AsyncClient) -> None:
         f"/api/v1/transactions/{tx['id']}/kind", json={"kind": "pending"}, headers=h
     )
     assert r.status_code == 422
+
+
+DASHBOARD = (
+    "Data,Valor,Identificador,Descrição\n"
+    "01/10/2026,5000.00,id-1,Transferência recebida - ACME\n"
+    "03/10/2026,-200.00,id-2,Compra no débito - MERCADONA\n"
+    "03/10/2026,-50.00,id-3,Compra no débito - UBER\n"
+    "20/10/2026,-150.00,id-4,Pix enviado - Fulano de Tal\n"
+    "05/10/2026,-1000.00,id-5,Aplicação RDB\n"
+    "28/09/2026,-80.00,id-6,Compra no débito - FARMACIA\n"
+)
+
+
+async def test_dashboard_spending_by_day_category_and_account(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, DASHBOARD, "nu.csv", "Nubank")
+
+    dash = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10")
+    [brl] = dash["currencies"]
+    daily = [float(v) for v in brl["daily"]]
+    previous = [float(v) for v in brl["previous_daily"]]
+    # Income and the investment stay out; only money spent counts.
+    assert len(daily) == 31 and len(previous) == 30
+    assert daily[2] == 250 and daily[19] == 150 and sum(daily) == 400
+    assert previous[27] == 80 and sum(previous) == 80
+    assert sum(float(c["amount"]) for c in brl["categories"]) == 400
+    amounts = [float(c["amount"]) for c in brl["categories"]]
+    assert amounts == sorted(amounts, reverse=True)
+    assert brl["accounts"] == [{"name": "Nubank", "amount": "400.0000"}]
+
+    empty = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-12")
+    assert sum(float(v) for v in empty["currencies"][0]["daily"]) == 0

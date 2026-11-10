@@ -61,6 +61,27 @@ class MonthSummary(BaseModel):
     pending_transfers: int
 
 
+class SpendingShare(BaseModel):
+    name: str
+    amount: Decimal
+
+
+class CurrencyDashboard(BaseModel):
+    currency: Currency
+    # Spending (regular lines going out) per day of the month: index 0 is day 1.
+    daily: list[Decimal]
+    # The same for the month before, to compare the pace day by day.
+    previous_daily: list[Decimal]
+    # Biggest first. Lines with no category count as "Outros".
+    categories: list[SpendingShare]
+    accounts: list[SpendingShare]
+
+
+class MonthDashboard(BaseModel):
+    month: str
+    currencies: list[CurrencyDashboard]
+
+
 # ── investments ──────────────────────────────────────────────────────────────
 
 

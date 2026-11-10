@@ -867,6 +867,53 @@
         }
       }
     },
+    "/api/v1/transactions/dashboard": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Month Dashboard",
+        "operationId": "month_dashboard_api_v1_transactions_dashboard_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "examples": ["2026-10"],
+              "title": "Month"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthDashboard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions/investments": {
       "get": {
         "tags": ["transactions"],
@@ -1260,6 +1307,44 @@
         "type": "string",
         "enum": ["BRL", "USD", "EUR"],
         "title": "Currency"
+      },
+      "CurrencyDashboard": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "daily": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Daily"
+          },
+          "previous_daily": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Previous Daily"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "daily", "previous_daily", "categories", "accounts"],
+        "title": "CurrencyDashboard"
       },
       "CurrencySummary": {
         "properties": {
@@ -1926,6 +2011,24 @@
         "type": "object",
         "title": "MemberUpdate"
       },
+      "MonthDashboard": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyDashboard"
+            },
+            "type": "array",
+            "title": "Currencies"
+          }
+        },
+        "type": "object",
+        "required": ["month", "currencies"],
+        "title": "MonthDashboard"
+      },
       "MonthSummary": {
         "properties": {
           "month": {
@@ -2121,6 +2224,21 @@
         "type": "object",
         "required": ["row", "message"],
         "title": "RowErrorOut"
+      },
+      "SpendingShare": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": ["name", "amount"],
+        "title": "SpendingShare"
       },
       "TokenPair": {
         "properties": {

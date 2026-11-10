@@ -6,6 +6,7 @@ import type {
   ImportPreview,
   ImportSummary,
   InvestmentOverview,
+  MonthDashboard,
   MonthSummary,
   Transaction,
   TransactionPage,
@@ -95,4 +96,8 @@ export function setKind(id: string, kind: Exclude<TxKind, 'pending'>) {
     method: 'PUT',
     body: JSON.stringify({ kind }),
   });
+}
+
+export function getDashboard(month: string) {
+  return api<MonthDashboard>(`/transactions/dashboard?month=${month}`);
 }

@@ -8,6 +8,7 @@ import {
 import { AppState, Platform } from 'react-native';
 
 import {
+  getDashboard,
   getInvestments,
   getSummary,
   getTransfers,
@@ -33,6 +34,15 @@ export function useSummary(month: string, enabled: boolean) {
   return useQuery({
     queryKey: ['money', 'summary', month],
     queryFn: () => getSummary(month),
+    enabled,
+  });
+}
+
+// Spending per day, category and account, for the computer's Início.
+export function useDashboard(month: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['money', 'dashboard', month],
+    queryFn: () => getDashboard(month),
     enabled,
   });
 }

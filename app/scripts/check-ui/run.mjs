@@ -1,5 +1,7 @@
-// UI check for the web build: opens every screen with sample data at phone size, saves
-// screenshots, fails on page errors and on blank frames when switching tabs.
+// UI check for the web build: opens every screen with sample data at phone size and at
+// computer size, saves screenshots, fails on page errors and on blank frames when
+// switching tabs.
+//   VIEWPORT=1440x900 npm run check:ui   only one size
 //   npm run check:ui              build the web app, then check it
 //   DIST=dist npm run check:ui    reuse an existing build
 // Screenshots go to $OUT (default: <tmp>/dailymoney-check-ui). Look at them before
@@ -84,94 +86,107 @@ const problems = [];
 const shots = [];
 const { chromium } = loadPlaywright();
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-page.on('pageerror', (e) => problems.push(`erro na página: ${e.message}`));
-page.on('console', (m) => m.type() === 'error' && problems.push(`console: ${m.text()}`));
-await page.route('**/api/v1/**', async (route) => {
-  const req = route.request();
-  const { status, body } = answer(new URL(req.url()), req.method());
-  if (status === 404)
-    problems.push(`API sem exemplo: ${req.method()} ${new URL(req.url()).pathname}`);
-  await new Promise((r) => setTimeout(r, 150)); // a little latency, like the real API
-  await route.fulfill({ status, json: body });
-});
+const sizes = process.env.VIEWPORT ? [process.env.VIEWPORT] : ['390x844', '1440x900'];
 
-async function shot(name) {
-  const file = path.join(out, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: true });
-  shots.push(file);
+for (const size of sizes) {
+  answered = false;
+  const [vw, vh] = size.split('x').map(Number);
+  // Below 900 px the app is in phone layout; above, it has the sidebar.
+  const tag = vw < 900 ? 'celular' : 'computador';
+  const page = await browser.newPage({ viewport: { width: vw, height: vh } });
+  await checkScreens(page, tag);
+  await page.close();
 }
+await browser.close();
+server.close();
 
-async function noBlankWhile(label, action) {
-  await action();
-  for (let i = 0; i < 15; i++) {
-    const text = (await page.locator('body').innerText()).trim();
-    const loading = await page.locator('[role=progressbar]:visible').count();
-    if (text.length < 40 || loading) {
-      problems.push(`${label}: tela vazia ou carregando ao trocar de aba`);
-      return;
-    }
-    await page.waitForTimeout(40);
+async function checkScreens(page, tag) {
+  const flag = (text) => problems.push(`[${tag}] ${text}`);
+  page.on('pageerror', (e) => flag(`erro na página: ${e.message}`));
+  page.on('console', (m) => m.type() === 'error' && flag(`console: ${m.text()}`));
+  await page.route('**/api/v1/**', async (route) => {
+    const req = route.request();
+    const { status, body } = answer(new URL(req.url()), req.method());
+    if (status === 404) flag(`API sem exemplo: ${req.method()} ${new URL(req.url()).pathname}`);
+    await new Promise((r) => setTimeout(r, 150)); // a little latency, like the real API
+    await route.fulfill({ status, json: body });
+  });
+
+  async function shot(name) {
+    const file = path.join(out, `${tag}-${name}.png`);
+    await page.screenshot({ path: file, fullPage: true });
+    shots.push(file);
   }
-}
 
-try {
-  // Signed out: login screen.
-  await page.goto(`${base}/login`);
-  await page.waitForLoadState('networkidle');
-  await shot('login');
+  async function noBlankWhile(label, action) {
+    await action();
+    for (let i = 0; i < 15; i++) {
+      const text = (await page.locator('body').innerText()).trim();
+      const loading = await page.locator('[role=progressbar]:visible').count();
+      if (text.length < 40 || loading) {
+        flag(`${label}: tela vazia ou carregando ao trocar de aba`);
+        return;
+      }
+      await page.waitForTimeout(40);
+    }
+  }
 
-  // Signed in from here on.
-  await page.evaluate(() => localStorage.setItem('dm.access', 'token-de-exemplo'));
-  await page.goto(`${base}/`);
-  await page.getByText('Últimos movimentos').waitFor();
-  await page.waitForLoadState('networkidle');
-  await shot('inicio');
+  try {
+    // Signed out: login screen.
+    await page.goto(`${base}/login`);
+    await page.waitForLoadState('networkidle');
+    await shot('login');
 
-  // Tabs stay mounted, so the same text can exist on a hidden tab: wait for the visible one.
-  const seen = (text) => page.getByText(text).filter({ visible: true }).first();
-  const tab = (name) => page.getByRole('tab', { name, exact: true });
-  await tab('Investimentos').click();
-  await seen('Seus produtos').waitFor();
-  await shot('investimentos-produtos');
-  await page.getByRole('tab', { name: 'Movimentos' }).click();
-  await shot('investimentos-movimentos');
+    // Signed in from here on.
+    await page.evaluate(() => localStorage.setItem('dm.access', 'token-de-exemplo'));
+    await page.goto(`${base}/`);
+    await page.getByText(tag === 'celular' ? 'Últimos movimentos' : 'RITMO DO MÊS').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('inicio');
 
-  await tab('Transações').click();
-  await seen('Pão de Açúcar').waitFor();
-  await shot('transacoes-lista');
-  await page.getByRole('tab', { name: /Transferências/ }).click();
-  await seen('AGUARDANDO CONFIRMAR').waitFor();
-  await shot('transacoes-transferencias');
+    // Tabs stay mounted, so the same text can exist on a hidden tab: wait for the visible one.
+    const seen = (text) => page.getByText(text).filter({ visible: true }).first();
+    // Bottom tabs on a phone, sidebar links on a computer: both carry the same test id.
+    const tab = (name) => page.getByTestId(`tab-${name}`);
+    await tab('Investimentos').click();
+    await seen('Seus produtos').waitFor();
+    await shot('investimentos-produtos');
+    await page.getByRole('tab', { name: 'Movimentos' }).click();
+    await shot('investimentos-movimentos');
 
-  // Every tab has loaded once: switching back must never show a blank or loading screen.
-  await noBlankWhile('Início', () => tab('Início').click());
-  await noBlankWhile('Investimentos', () => tab('Investimentos').click());
-  await noBlankWhile('Transações', () => tab('Transações').click());
+    await tab('Transações').click();
+    await seen('Pão de Açúcar').waitFor();
+    await shot('transacoes-lista');
+    await page.getByRole('tab', { name: /Transferências/ }).click();
+    await seen('AGUARDANDO CONFIRMAR').waitFor();
+    await shot('transacoes-transferencias');
 
-  // The pending banner on Início opens Transações on the Transferências tab.
-  await tab('Início').click();
-  await seen(/para confirmar/).click();
-  await seen('AGUARDANDO CONFIRMAR').waitFor({ timeout: 3000 });
+    // Every tab has loaded once: switching back must never show a blank or loading screen.
+    await noBlankWhile('Início', () => tab('Início').click());
+    await noBlankWhile('Investimentos', () => tab('Investimentos').click());
+    await noBlankWhile('Transações', () => tab('Transações').click());
 
-  // Answering it updates every tab, without reloading the page.
-  await seen('É entre minhas contas').click();
-  await seen('AGUARDANDO CONFIRMAR').waitFor({ state: 'detached', timeout: 3000 });
-  await tab('Início').click();
-  await page
-    .getByText(/para confirmar/)
-    .waitFor({ state: 'detached', timeout: 3000 })
-    .catch(() => problems.push('Início ainda mostra a transferência já confirmada'));
+    // The pending banner on Início opens Transações on the Transferências tab.
+    await tab('Início').click();
+    await seen(/para confirmar/).click();
+    await seen('AGUARDANDO CONFIRMAR').waitFor({ timeout: 3000 });
 
-  await page.goto(`${base}/upload`);
-  await page.waitForLoadState('networkidle');
-  await shot('upload');
-} catch (e) {
-  problems.push(`roteiro parou: ${e.message.split('\n')[0]}`);
-  await shot('falha').catch(() => {});
-} finally {
-  await browser.close();
-  server.close();
+    // Answering it updates every tab, without reloading the page.
+    await seen('É entre minhas contas').click();
+    await seen('AGUARDANDO CONFIRMAR').waitFor({ state: 'detached', timeout: 3000 });
+    await tab('Início').click();
+    await page
+      .getByText(/para confirmar/)
+      .waitFor({ state: 'detached', timeout: 3000 })
+      .catch(() => flag('Início ainda mostra a transferência já confirmada'));
+
+    await page.goto(`${base}/upload`);
+    await page.waitForLoadState('networkidle');
+    await shot('upload');
+  } catch (e) {
+    flag(`roteiro parou: ${e.message.split('\n')[0]}`);
+    await shot('falha').catch(() => {});
+  }
 }
 
 console.log(`Prints em ${out}:`);

@@ -34,6 +34,8 @@ export type AccountChoice =
 
 export type CurrencySummary = S['CurrencySummary'];
 export type MonthSummary = S['MonthSummary'];
+export type MonthDashboard = S['MonthDashboard'];
+export type CurrencyDashboard = S['CurrencyDashboard'];
 export type InvestmentProduct = S['InvestmentProduct'];
 export type InvestmentMonth = S['InvestmentMonth'];
 export type InvestmentTotal = S['InvestmentTotal'];

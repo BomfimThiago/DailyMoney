@@ -296,6 +296,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/dashboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Month Dashboard */
+    get: operations['month_dashboard_api_v1_transactions_dashboard_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/investments': {
     parameters: {
       query?: never;
@@ -455,6 +472,18 @@ export interface components {
      * @enum {string}
      */
     Currency: 'BRL' | 'USD' | 'EUR';
+    /** CurrencyDashboard */
+    CurrencyDashboard: {
+      currency: components['schemas']['Currency'];
+      /** Daily */
+      daily: string[];
+      /** Previous Daily */
+      previous_daily: string[];
+      /** Categories */
+      categories: components['schemas']['SpendingShare'][];
+      /** Accounts */
+      accounts: components['schemas']['SpendingShare'][];
+    };
     /** CurrencySummary */
     CurrencySummary: {
       currency: components['schemas']['Currency'];
@@ -713,6 +742,13 @@ export interface components {
       /** Color */
       color?: string | null;
     };
+    /** MonthDashboard */
+    MonthDashboard: {
+      /** Month */
+      month: string;
+      /** Currencies */
+      currencies: components['schemas']['CurrencyDashboard'][];
+    };
     /** MonthSummary */
     MonthSummary: {
       /** Month */
@@ -782,6 +818,13 @@ export interface components {
       row: number;
       /** Message */
       message: string;
+    };
+    /** SpendingShare */
+    SpendingShare: {
+      /** Name */
+      name: string;
+      /** Amount */
+      amount: string;
     };
     /** TokenPair */
     TokenPair: {
@@ -1495,6 +1538,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['MonthSummary'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  month_dashboard_api_v1_transactions_dashboard_get: {
+    parameters: {
+      query: {
+        month: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MonthDashboard'];
         };
       };
       /** @description Validation Error */

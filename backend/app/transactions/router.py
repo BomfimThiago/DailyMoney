@@ -8,6 +8,7 @@ from app.transactions.models import TxKind
 from app.transactions.schemas import (
     InvestmentOverview,
     KindUpdate,
+    MonthDashboard,
     MonthSummary,
     TransactionOut,
     TransactionPage,
@@ -45,6 +46,11 @@ async def list_transactions(
 @router.get("/summary", response_model=MonthSummary)
 async def month_summary(user: CurrentUser, db: DbSession, month: Month) -> MonthSummary:
     return await overview_service.month_summary(db, user.family_id, month)
+
+
+@router.get("/dashboard", response_model=MonthDashboard)
+async def month_dashboard(user: CurrentUser, db: DbSession, month: Month) -> MonthDashboard:
+    return await overview_service.month_dashboard(db, user.family_id, month)
 
 
 @router.get("/investments", response_model=InvestmentOverview)

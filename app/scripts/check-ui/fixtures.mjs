@@ -65,6 +65,31 @@ const investments = [
 ];
 const pending = [tx(accounts.nubank, 26, 'Pix enviado: Thiago Bomfim', '-400.00', 'pending')];
 
+// Início on a computer: spending per day (this month and the one before), shares.
+const daysIn = (offset) => {
+  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0));
+  return d.getUTCDate();
+};
+const spent = [
+  ...regular.filter((t) => t.amount.startsWith('-')),
+  tx(accounts.nubank, 2, 'Padaria', '-60.00', 'regular', 'Outros'),
+];
+const daily = Array.from({ length: daysIn(0) }, (_, i) =>
+  spent
+    .filter((t) => t.date === day(i + 1))
+    .reduce((sum, t) => sum - Number(t.amount), 0)
+    .toFixed(2),
+);
+const previousDaily = Array.from({ length: daysIn(-1) }, (_, i) =>
+  (i === 4 ? 2800 : i % 3 === 0 ? 45 + (i % 7) * 12 : 0).toFixed(2),
+);
+const shares = (key) =>
+  Object.entries(
+    spent.reduce((acc, t) => ({ ...acc, [t[key]]: (acc[t[key]] ?? 0) - Number(t.amount) }), {}),
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, amount]) => ({ name, amount: amount.toFixed(2) }));
+
 export const fixtures = {
   '/auth/me': {
     id: 'user-1',
@@ -104,6 +129,25 @@ export const fixtures = {
       },
     ],
     pending_transfers: pending.length,
+  },
+  '/transactions/dashboard': {
+    month,
+    currencies: [
+      {
+        currency: 'BRL',
+        daily,
+        previous_daily: previousDaily,
+        categories: shares('category_name'),
+        accounts: shares('account_name'),
+      },
+      {
+        currency: 'EUR',
+        daily: daily.map((_, i) => (i === 3 ? '120.00' : '0.00')),
+        previous_daily: previousDaily.map(() => '0.00'),
+        categories: [{ name: 'Outros', amount: '120.00' }],
+        accounts: [{ name: 'Wise EUR', amount: '120.00' }],
+      },
+    ],
   },
   '/transactions/investments': {
     month,

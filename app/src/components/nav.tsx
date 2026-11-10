@@ -1,7 +1,11 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { currentMonth, monthLabel, shiftMonth, shortMonth } from '@/lib/format';
+import { Logo } from '@/components/Logo';
+import { useAuth } from '@/lib/auth';
+import { SIDEBAR_WIDTH } from '@/lib/dashboard';
+import { currentMonth, initials, monthLabel, shiftMonth, shortMonth } from '@/lib/format';
+import { useSummary } from '@/lib/queries';
 import { colors, fonts } from '@/theme';
 
 const TABS = [
@@ -16,7 +20,7 @@ export function TabBar() {
     <View style={styles.bar} accessibilityRole="tablist">
       <View style={styles.tabs}>
         {TABS.map((t) => {
-          const on = t.href === '/' ? path === '/' : path.startsWith(t.href);
+          const on = isOn(t.href, path);
           return (
             <Pressable
               key={t.href}
@@ -31,6 +35,80 @@ export function TabBar() {
             </Pressable>
           );
         })}
+      </View>
+    </View>
+  );
+}
+
+function isOn(href: string, path: string): boolean {
+  return href === '/' ? path === '/' : path.startsWith(href);
+}
+
+// Computer layout: the old web's sidebar (mark, sections, send a statement, the person).
+export function SideBar() {
+  const path = usePathname();
+  const { state, signOut } = useAuth();
+  const signedIn = state.status === 'signedIn';
+  const summary = useSummary(currentMonth(), signedIn);
+  if (!signedIn) return null;
+  const pending = summary.data?.pending_transfers ?? 0;
+  const me = state.me;
+  return (
+    <View style={styles.side} accessibilityRole="navigation">
+      <Pressable
+        onPress={() => router.navigate('/')}
+        accessibilityRole="link"
+        accessibilityLabel="Daily Money, início"
+        style={styles.brand}
+      >
+        <Logo />
+        <Text style={styles.brandText}>Daily Money</Text>
+      </Pressable>
+      <View style={styles.sideLinks}>
+        {TABS.map((t) => {
+          const on = isOn(t.href, path);
+          const badge = t.href === '/transacoes' ? pending : 0;
+          return (
+            <Pressable
+              key={t.href}
+              onPress={() => router.navigate(t.href)}
+              testID={`tab-${t.label}`}
+              accessibilityRole="link"
+              accessibilityState={{ selected: on }}
+              style={[styles.sideLink, on && styles.sideLinkOn]}
+            >
+              <Text style={[styles.sideText, on && styles.sideTextOn]}>{t.label}</Text>
+              {badge > 0 ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{badge}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+      <Pressable
+        onPress={() => router.push('/upload')}
+        accessibilityRole="button"
+        style={styles.send}
+      >
+        <Text style={styles.sendText}>Enviar extrato</Text>
+      </Pressable>
+      <View style={styles.me}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials(me.name).slice(0, 1)}</Text>
+        </View>
+        <View style={styles.meText}>
+          <Text style={styles.meName} numberOfLines={1}>
+            {me.name}
+          </Text>
+          <Text style={styles.meSub} numberOfLines={1}>
+            {me.family.name}
+          </Text>
+        </View>
+        <Pressable onPress={signOut} accessibilityRole="button" style={styles.out}>
+          <Text style={styles.outText}>Sair</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -108,6 +186,53 @@ export function Segment<T extends string>({
 }
 
 const styles = StyleSheet.create({
+  side: {
+    width: SIDEBAR_WIDTH,
+    borderRightWidth: 1,
+    borderRightColor: colors.line,
+    backgroundColor: colors.page,
+    paddingHorizontal: 14,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10 },
+  brandText: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink },
+  sideLinks: { flex: 1, marginTop: 28, gap: 2 },
+  sideLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 36,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  sideLinkOn: { backgroundColor: colors.soft },
+  sideText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
+  sideTextOn: { fontFamily: fonts.medium, color: colors.ink },
+  send: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sendText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  me: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: colors.soft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
+  meText: { flex: 1, minWidth: 0 },
+  meName: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
+  meSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
+  out: { paddingVertical: 6, paddingHorizontal: 4 },
+  outText: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   bar: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.page },
   tabs: {
     flexDirection: 'row',

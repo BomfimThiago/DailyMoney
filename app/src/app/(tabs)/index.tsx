@@ -1,24 +1,36 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
+import { HomeDashboard } from '@/components/HomeDashboard';
 import { MonthNav } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Button, Chip, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { WIDE_MIN } from '@/lib/dashboard';
 import { currentMonth, money, plain } from '@/lib/format';
 import { useRecent, useSummary } from '@/lib/queries';
 import type { Currency } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
-// Início, variant A from the validated mock: Entradas · Gastos · Investido for the month.
+// Início: on a phone, variant A from the validated mock (Entradas · Gastos · Investido and
+// the latest lines); on a computer, the dashboard in HomeDashboard.
 export default function HomeScreen() {
   const { state, signOut } = useAuth();
   const [month, setMonth] = useState(currentMonth);
   const [currency, setCurrency] = useState<Currency | null>(null);
   const signedIn = state.status === 'signedIn';
   const summaryQuery = useSummary(month, signedIn);
-  const recentQuery = useRecent(month, signedIn);
+  const wide = useWindowDimensions().width >= WIDE_MIN;
+  const recentQuery = useRecent(month, signedIn && !wide);
 
   if (state.status === 'loading') {
     return (
@@ -34,6 +46,20 @@ export default function HomeScreen() {
   const shown =
     summary?.currencies.find((c) => c.currency === currency) ?? summary?.currencies[0] ?? null;
   const noAccounts = summary !== null && summary.currencies.length === 0;
+
+  if (wide) {
+    return (
+      <HomeDashboard
+        month={month}
+        onMonth={setMonth}
+        summary={summary}
+        summaryError={summaryQuery.isError}
+        shown={shown}
+        onCurrency={setCurrency}
+        firstName={state.me.name.split(' ')[0]}
+      />
+    );
+  }
 
   return (
     <View style={styles.page}>

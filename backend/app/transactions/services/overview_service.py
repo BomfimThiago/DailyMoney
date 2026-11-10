@@ -17,12 +17,15 @@ from app.families.models import Currency, Family
 from app.statements.parsing.own_moves import product_name
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
+    CurrencyDashboard,
     CurrencySummary,
     InvestmentMonth,
     InvestmentOverview,
     InvestmentProduct,
     InvestmentTotal,
+    MonthDashboard,
     MonthSummary,
+    SpendingShare,
     TransactionOut,
     TransferOut,
     TransferOverview,
@@ -81,6 +84,60 @@ async def month_summary(db: AsyncSession, family_id: uuid.UUID, month: str) -> M
         .where(Transaction.family_id == family_id, Transaction.kind == TxKind.PENDING)
     )
     return MonthSummary(month=month, currencies=out, pending_transfers=pending or 0)
+
+
+OTHER_CATEGORY = "Outros"
+
+
+async def month_dashboard(db: AsyncSession, family_id: uuid.UUID, month: str) -> MonthDashboard:
+    """Spending per day (this month and the one before), by category and by account."""
+    lo, hi = month_range(month)
+    prev_lo, prev_hi = month_range(shift(month, -1))
+    rows = await db.execute(
+        select(
+            Transaction.currency, Transaction.date, Transaction.amount, Account.name, Category.name
+        )
+        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Category, Category.id == Transaction.category_id)
+        .where(
+            Transaction.family_id == family_id,
+            Transaction.kind == TxKind.REGULAR,
+            Transaction.amount < 0,
+            Transaction.date.between(prev_lo, hi),
+        )
+    )
+    daily: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * hi.day)
+    previous: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * prev_hi.day)
+    by_category: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
+    by_account: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
+    for currency, day, amount, account_name, category_name in rows:
+        spent = -amount
+        if day < lo:
+            previous[currency][day.day - 1] += spent
+            continue
+        daily[currency][day.day - 1] += spent
+        by_category[currency][category_name or OTHER_CATEGORY] += spent
+        by_account[currency][account_name] += spent
+
+    def shares(sums: dict[str, Decimal]) -> list[SpendingShare]:
+        return [
+            SpendingShare(name=name, amount=amount)
+            for name, amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0]))
+        ]
+
+    return MonthDashboard(
+        month=month,
+        currencies=[
+            CurrencyDashboard(
+                currency=c,
+                daily=daily[c],
+                previous_daily=previous[c],
+                categories=shares(by_category[c]),
+                accounts=shares(by_account[c]),
+            )
+            for c in await _currencies(db, family_id)
+        ],
+    )
 
 
 async def _with_names(
