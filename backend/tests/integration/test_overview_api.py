@@ -212,6 +212,14 @@ async def test_list_filters_and_bad_month(client: AsyncClient) -> None:
     await _import(client, h, NUBANK, "nu.csv", "Nubank")
     page = await _get(client, h, "/api/v1/transactions?month=2026-10&kind=investment")
     assert page["total"] == 2
+    found = await _get(client, h, "/api/v1/transactions?month=2026-10&q=mercad")
+    assert [t["description"] for t in found["items"]] == ["Compra no débito - MERCADONA"]
+    # Wildcards in the search box are plain characters.
+    assert (await _get(client, h, "/api/v1/transactions?q=%25"))["total"] == 0
+    tx = found["items"][0]
+    by_cat = await _get(client, h, f"/api/v1/transactions?category_id={tx['category_id']}")
+    assert tx["id"] in [t["id"] for t in by_cat["items"]]
+    assert all(t["category_id"] == tx["category_id"] for t in by_cat["items"])
     r = await client.get("/api/v1/transactions/summary?month=2026-13", headers=h)
     assert r.status_code == 422
     r = await client.get("/api/v1/transactions/summary?month=octubre", headers=h)

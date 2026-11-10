@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   Account,
   AccountChoice,
+  Category,
   Currency,
   ImportPreview,
   ImportSummary,
@@ -69,12 +70,21 @@ export function listAccounts() {
   return api<Account[]>('/accounts');
 }
 
+export interface TxFilters {
+  q?: string;
+  categoryId?: string | null;
+  accountId?: string | null;
+}
+
 export function listTransactions(
-  opts: { limit?: number; offset?: number; month?: string; kinds?: TxKind[] } = {},
+  opts: { limit?: number; offset?: number; month?: string; kinds?: TxKind[] } & TxFilters = {},
 ) {
   const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
   if (opts.offset) q.set('offset', String(opts.offset));
   if (opts.month) q.set('month', opts.month);
+  if (opts.q?.trim()) q.set('q', opts.q.trim());
+  if (opts.categoryId) q.set('category_id', opts.categoryId);
+  if (opts.accountId) q.set('account_id', opts.accountId);
   for (const k of opts.kinds ?? []) q.append('kind', k);
   return api<TransactionPage>(`/transactions?${q.toString()}`);
 }
@@ -100,4 +110,16 @@ export function setKind(id: string, kind: Exclude<TxKind, 'pending'>) {
 
 export function getDashboard(month: string) {
   return api<MonthDashboard>(`/transactions/dashboard?month=${month}`);
+}
+
+export function listCategories() {
+  return api<Category[]>('/categories');
+}
+
+// "applyToMerchant": the next lines from the same shop get this category too.
+export function updateCategory(id: string, categoryId: string, applyToMerchant: boolean) {
+  return api<Transaction>(`/transactions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ category_id: categoryId, apply_to_merchant: applyToMerchant }),
+  });
 }

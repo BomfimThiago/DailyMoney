@@ -13,8 +13,10 @@ import {
   getSummary,
   getTransfers,
   listAccounts,
+  listCategories,
   listImports,
   listTransactions,
+  type TxFilters,
 } from './imports';
 
 // Server data for the money screens. Every key starts with "money" so one invalidation
@@ -55,12 +57,12 @@ export function useRecent(month: string, enabled: boolean) {
   });
 }
 
-// Spending and income only, 50 at a time.
-export function useRegular(month: string, enabled: boolean) {
+// Spending and income only, 50 at a time; on a computer also searched and filtered.
+export function useRegular(month: string, enabled: boolean, filters: TxFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ['money', 'regular', month],
+    queryKey: ['money', 'regular', month, filters],
     queryFn: ({ pageParam }) =>
-      listTransactions({ month, kinds: ['regular'], limit: PAGE, offset: pageParam }),
+      listTransactions({ month, kinds: ['regular'], limit: PAGE, offset: pageParam, ...filters }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
@@ -97,4 +99,8 @@ export function useAccounts(enabled: boolean) {
 
 export function useImports(enabled: boolean) {
   return useQuery({ queryKey: ['money', 'imports'], queryFn: listImports, enabled });
+}
+
+export function useCategories(enabled: boolean) {
+  return useQuery({ queryKey: ['money', 'categories'], queryFn: listCategories, enabled });
 }

@@ -105,6 +105,13 @@ export const fixtures = {
     },
   },
   '/accounts': Object.values(accounts),
+  '/categories': [
+    ...['Mercado', 'Restaurantes', 'Casa', 'Saúde', 'Transporte', 'Assinaturas', 'Outros'].map(
+      (name) => ({ id: `cat-${name}`, name, kind: 'expense', color: '#8A8799' }),
+    ),
+    { id: 'cat-Salário', name: 'Salário', kind: 'income', color: '#178A55' },
+    { id: 'cat-Transferência', name: 'Transferência', kind: 'transfer', color: '#8A8799' },
+  ],
   '/imports': [],
   '/transactions/summary': {
     month,

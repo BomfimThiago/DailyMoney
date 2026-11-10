@@ -62,11 +62,17 @@ const base = `http://localhost:${server.address().port}`;
 
 // Once the pending Pix is answered, the API stops listing it, like the real one.
 let answered = false;
+// Category changes the screens sent (PATCH /transactions/{id}).
+const recategorized = [];
 
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
   if (method === 'PUT' && p.endsWith('/kind')) {
     answered = true;
+    return { status: 200, body: {} };
+  }
+  if (method === 'PATCH' && p.startsWith('/transactions/')) {
+    recategorized.push(p.split('/').pop());
     return { status: 200, body: {} };
   }
   if (answered && p === '/transactions/summary') {
@@ -76,7 +82,9 @@ function answer(url, method) {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
   }
   if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular') {
-    return { status: 200, body: fixtures.regular };
+    const q = (url.searchParams.get('q') ?? '').toLowerCase();
+    const items = fixtures.regular.items.filter((t) => t.description.toLowerCase().includes(q));
+    return { status: 200, body: { total: items.length, items } };
   }
   if (p in fixtures) return { status: 200, body: fixtures[p] };
   return { status: 404, body: { detail: `sem dado de exemplo para ${p}` } };
@@ -90,6 +98,7 @@ const sizes = process.env.VIEWPORT ? [process.env.VIEWPORT] : ['390x844', '1440x
 
 for (const size of sizes) {
   answered = false;
+  recategorized.length = 0;
   const [vw, vh] = size.split('x').map(Number);
   // Below 900 px the app is in phone layout; above, it has the sidebar.
   const tag = vw < 900 ? 'celular' : 'computador';
@@ -157,6 +166,38 @@ async function checkScreens(page, tag) {
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
     await shot('transacoes-lista');
+
+    // A line opens its detail (beside the table, or as a sheet on a phone), where the
+    // category can change.
+    // By role: Início, mounted underneath, also shows this line as plain text.
+    await page
+      .getByRole('button', { name: /^Pão de Açúcar/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen('Valer também para as próximas deste estabelecimento').waitFor();
+    await page.waitForTimeout(400); // the sheet fades in
+    await shot('transacoes-detalhe');
+    await page.getByRole('radio', { name: 'Restaurantes' }).filter({ visible: true }).click();
+    await page.waitForTimeout(400);
+    if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
+    if (tag === 'celular') {
+      await page.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await seen('Valer também para as próximas deste estabelecimento')
+        .waitFor({ state: 'detached', timeout: 3000 })
+        .catch(() => flag('a folha de detalhe não fechou'));
+    } else {
+      // Search narrows the table.
+      await page.getByLabel('Buscar descrição').fill('netf');
+      await page
+        .getByText('Uber')
+        .filter({ visible: true })
+        .waitFor({ state: 'detached', timeout: 3000 })
+        .catch(() => flag('a busca não filtrou a tabela'));
+      await shot('transacoes-busca');
+      await page.getByLabel('Buscar descrição').fill('');
+      await seen('Uber').waitFor();
+    }
     await page.getByRole('tab', { name: /Transferências/ }).click();
     await seen('AGUARDANDO CONFIRMAR').waitFor();
     await shot('transacoes-transferencias');
@@ -184,7 +225,7 @@ async function checkScreens(page, tag) {
     await page.waitForLoadState('networkidle');
     await shot('upload');
   } catch (e) {
-    flag(`roteiro parou: ${e.message.split('\n')[0]}`);
+    flag(`roteiro parou: ${e.message.split('\n').slice(0, 12).join(' | ')}`);
     await shot('falha').catch(() => {});
   }
 }

@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { dayMonth, isIncome, money } from '@/lib/format';
 import type { Transaction } from '@/lib/types';
@@ -26,13 +26,26 @@ function dotStyle(t: Transaction) {
 
 // One line of money: what, where, when. Only spending and income carry a sign; the rest
 // just moved, so they show the plain value.
-export function TxRow({ t, first }: { t: Transaction; first?: boolean }) {
+export function TxRow({
+  t,
+  first,
+  onPress,
+}: {
+  t: Transaction;
+  first?: boolean;
+  onPress?: () => void;
+}) {
   const regular = t.kind === 'regular';
   const amount = regular
     ? money(t.amount, t.currency, true)
     : money(t.amount.replace('-', ''), t.currency);
   return (
-    <View style={[styles.row, first && styles.first]}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      style={[styles.row, first && styles.first]}
+    >
       <View style={[styles.dot, dotStyle(t)]} />
       <View style={styles.main}>
         <Text style={styles.title} numberOfLines={1}>
@@ -52,7 +65,7 @@ export function TxRow({ t, first }: { t: Transaction; first?: boolean }) {
       >
         {amount}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

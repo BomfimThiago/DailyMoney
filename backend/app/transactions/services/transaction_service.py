@@ -28,6 +28,8 @@ async def list_transactions(
     account_id: uuid.UUID | None = None,
     month: str | None = None,
     kinds: list[TxKind] | None = None,
+    category_id: uuid.UUID | None = None,
+    q: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> TransactionPage:
@@ -39,6 +41,12 @@ async def list_transactions(
         where.append(Transaction.date.between(lo, hi))
     if kinds:
         where.append(Transaction.kind.in_(kinds))
+    if category_id is not None:
+        where.append(Transaction.category_id == category_id)
+    if q and (text := q.strip()):
+        # The person's words are matched literally, so % and _ mean themselves.
+        pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        where.append(Transaction.description.ilike(pattern, escape="\\"))
     total = await db.scalar(select(func.count()).select_from(Transaction).where(*where))
     rows = await db.execute(
         select(Transaction, Account.name, Category.name)

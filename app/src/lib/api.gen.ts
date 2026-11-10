@@ -1491,6 +1491,8 @@ export interface operations {
         account_id?: string | null;
         month?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
+        category_id?: string | null;
+        q?: string | null;
         limit?: number;
         offset?: number;
       };

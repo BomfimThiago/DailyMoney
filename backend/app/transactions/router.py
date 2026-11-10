@@ -29,6 +29,8 @@ async def list_transactions(
     account_id: uuid.UUID | None = None,
     month: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
     kind: Annotated[list[TxKind] | None, Query()] = None,
+    category_id: uuid.UUID | None = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> TransactionPage:
@@ -38,6 +40,8 @@ async def list_transactions(
         account_id=account_id,
         month=month,
         kinds=kind,
+        category_id=category_id,
+        q=q,
         limit=limit,
         offset=offset,
     )
