@@ -89,7 +89,9 @@ jobs:
           disable-animations: true
           script: |
             adb install app/android/app/build/outputs/apk/release/app-release.apk
-            mkdir -p mobile-check && maestro test -e TOKEN="$TOKEN" --test-output-dir mobile-check app/e2e/maestro/tabs.yaml
+            mkdir -p mobile-check
+            # On failure, print the app's errors here: the artifact is not always reachable.
+            maestro test -e TOKEN="$TOKEN" --test-output-dir mobile-check app/e2e/maestro/tabs.yaml || { adb logcat -d -v brief ReactNativeJS:V ReactNative:V AndroidRuntime:V '*:S' | tail -n 150; exit 1; }
 
       - if: always()
         uses: actions/upload-artifact@v4
