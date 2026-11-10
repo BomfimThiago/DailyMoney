@@ -1,15 +1,14 @@
 import { Redirect, router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MonthNav } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Button, Chip, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth, money, plain } from '@/lib/format';
-import { getSummary, listTransactions } from '@/lib/imports';
-import type { Currency, MonthSummary, TransactionPage } from '@/lib/types';
+import { useRecent, useSummary } from '@/lib/queries';
+import type { Currency } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
 // Início, variant A from the validated mock: Entradas · Gastos · Investido for the month.
@@ -17,22 +16,9 @@ export default function HomeScreen() {
   const { state, signOut } = useAuth();
   const [month, setMonth] = useState(currentMonth);
   const [currency, setCurrency] = useState<Currency | null>(null);
-  // Keyed by month so a refetch on focus keeps the screen as is, without a loader blink.
-  const [summaryOf, setSummaryOf] = useState<{ month: string; data: MonthSummary } | null>(null);
-  const [pageOf, setPageOf] = useState<{ month: string; data: TransactionPage } | null>(null);
   const signedIn = state.status === 'signedIn';
-
-  const load = useCallback(() => {
-    getSummary(month).then(
-      (data) => setSummaryOf({ month, data }),
-      () => setSummaryOf(null),
-    );
-    listTransactions({ month, limit: 8 }).then(
-      (data) => setPageOf({ month, data }),
-      () => setPageOf({ month, data: { total: 0, items: [] } }),
-    );
-  }, [month]);
-  useRefresh(load, signedIn);
+  const summaryQuery = useSummary(month, signedIn);
+  const recentQuery = useRecent(month, signedIn);
 
   if (state.status === 'loading') {
     return (
@@ -43,8 +29,8 @@ export default function HomeScreen() {
   }
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
-  const summary = summaryOf?.month === month ? summaryOf.data : null;
-  const page = pageOf?.month === month ? pageOf.data : null;
+  const summary = summaryQuery.data ?? null;
+  const page = recentQuery.data ?? null;
   const shown =
     summary?.currencies.find((c) => c.currency === currency) ?? summary?.currencies[0] ?? null;
   const noAccounts = summary !== null && summary.currencies.length === 0;
@@ -69,7 +55,11 @@ export default function HomeScreen() {
             ) : null}
           </View>
 
-          {!summary ? (
+          {summaryQuery.isError ? (
+            <Text style={[styles.empty, styles.loading]}>
+              Não consegui carregar. Tente de novo.
+            </Text>
+          ) : !summary ? (
             <ActivityIndicator color={colors.muted} style={styles.loading} />
           ) : noAccounts ? (
             <View style={styles.emptyBox}>
@@ -119,7 +109,9 @@ export default function HomeScreen() {
           {!noAccounts ? (
             <>
               <SectionTitle>Últimos movimentos</SectionTitle>
-              {!page ? (
+              {recentQuery.isError ? (
+                <Text style={styles.empty}>Não consegui carregar os movimentos.</Text>
+              ) : !page ? (
                 <ActivityIndicator color={colors.muted} />
               ) : page.items.length === 0 ? (
                 <Text style={styles.empty}>Nenhum movimento neste mês.</Text>

@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { Link, Redirect, router } from 'expo-router';
-import { type ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -29,12 +29,11 @@ import {
 import {
   cancelImport,
   confirmImport,
-  listAccounts,
-  listImports,
   refreshPreview,
   uploadStatement,
   type PickedFile,
 } from '@/lib/imports';
+import { useAccounts, useImports, useRefreshMoney } from '@/lib/queries';
 import type {
   Account,
   AccountChoice,
@@ -97,8 +96,6 @@ export default function UploadScreen() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [choices, setChoices] = useState<Partial<Record<Currency, Choice>>>({});
   const [since, setSince] = useState<string | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [history, setHistory] = useState<ImportSummary[]>([]);
   const [reading, setReading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -108,14 +105,10 @@ export default function UploadScreen() {
 
   const signedIn = state.status === 'signedIn';
 
-  const loadLists = useCallback(() => {
-    listImports().then(setHistory, () => undefined);
-    listAccounts().then(setAccounts, () => undefined);
-  }, []);
-
-  useEffect(() => {
-    if (signedIn) loadLists();
-  }, [signedIn, loadLists]);
+  const accounts = useAccounts(signedIn).data ?? [];
+  const history = useImports(signedIn).data ?? [];
+  // A new import changes every money screen, not just the lists here.
+  const loadLists = useRefreshMoney();
 
   const reset = () => {
     setFile(null);

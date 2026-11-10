@@ -8,9 +8,10 @@ on:
     paths: [app/**, backend/**, .github/workflows/mobile.yml]
   workflow_dispatch:
 
+# A run takes ~20 minutes: let it finish; newer pushes wait (only the latest one runs).
 concurrency:
   group: mobile-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   android:

@@ -58,9 +58,21 @@ const server = http
   .listen(0);
 const base = `http://localhost:${server.address().port}`;
 
+// Once the pending Pix is answered, the API stops listing it, like the real one.
+let answered = false;
+
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
-  if (method === 'PUT' && p.endsWith('/kind')) return { status: 200, body: {} };
+  if (method === 'PUT' && p.endsWith('/kind')) {
+    answered = true;
+    return { status: 200, body: {} };
+  }
+  if (answered && p === '/transactions/summary') {
+    return { status: 200, body: { ...fixtures[p], pending_transfers: 0 } };
+  }
+  if (answered && p === '/transactions/transfers') {
+    return { status: 200, body: { ...fixtures[p], pending: [] } };
+  }
   if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular') {
     return { status: 200, body: fixtures.regular };
   }
@@ -141,6 +153,15 @@ try {
   await tab('Início').click();
   await seen(/para confirmar/).click();
   await seen('AGUARDANDO CONFIRMAR').waitFor({ timeout: 3000 });
+
+  // Answering it updates every tab, without reloading the page.
+  await seen('É entre minhas contas').click();
+  await seen('AGUARDANDO CONFIRMAR').waitFor({ state: 'detached', timeout: 3000 });
+  await tab('Início').click();
+  await page
+    .getByText(/para confirmar/)
+    .waitFor({ state: 'detached', timeout: 3000 })
+    .catch(() => problems.push('Início ainda mostra a transferência já confirmada'));
 
   await page.goto(`${base}/upload`);
   await page.waitForLoadState('networkidle');

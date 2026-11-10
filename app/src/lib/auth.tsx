@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 import { api, clearTokens, getRefreshToken, saveTokens } from './api';
 import type { Me, TokenPair } from './types';
+import { queryClient } from './queries';
 
 type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; me: Me };
 
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ token }),
     });
     await saveTokens(tokens);
+    queryClient.clear();
     setState({ status: 'signedIn', me: await api<Me>('/auth/me') });
   }, []);
 
@@ -46,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }).catch(() => undefined);
     }
     await clearTokens();
+    // The next person to sign in on this device must not see this family's data.
+    queryClient.clear();
     setState({ status: 'signedOut' });
   }, []);
 

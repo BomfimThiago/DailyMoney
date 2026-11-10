@@ -1,14 +1,13 @@
 import { Redirect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MonthNav, Segment } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Chip, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
-import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth, isZero, money, monthLabel, shortMonth } from '@/lib/format';
-import { getInvestments } from '@/lib/imports';
+import { useInvestments } from '@/lib/queries';
 import type { Currency, InvestmentOverview } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -20,24 +19,12 @@ export default function InvestmentsScreen() {
   const [month, setMonth] = useState(currentMonth);
   const [view, setView] = useState<View_>('produtos');
   const [currency, setCurrency] = useState<Currency | null>(null);
-  // Keyed by month so a refetch on focus keeps the screen as is, without a loader blink.
-  const [loaded, setLoaded] = useState<{ month: string; data: InvestmentOverview } | null>(null);
-  const [failed, setFailed] = useState(false);
-  const signedIn = state.status === 'signedIn';
-
-  const load = useCallback(() => {
-    setFailed(false);
-    getInvestments(month).then(
-      (data) => setLoaded({ month, data }),
-      () => setFailed(true),
-    );
-  }, [month]);
-  useRefresh(load, signedIn);
+  const query = useInvestments(month, state.status === 'signedIn');
 
   if (state.status === 'loading') return <View style={styles.page} />;
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
-  const data = loaded?.month === month ? loaded.data : null;
+  const data = query.data ?? null;
   const cur =
     data?.totals.find((t) => t.currency === currency)?.currency ?? data?.totals[0]?.currency;
   const total = data?.totals.find((t) => t.currency === cur);
@@ -56,7 +43,7 @@ export default function InvestmentsScreen() {
             <MonthNav month={month} onChange={setMonth} compact />
           </View>
 
-          {failed ? (
+          {query.isError ? (
             <Text style={styles.empty}>Não consegui carregar. Tente de novo.</Text>
           ) : !data ? (
             <ActivityIndicator color={colors.muted} style={styles.loading} />

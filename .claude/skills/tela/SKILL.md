@@ -31,8 +31,10 @@ nos dois. O Thiago aprovou o visual nos mocks; não invente outro.
 
 ## Estados que toda tela precisa
 
-1. **Carregando:** só na primeira vez ou ao trocar de mês. Ao voltar para uma aba, mostre
-   os dados que já estavam e atualize por trás (`useRefresh`). Trocar de aba nunca pisca.
+1. **Carregando:** só na primeira vez ou ao trocar de mês. Dados do servidor vêm sempre de
+   um hook em `src/lib/queries.ts` (TanStack Query, chaves começando com `money`), nunca
+   de `useEffect` + `useState`. Depois de mudar algo no servidor, chame
+   `useRefreshMoney()`: todas as abas se atualizam sem piscar.
 2. **Vazio:** frase curta em português dizendo o que fazer ("Envie um extrato para ...").
 3. **Erro:** mensagem em português, em `colors.danger`, sem jargão técnico.
 

@@ -1,19 +1,16 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MonthNav, Segment } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Transfers } from '@/components/Transfers';
 import { useAuth } from '@/lib/auth';
-import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth } from '@/lib/format';
-import { getTransfers, listTransactions } from '@/lib/imports';
-import type { TransactionPage, TransferOverview } from '@/lib/types';
+import { useRefreshMoney, useRegular, useTransfers } from '@/lib/queries';
 import { colors, fonts } from '@/theme';
 
 type Tab = 'lista' | 'transferencias';
-const PAGE = 50;
 
 // Transações, with transfers between the family's own accounts as a second tab (variant A).
 export default function TransactionsScreen() {
@@ -21,14 +18,10 @@ export default function TransactionsScreen() {
   const params = useLocalSearchParams<{ aba?: string }>();
   const [tab, setTab] = useState<Tab>(params.aba === 'transferencias' ? 'transferencias' : 'lista');
   const [month, setMonth] = useState(currentMonth);
-  // Keyed by month: refetching on focus keeps the current list on screen (no blink); only
-  // a month change shows the loader.
-  const [loaded, setLoaded] = useState<{ month: string; data: TransactionPage } | null>(null);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [transfersOf, setTransfersOf] = useState<{ month: string; data: TransferOverview } | null>(
-    null,
-  );
   const signedIn = state.status === 'signedIn';
+  const regular = useRegular(month, signedIn);
+  const transfersQuery = useTransfers(month, signedIn);
+  const refreshMoney = useRefreshMoney();
 
   // The screen stays mounted between tabs, so a link from Início with ?aba= must switch
   // here; adjusting state while rendering is React's pattern for following a prop.
@@ -38,45 +31,12 @@ export default function TransactionsScreen() {
     if (params.aba === 'transferencias') setTab('transferencias');
   }
 
-  const loadTransfers = useCallback(
-    () =>
-      getTransfers(month).then(
-        (data) => setTransfersOf({ month, data }),
-        () => setTransfersOf(null),
-      ),
-    [month],
-  );
-
-  const load = useCallback(() => {
-    listTransactions({ month, kinds: ['regular'], limit: PAGE }).then(
-      (data) => setLoaded({ month, data }),
-      () => setLoaded({ month, data: { total: 0, items: [] } }),
-    );
-    loadTransfers();
-  }, [month, loadTransfers]);
-  useRefresh(load, signedIn);
-
   if (state.status === 'loading') return <View style={styles.page} />;
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
-  const page = loaded?.month === month ? loaded.data : null;
-  const transfers = transfersOf?.month === month ? transfersOf.data : null;
-
-  const loadMore = async () => {
-    if (!page) return;
-    setLoadingMore(true);
-    try {
-      const next = await listTransactions({
-        month,
-        kinds: ['regular'],
-        limit: PAGE,
-        offset: page.items.length,
-      });
-      setLoaded({ month, data: { total: next.total, items: [...page.items, ...next.items] } });
-    } finally {
-      setLoadingMore(false);
-    }
-  };
+  const items = regular.data?.pages.flatMap((p) => p.items) ?? null;
+  const total = regular.data?.pages[regular.data.pages.length - 1].total ?? 0;
+  const transfers = transfersQuery.data ?? null;
 
   const pendingCount = transfers?.pending.length ?? 0;
 
@@ -98,37 +58,39 @@ export default function TransactionsScreen() {
           />
 
           {tab === 'lista' ? (
-            !page ? (
+            regular.isError ? (
+              <Text style={[styles.empty, styles.top]}>Não consegui carregar. Tente de novo.</Text>
+            ) : !items ? (
               <ActivityIndicator color={colors.muted} style={styles.loading} />
-            ) : page.items.length === 0 ? (
+            ) : items.length === 0 ? (
               <Text style={[styles.empty, styles.top]}>Nenhum gasto ou entrada neste mês.</Text>
             ) : (
               <View style={styles.top}>
-                {page.items.map((t, i) => (
+                {items.map((t, i) => (
                   <TxRow key={t.id} t={t} first={i === 0} />
                 ))}
-                {page.total > page.items.length ? (
+                {regular.hasNextPage ? (
                   <Pressable
-                    onPress={loadMore}
-                    disabled={loadingMore}
+                    onPress={() => regular.fetchNextPage()}
+                    disabled={regular.isFetchingNextPage}
                     accessibilityRole="button"
                     style={styles.more}
                   >
-                    {loadingMore ? (
+                    {regular.isFetchingNextPage ? (
                       <ActivityIndicator color={colors.muted} />
                     ) : (
-                      <Text style={styles.moreText}>
-                        Mostrar mais ({page.total - page.items.length})
-                      </Text>
+                      <Text style={styles.moreText}>Mostrar mais ({total - items.length})</Text>
                     )}
                   </Pressable>
                 ) : null}
               </View>
             )
+          ) : transfersQuery.isError ? (
+            <Text style={[styles.empty, styles.top]}>Não consegui carregar. Tente de novo.</Text>
           ) : !transfers ? (
             <ActivityIndicator color={colors.muted} style={styles.loading} />
           ) : (
-            <Transfers data={transfers} month={month} onChanged={loadTransfers} />
+            <Transfers data={transfers} month={month} onChanged={refreshMoney} />
           )}
         </View>
       </ScrollView>
