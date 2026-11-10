@@ -1,0 +1,101 @@
+name: mobile
+
+# Builds the Android app and walks its screens on an emulator with Maestro, against a
+# local API seeded with synthetic data. Screenshots are kept as a run artifact.
+on:
+  push:
+    branches: [main, claude/project-thread-78a6tm]
+    paths: [app/**, backend/**, .github/workflows/mobile.yml]
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dailymoney
+          POSTGRES_PASSWORD: dailymoney
+          POSTGRES_DB: dailymoney
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dailymoney" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://dailymoney:dailymoney@localhost:5432/dailymoney
+      ALLOWED_EMAILS: e2e@example.com
+      SECRET_KEY: ci-only-e2e-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start the API with sample data
+        uses: astral-sh/setup-uv@v5
+      - working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run alembic upgrade head
+          nohup uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../api.log 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS localhost:8000/api/health && break; sleep 1; done
+          echo "TOKEN=$(PYTHONPATH=. uv run python scripts/e2e_seed.py http://localhost:8000 e2e@example.com)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the Android app
+        working-directory: app
+        env:
+          # The emulator reaches the runner's localhost at 10.0.2.2.
+          EXPO_PUBLIC_API_URL: http://10.0.2.2:8000
+        run: |
+          npm ci
+          npx expo prebuild --platform android --no-install
+          # Plain http to the local API is allowed only in this CI build.
+          sed -i 's/<application /<application android:usesCleartextTraffic="true" /' \
+            android/app/src/main/AndroidManifest.xml
+          cd android && ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
+
+      - name: Install Maestro
+        run: |
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+
+      - name: Walk the screens on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            adb install app/android/app/build/outputs/apk/release/app-release.apk
+            mkdir -p mobile-check && maestro test -e TOKEN="$TOKEN" --test-output-dir mobile-check app/e2e/maestro/tabs.yaml
+
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-check-android
+          path: |
+            mobile-check
+            api.log
+            *.png
+            app/e2e/maestro/*.png

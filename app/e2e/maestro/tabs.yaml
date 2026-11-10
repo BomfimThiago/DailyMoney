@@ -1,0 +1,39 @@
+# Signs in with a seeded one-time link and walks the three tabs, taking a screenshot of
+# each. Run by .github/workflows/mobile.yml against a local API with sample data.
+appId: com.bomfimthiago.dailymoney
+---
+- launchApp:
+    clearState: true
+- openLink: dailymoney://entrar?token=${TOKEN}
+- extendedWaitUntil:
+    visible: '(?i)últimos movimentos'
+    timeout: 60000
+- waitForAnimationToEnd
+- takeScreenshot: 01-inicio
+- tapOn:
+    id: tab-Investimentos
+- extendedWaitUntil:
+    visible:
+      id: segment-produtos
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: 02-investimentos-produtos
+- tapOn:
+    id: segment-movimentos
+- waitForAnimationToEnd
+- takeScreenshot: 03-investimentos-movimentos
+- tapOn:
+    id: tab-Transações
+- extendedWaitUntil:
+    visible:
+      id: segment-transferencias
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: 04-transacoes-lista
+- tapOn:
+    id: segment-transferencias
+- waitForAnimationToEnd
+- takeScreenshot: 05-transacoes-transferencias
+- tapOn:
+    id: tab-Início
+- assertVisible: '(?i)últimos movimentos'

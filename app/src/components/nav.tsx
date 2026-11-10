@@ -21,6 +21,7 @@ export function TabBar() {
             <Pressable
               key={t.href}
               onPress={() => router.navigate(t.href)}
+              testID={`tab-${t.label}`}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               style={styles.tab}
@@ -88,6 +89,7 @@ export function Segment<T extends string>({
           <Pressable
             key={o.value}
             onPress={() => onChange(o.value)}
+            testID={`segment-${o.value}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             style={[styles.segItem, on && styles.segItemOn]}
