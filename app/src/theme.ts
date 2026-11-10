@@ -6,6 +6,10 @@ export const colors = {
   line: '#ECEBF0',
   accent: '#C7795A',
   danger: '#B4483C',
+  positive: '#178A55',
+  positiveSoft: '#EEF6F1',
+  soft: '#F1F1F5',
+  dashed: '#D6D6DE',
 } as const;
 
 export const fonts = {
