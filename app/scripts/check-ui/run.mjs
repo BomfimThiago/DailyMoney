@@ -229,14 +229,19 @@ async function checkScreens(page, tag) {
 
     if (tag === 'computador') {
       // The sidebar stays on the upload page, next to the banks the app can read.
-      await page.getByRole('button', { name: 'Enviar extrato' }).click();
+      await tab('Enviar extrato').filter({ visible: true }).first().click();
       await seen('Bancos que já sei ler').waitFor();
-      await tab('Transações').filter({ visible: true }).first().waitFor();
+      await page.waitForLoadState('networkidle');
+      await shot('upload');
+      // Conexões is its own page in the sidebar too.
+      await tab('Conexões').filter({ visible: true }).first().click();
+      await seen('Wise EUR').waitFor();
+      await shot('conexoes');
     } else {
       await page.goto(`${base}/upload`);
+      await page.waitForLoadState('networkidle');
+      await shot('upload');
     }
-    await page.waitForLoadState('networkidle');
-    await shot('upload');
   } catch (e) {
     flag(`roteiro parou: ${e.message.split('\n').slice(0, 12).join(' | ')}`);
     await shot('falha').catch(() => {});

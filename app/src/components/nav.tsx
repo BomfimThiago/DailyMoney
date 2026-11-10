@@ -1,4 +1,5 @@
 import { router, usePathname } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Logo } from '@/components/Logo';
@@ -12,6 +13,12 @@ const TABS = [
   { href: '/', label: 'Início' },
   { href: '/investimentos', label: 'Investimentos' },
   { href: '/transacoes', label: 'Transações' },
+] as const;
+
+// Getting money data in: separate pages, below the three main ones in the sidebar.
+const DATA_PAGES = [
+  { href: '/upload', label: 'Enviar extrato' },
+  { href: '/conexoes', label: 'Conexões' },
 ] as const;
 
 export function TabBar() {
@@ -65,38 +72,20 @@ export function SideBar() {
         <Text style={styles.brandText}>Daily Money</Text>
       </Pressable>
       <View style={styles.sideLinks}>
-        {TABS.map((t) => {
-          const on = isOn(t.href, path);
-          const badge = t.href === '/transacoes' ? pending : 0;
-          return (
-            <Pressable
-              key={t.href}
-              onPress={() => router.navigate(t.href)}
-              testID={`tab-${t.label}`}
-              accessibilityRole="link"
-              accessibilityState={{ selected: on }}
-              style={[styles.sideLink, on && styles.sideLinkOn]}
-            >
-              <Text style={[styles.sideText, on && styles.sideTextOn]}>{t.label}</Text>
-              {badge > 0 ? (
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{badge}</Text>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        })}
+        {TABS.map((t) => (
+          <SideLink
+            key={t.href}
+            label={t.label}
+            href={t.href}
+            on={isOn(t.href, path)}
+            badge={t.href === '/transacoes' ? pending : 0}
+          />
+        ))}
+        <Text style={styles.sideGroup}>DADOS</Text>
+        {DATA_PAGES.map((t) => (
+          <SideLink key={t.href} label={t.label} href={t.href} on={isOn(t.href, path)} />
+        ))}
       </View>
-      <Pressable
-        onPress={() => router.navigate('/upload')}
-        accessibilityRole="button"
-        accessibilityState={{ selected: path === '/upload' }}
-        style={[styles.send, path === '/upload' && styles.sendOn]}
-      >
-        <Text style={[styles.sendText, path === '/upload' && styles.sendTextOn]}>
-          Enviar extrato
-        </Text>
-      </Pressable>
       <View style={styles.me}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>{initials(me.name).slice(0, 1)}</Text>
@@ -113,6 +102,46 @@ export function SideBar() {
           <Text style={styles.outText}>Sair</Text>
         </Pressable>
       </View>
+    </View>
+  );
+}
+
+function SideLink({
+  label,
+  href,
+  on,
+  badge = 0,
+}: {
+  label: string;
+  href: string;
+  on: boolean;
+  badge?: number;
+}) {
+  return (
+    <Pressable
+      onPress={() => router.navigate(href as never)}
+      testID={`tab-${label}`}
+      accessibilityRole="link"
+      accessibilityState={{ selected: on }}
+      style={[styles.sideLink, on && styles.sideLinkOn]}
+    >
+      <Text style={[styles.sideText, on && styles.sideTextOn]}>{label}</Text>
+      {badge > 0 ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
+
+// A page outside the tabs (upload, connections): on a computer it keeps the sidebar.
+export function WithSideBar({ wide, children }: { wide: boolean; children: ReactNode }) {
+  if (!wide) return <>{children}</>;
+  return (
+    <View style={styles.shell}>
+      <SideBar />
+      <View style={styles.shellMain}>{children}</View>
     </View>
   );
 }
@@ -212,17 +241,17 @@ const styles = StyleSheet.create({
   sideLinkOn: { backgroundColor: colors.soft },
   sideText: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
   sideTextOn: { fontFamily: fonts.medium, color: colors.ink },
-  send: {
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginBottom: 12,
+  sideGroup: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    letterSpacing: 0.7,
+    color: colors.muted,
+    paddingHorizontal: 10,
+    marginTop: 22,
+    marginBottom: 6,
   },
-  sendOn: { backgroundColor: colors.soft, borderColor: colors.soft },
-  sendText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
-  sendTextOn: { fontFamily: fonts.semibold },
+  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.page },
+  shellMain: { flex: 1 },
   me: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 6 },
   avatar: {
     width: 30,

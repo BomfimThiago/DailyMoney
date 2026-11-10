@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 
-import { SideBar } from '@/components/nav';
+import { WithSideBar } from '@/components/nav';
 import { Button, Card, Chip, SectionTitle, ui } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -314,8 +314,7 @@ export default function UploadScreen() {
   // which banks the app can read.
   if (wide) {
     return (
-      <View style={styles.shell}>
-        <SideBar />
+      <WithSideBar wide>
         <ScrollView style={styles.page} contentContainerStyle={styles.wideContent}>
           <Text style={[styles.title, styles.wideTitle]}>Enviar extrato</Text>
           <View style={styles.wideRow}>
@@ -326,7 +325,7 @@ export default function UploadScreen() {
             </View>
           </View>
         </ScrollView>
-      </View>
+      </WithSideBar>
     );
   }
 
@@ -862,7 +861,6 @@ const styles = StyleSheet.create({
   flex1: { flex: 1 },
   flex2: { flex: 2 },
   history: { marginTop: 12 },
-  shell: { flex: 1, flexDirection: 'row', backgroundColor: colors.page },
   wideContent: { paddingHorizontal: PAGE_PAD, paddingTop: 28, paddingBottom: 48 },
   wideTitle: { marginTop: 0, fontSize: 20, letterSpacing: 0 },
   wideRow: { flexDirection: 'row', gap: 32, alignItems: 'flex-start', maxWidth: 1040 },

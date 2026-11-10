@@ -11,7 +11,7 @@ const accounts = {
   nubank: {
     id: 'acc-nu',
     name: 'Nubank',
-    bank: 'nubank',
+    bank: 'Nubank',
     currency: 'BRL',
     is_card: false,
     member_id: null,
@@ -19,7 +19,7 @@ const accounts = {
   inter: {
     id: 'acc-inter',
     name: 'Inter',
-    bank: 'inter',
+    bank: 'Inter',
     currency: 'BRL',
     is_card: false,
     member_id: null,
@@ -27,7 +27,7 @@ const accounts = {
   wise: {
     id: 'acc-wise',
     name: 'Wise EUR',
-    bank: 'wise',
+    bank: 'Wise',
     currency: 'EUR',
     is_card: false,
     member_id: null,
