@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 
 import { WithSideBar } from '@/components/nav';
+import { SupportedBanks } from '@/components/SupportedBanks';
 import { Button, Card, Chip, SectionTitle, ui } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -320,7 +321,7 @@ export default function UploadScreen() {
           <View style={styles.wideRow}>
             <View style={styles.wideMain}>{flow}</View>
             <View style={styles.aside}>
-              <Banks />
+              <SupportedBanks />
               <History items={history} />
             </View>
           </View>
@@ -337,36 +338,10 @@ export default function UploadScreen() {
         </Link>
         <Text style={styles.title}>Enviar extrato</Text>
         {flow}
+        <SupportedBanks />
         <History items={history} />
       </View>
     </ScrollView>
-  );
-}
-
-// What the statement readers in the API recognise (backend/app/statements/parsing).
-const BANKS: { name: string; formats: string }[] = [
-  { name: 'Nubank', formats: 'CSV, OFX ou PDF' },
-  { name: 'Inter', formats: 'CSV, OFX ou PDF' },
-  { name: 'Itaú', formats: 'PDF' },
-  { name: 'Wise', formats: 'CSV' },
-  { name: 'Revolut', formats: 'PDF' },
-  { name: 'CaixaBank', formats: 'PDF' },
-];
-
-function Banks() {
-  return (
-    <View>
-      <SectionTitle>Bancos que já sei ler</SectionTitle>
-      <View style={ui.rowList}>
-        {BANKS.map((b, i) => (
-          <View key={b.name} style={[ui.row, i === 0 && ui.rowFirst, styles.bankRow]}>
-            <Text style={styles.bankName}>{b.name}</Text>
-            <Text style={styles.bankFormats}>{b.formats}</Text>
-          </View>
-        ))}
-      </View>
-      <Text style={styles.bankNote}>De outros bancos, o OFX costuma funcionar.</Text>
-    </View>
   );
 }
 
@@ -867,8 +842,4 @@ const styles = StyleSheet.create({
   wideMain: { flex: 1, minWidth: 0, maxWidth: 680 },
   // The drop zone has no title above it; pull the first section title level with it.
   aside: { width: 300, gap: 8, marginTop: -28 },
-  bankRow: { justifyContent: 'space-between' },
-  bankName: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
-  bankFormats: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
-  bankNote: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 8 },
 });

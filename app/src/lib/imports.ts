@@ -2,6 +2,7 @@ import { api } from './api';
 import type {
   Account,
   AccountChoice,
+  BankRequest,
   Category,
   Currency,
   ImportPreview,
@@ -121,5 +122,17 @@ export function updateCategory(id: string, categoryId: string, applyToMerchant: 
   return api<Transaction>(`/transactions/${id}`, {
     method: 'PATCH',
     body: JSON.stringify({ category_id: categoryId, apply_to_merchant: applyToMerchant }),
+  });
+}
+
+// Banks someone asked the app to read (Enviar extrato > Bancos suportados).
+export function listBankRequests() {
+  return api<BankRequest[]>('/bank-requests');
+}
+
+export function askForBank(bankName: string, note?: string) {
+  return api<BankRequest>('/bank-requests', {
+    method: 'POST',
+    body: JSON.stringify({ bank_name: bankName, note: note || null }),
   });
 }

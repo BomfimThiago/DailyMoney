@@ -65,6 +65,8 @@ let answered = false;
 // Category changes the screens sent (PATCH /transactions/{id}).
 const recategorized = [];
 
+const bankRequests = [];
+
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
   if (method === 'PUT' && p.endsWith('/kind')) {
@@ -74,6 +76,13 @@ function answer(url, method) {
   if (method === 'PATCH' && p.startsWith('/transactions/')) {
     recategorized.push(p.split('/').pop());
     return { status: 200, body: {} };
+  }
+  if (p === '/bank-requests') {
+    if (method === 'POST') {
+      bankRequests.push({ id: `r-${bankRequests.length}`, bank_name: 'Santander', note: null });
+      return { status: 201, body: bankRequests.at(-1) };
+    }
+    return { status: 200, body: bankRequests };
   }
   if (answered && p === '/transactions/summary') {
     return { status: 200, body: { ...fixtures[p], pending_transfers: 0 } };
@@ -230,9 +239,15 @@ async function checkScreens(page, tag) {
     if (tag === 'computador') {
       // The sidebar stays on the upload page, next to the banks the app can read.
       await tab('Enviar extrato').filter({ visible: true }).first().click();
-      await seen('Bancos que já sei ler').waitFor();
+      await seen('Bancos suportados').waitFor();
       await page.waitForLoadState('networkidle');
       await shot('upload');
+      // Asking for a bank that isn't supported yet.
+      await page.getByLabel('Nome do banco').fill('Santander');
+      await page.getByRole('button', { name: 'Pedir' }).click();
+      await seen('Pedido de Santander registrado.').waitFor({ timeout: 3000 });
+      await seen('Já pedidos: Santander').waitFor({ timeout: 3000 });
+      await shot('upload-pedido');
       // Conexões is its own page in the sidebar too.
       await tab('Conexões').filter({ visible: true }).first().click();
       await seen('Wise EUR').waitFor();

@@ -262,6 +262,24 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/bank-requests': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Bank Requests */
+    get: operations['list_bank_requests_api_v1_bank_requests_get'];
+    put?: never;
+    /** Ask For Bank */
+    post: operations['ask_for_bank_api_v1_bank_requests_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions': {
     parameters: {
       query?: never;
@@ -435,6 +453,30 @@ export interface components {
       id: string;
       /** Name */
       name: string;
+    };
+    /** BankRequestIn */
+    BankRequestIn: {
+      /** Bank Name */
+      bank_name: string;
+      /** Note */
+      note?: string | null;
+    };
+    /** BankRequestOut */
+    BankRequestOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Bank Name */
+      bank_name: string;
+      /** Note */
+      note: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
     };
     /** Body_upload_api_v1_imports_post */
     Body_upload_api_v1_imports_post: {
@@ -1472,6 +1514,59 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ImportSummary'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  list_bank_requests_api_v1_bank_requests_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BankRequestOut'][];
+        };
+      };
+    };
+  };
+  ask_for_bank_api_v1_bank_requests_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BankRequestIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BankRequestOut'];
         };
       };
       /** @description Validation Error */

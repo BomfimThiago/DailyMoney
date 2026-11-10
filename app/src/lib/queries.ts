@@ -12,6 +12,7 @@ import {
   getInvestments,
   getSummary,
   getTransfers,
+  listBankRequests,
   listAccounts,
   listCategories,
   listImports,
@@ -103,4 +104,9 @@ export function useImports(enabled: boolean) {
 
 export function useCategories(enabled: boolean) {
   return useQuery({ queryKey: ['money', 'categories'], queryFn: listCategories, enabled });
+}
+
+// Not money data: kept out of the "money" key so imports don't refetch it.
+export function useBankRequests(enabled: boolean) {
+  return useQuery({ queryKey: ['bank-requests'], queryFn: listBankRequests, enabled });
 }

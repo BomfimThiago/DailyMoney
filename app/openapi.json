@@ -708,6 +708,76 @@
         }
       }
     },
+    "/api/v1/bank-requests": {
+      "get": {
+        "tags": ["banks"],
+        "summary": "List Bank Requests",
+        "operationId": "list_bank_requests_api_v1_bank_requests_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BankRequestOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Bank Requests Api V1 Bank Requests Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": ["banks"],
+        "summary": "Ask For Bank",
+        "operationId": "ask_for_bank_api_v1_bank_requests_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BankRequestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BankRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/transactions": {
       "get": {
         "tags": ["transactions"],
@@ -1259,6 +1329,63 @@
         "type": "object",
         "required": ["id", "name"],
         "title": "AccountRef"
+      },
+      "BankRequestIn": {
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Bank Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": ["bank_name"],
+        "title": "BankRequestIn"
+      },
+      "BankRequestOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "bank_name": {
+            "type": "string",
+            "title": "Bank Name"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": ["id", "bank_name", "note", "created_at"],
+        "title": "BankRequestOut"
       },
       "Body_upload_api_v1_imports_post": {
         "properties": {
