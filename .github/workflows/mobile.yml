@@ -35,9 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: astral-sh/setup-uv@v5
       - name: Start the API with sample data
-        uses: astral-sh/setup-uv@v5
-      - working-directory: backend
+        working-directory: backend
         run: |
           uv sync --frozen
           uv run alembic upgrade head
