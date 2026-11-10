@@ -24,6 +24,7 @@ export default function TabsLayout() {
           }}
         >
           <Tabs.Screen name="index" />
+          <Tabs.Screen name="analises" />
           <Tabs.Screen name="investimentos" />
           <Tabs.Screen name="transacoes" />
           <Tabs.Screen name="upload" />

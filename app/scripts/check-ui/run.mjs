@@ -178,6 +178,12 @@ async function checkScreens(page, tag) {
       await shot('investimentos-movimentos');
     }
 
+    await tab('Análises').click();
+    await seen('GASTOS POR MÊS').waitFor();
+    await seen('COBRANÇAS QUE SE REPETEM').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('analises');
+
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
     await shot('transacoes-lista');
@@ -205,7 +211,7 @@ async function checkScreens(page, tag) {
       // Search narrows the table.
       await page.getByLabel('Buscar descrição').fill('netf');
       await page
-        .getByText('Uber')
+        .getByText('Uber', { exact: true })
         .filter({ visible: true })
         .waitFor({ state: 'detached', timeout: 3000 })
         .catch(() => flag('a busca não filtrou a tabela'));
@@ -219,6 +225,7 @@ async function checkScreens(page, tag) {
 
     // Every tab has loaded once: switching back must never show a blank or loading screen.
     await noBlankWhile('Início', () => tab('Início').click());
+    await noBlankWhile('Análises', () => tab('Análises').click());
     await noBlankWhile('Investimentos', () => tab('Investimentos').click());
     await noBlankWhile('Transações', () => tab('Transações').click());
 

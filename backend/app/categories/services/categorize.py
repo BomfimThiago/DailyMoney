@@ -84,9 +84,25 @@ def _plain(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+# Bank wording in front of the merchant, as in "Compra no débito - MERCADONA".
+_OPERATION = re.compile(
+    r"^(compra( no (debito|credito))?|pix (enviado|recebido)"
+    r"|transferencia (enviada|recebida)( pelo pix)?|pagamento( de boleto)?( efetuado)?"
+    r"|debito automatico)$"
+)
+
+
+def merchant_part(description: str) -> str:
+    """'Compra no débito - MERCADONA' → 'MERCADONA'; anything else stays as it is."""
+    parts = description.split(" - ")
+    if len(parts) > 1 and _OPERATION.match(_plain(parts[0])):
+        return parts[1]
+    return description
+
+
 def merchant_key(description: str) -> str:
-    """'GRUPO AHORRAMAS 24' and 'Grupo Ahorramás 1' → 'grupo ahorramas'."""
-    return " ".join(_plain(description).split(" ")[:3])
+    """'GRUPO AHORRAMAS 24' and 'Compra no débito - Grupo Ahorramás 1' → 'grupo ahorramas'."""
+    return " ".join(_plain(merchant_part(description)).split(" ")[:3])
 
 
 class Categorizer:

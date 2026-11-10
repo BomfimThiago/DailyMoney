@@ -44,3 +44,5 @@ export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
 export type Transfer = S['TransferOut'];
 export type TransferOverview = S['TransferOverview'];
+export type Analysis = S['Analysis'];
+export type CurrencyAnalysis = S['CurrencyAnalysis'];

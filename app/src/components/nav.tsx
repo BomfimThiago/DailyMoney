@@ -10,11 +10,12 @@ import { colors, fonts } from '@/theme';
 
 const TABS = [
   { href: '/', label: 'Início' },
+  { href: '/analises', label: 'Análises' },
   { href: '/investimentos', label: 'Investimentos' },
   { href: '/transacoes', label: 'Transações' },
 ] as const;
 
-// Getting money data in: separate pages, below the three main ones in the sidebar.
+// Getting money data in: separate pages, below the main ones in the sidebar.
 const DATA_PAGES = [
   { href: '/upload', label: 'Enviar extrato' },
   { href: '/conexoes', label: 'Conexões' },

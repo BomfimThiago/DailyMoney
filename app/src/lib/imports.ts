@@ -1,5 +1,6 @@
 import { api } from './api';
 import type {
+  Analysis,
   Account,
   AccountChoice,
   BankRequest,
@@ -111,6 +112,10 @@ export function setKind(id: string, kind: Exclude<TxKind, 'pending'>) {
 
 export function getDashboard(month: string) {
   return api<MonthDashboard>(`/transactions/dashboard?month=${month}`);
+}
+
+export function getAnalysis(month: string, months: number) {
+  return api<Analysis>(`/transactions/analysis?month=${month}&months=${months}`);
 }
 
 export function listCategories() {

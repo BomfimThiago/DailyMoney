@@ -8,6 +8,7 @@ import {
 import { AppState, Platform } from 'react-native';
 
 import {
+  getAnalysis,
   getDashboard,
   getInvestments,
   getSummary,
@@ -46,6 +47,15 @@ export function useDashboard(month: string, enabled: boolean) {
   return useQuery({
     queryKey: ['money', 'dashboard', month],
     queryFn: () => getDashboard(month),
+    enabled,
+  });
+}
+
+// Análises: the chosen month against the months before it.
+export function useAnalysis(month: string, months: number, enabled: boolean) {
+  return useQuery({
+    queryKey: ['money', 'analysis', month, months],
+    queryFn: () => getAnalysis(month, months),
     enabled,
   });
 }

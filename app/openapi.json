@@ -1018,6 +1018,65 @@
         }
       }
     },
+    "/api/v1/transactions/analysis": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Analysis",
+        "operationId": "analysis_api_v1_transactions_analysis_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "examples": ["2026-10"],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 12,
+              "minimum": 1,
+              "default": 6,
+              "title": "Months"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Analysis"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions/investments": {
       "get": {
         "tags": ["transactions"],
@@ -1330,6 +1389,28 @@
         "required": ["id", "name"],
         "title": "AccountRef"
       },
+      "Analysis": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "months": {
+            "type": "integer",
+            "title": "Months"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyAnalysis"
+            },
+            "type": "array",
+            "title": "Currencies"
+          }
+        },
+        "type": "object",
+        "required": ["month", "months", "currencies"],
+        "title": "Analysis"
+      },
       "BankRequestIn": {
         "properties": {
           "bank_name": {
@@ -1409,6 +1490,25 @@
         "required": ["file"],
         "title": "Body_upload_api_v1_imports_post"
       },
+      "CategoryChange": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "average": {
+            "type": "string",
+            "title": "Average"
+          }
+        },
+        "type": "object",
+        "required": ["name", "amount", "average"],
+        "title": "CategoryChange"
+      },
       "CategoryKind": {
         "type": "string",
         "enum": ["expense", "income", "transfer"],
@@ -1468,6 +1568,83 @@
         "type": "string",
         "enum": ["BRL", "USD", "EUR"],
         "title": "Currency"
+      },
+      "CurrencyAnalysis": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "months": {
+            "items": {
+              "$ref": "#/components/schemas/MonthSpending"
+            },
+            "type": "array",
+            "title": "Months"
+          },
+          "average": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryChange"
+            },
+            "type": "array",
+            "title": "Changes"
+          },
+          "habits": {
+            "items": {
+              "$ref": "#/components/schemas/Habit"
+            },
+            "type": "array",
+            "title": "Habits"
+          },
+          "weekdays": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Weekdays"
+          },
+          "peaks": {
+            "items": {
+              "$ref": "#/components/schemas/PeakDay"
+            },
+            "type": "array",
+            "title": "Peaks"
+          },
+          "recurring": {
+            "items": {
+              "$ref": "#/components/schemas/Recurring"
+            },
+            "type": "array",
+            "title": "Recurring"
+          },
+          "recurring_total": {
+            "type": "string",
+            "title": "Recurring Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "months",
+          "average",
+          "changes",
+          "habits",
+          "weekdays",
+          "peaks",
+          "recurring",
+          "recurring_total"
+        ],
+        "title": "CurrencyAnalysis"
       },
       "CurrencyDashboard": {
         "properties": {
@@ -1666,6 +1843,40 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Habit": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "previous_count": {
+            "type": "integer",
+            "title": "Previous Count"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["name", "category", "count", "previous_count", "total"],
+        "title": "Habit"
       },
       "ImportPreview": {
         "properties": {
@@ -2190,6 +2401,21 @@
         "required": ["month", "currencies"],
         "title": "MonthDashboard"
       },
+      "MonthSpending": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": ["month", "amount"],
+        "title": "MonthSpending"
+      },
       "MonthSummary": {
         "properties": {
           "month": {
@@ -2236,6 +2462,29 @@
         "type": "object",
         "required": ["name"],
         "title": "NewAccount"
+      },
+      "PeakDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "merchants": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Merchants"
+          }
+        },
+        "type": "object",
+        "required": ["date", "amount", "merchants"],
+        "title": "PeakDay"
       },
       "PreviewGroup": {
         "properties": {
@@ -2358,6 +2607,41 @@
           "kind"
         ],
         "title": "PreviewRow"
+      },
+      "Recurring": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "last_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Date"
+          },
+          "months": {
+            "type": "integer",
+            "title": "Months"
+          }
+        },
+        "type": "object",
+        "required": ["name", "category", "amount", "last_date", "months"],
+        "title": "Recurring"
       },
       "RefreshRequest": {
         "properties": {

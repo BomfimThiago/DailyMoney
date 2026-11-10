@@ -271,3 +271,50 @@ async def test_dashboard_spending_by_day_category_and_account(client: AsyncClien
 
     empty = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-12")
     assert sum(float(v) for v in empty["currencies"][0]["daily"]) == 0
+
+
+ANALYSIS = (
+    "Data,Valor,Identificador,Descrição\n"
+    "01/10/2026,5000.00,a-1,Transferência recebida - ACME\n"
+    "02/10/2026,-12.00,a-2,Compra no débito - UBER TRIP\n"
+    "09/10/2026,-12.00,a-3,Compra no débito - UBER TRIP\n"
+    "16/10/2026,-14.00,a-4,Compra no débito - UBER TRIP\n"
+    "12/10/2026,-55.90,a-5,Compra no débito - NETFLIX\n"
+    "12/09/2026,-55.90,a-6,Compra no débito - NETFLIX\n"
+    "20/09/2026,-100.00,a-7,Compra no débito - MERCADONA\n"
+    "05/10/2026,-1000.00,a-8,Aplicação RDB\n"
+)
+
+
+async def test_analysis_by_month_with_habits_peaks_and_subscriptions(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, ANALYSIS, "nu.csv", "Nubank")
+
+    data = await _get(client, h, "/api/v1/transactions/analysis?month=2026-10&months=3")
+    assert (data["month"], data["months"]) == ("2026-10", 3)
+    [brl] = data["currencies"]
+    # Income and the investment are not spending.
+    assert [(m["month"], m["amount"]) for m in brl["months"]] == [
+        ("2026-08", "0"),
+        ("2026-09", "155.9000"),
+        ("2026-10", "93.9000"),
+    ]
+    assert brl["average"] == "155.9000"
+    [uber] = brl["habits"]
+    assert (uber["name"], uber["category"], uber["count"]) == ("Uber Trip", "Transporte", 3)
+    assert brl["peaks"][0] == {
+        "date": "2026-10-12",
+        "amount": "55.9000",
+        "merchants": ["Netflix"],
+    }
+    [netflix] = brl["recurring"]
+    assert (netflix["name"], netflix["amount"], netflix["months"]) == ("Netflix", "55.9000", 2)
+    assert len(brl["weekdays"]) == 7
+
+
+async def test_analysis_rejects_long_periods(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    r = await client.get("/api/v1/transactions/analysis?month=2026-10&months=13", headers=h)
+    assert r.status_code == 422
+    r = await client.get("/api/v1/transactions/analysis?month=2026-10")
+    assert r.status_code == 401

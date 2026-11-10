@@ -145,3 +145,64 @@ class TransferOverview(BaseModel):
     month: str
     pending: list[TransactionOut]
     confirmed: list[TransferOut]
+
+
+# ── analysis ─────────────────────────────────────────────────────────────────
+
+
+class MonthSpending(BaseModel):
+    month: str
+    amount: Decimal
+
+
+class CategoryChange(BaseModel):
+    name: str
+    # This month, and the average of the months before it in the period that have data.
+    amount: Decimal
+    average: Decimal
+
+
+class Habit(BaseModel):
+    name: str
+    category: str | None
+    count: int
+    previous_count: int
+    total: Decimal
+
+
+class PeakDay(BaseModel):
+    date: date
+    amount: Decimal
+    # Where most of that day's money went, biggest first (at most two).
+    merchants: list[str]
+
+
+class Recurring(BaseModel):
+    name: str
+    category: str | None
+    # The last charge, and how many of the last four months had one.
+    amount: Decimal
+    last_date: date
+    months: int
+
+
+class CurrencyAnalysis(BaseModel):
+    currency: Currency
+    # Each month of the period, oldest first.
+    months: list[MonthSpending]
+    # Average of the months before the chosen one that have any spending; None if none.
+    average: Decimal | None
+    changes: list[CategoryChange]
+    habits: list[Habit]
+    # Average spending per weekday over the period, Monday first, without Moradia.
+    weekdays: list[Decimal]
+    peaks: list[PeakDay]
+    recurring: list[Recurring]
+    # The recurring charges' last amounts added up: roughly what they cost per month.
+    recurring_total: Decimal
+
+
+class Analysis(BaseModel):
+    month: str
+    months: int
+    currencies: list[CurrencyAnalysis]

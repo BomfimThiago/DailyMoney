@@ -331,6 +331,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/analysis': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Analysis */
+    get: operations['analysis_api_v1_transactions_analysis_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/investments': {
     parameters: {
       query?: never;
@@ -454,6 +471,15 @@ export interface components {
       /** Name */
       name: string;
     };
+    /** Analysis */
+    Analysis: {
+      /** Month */
+      month: string;
+      /** Months */
+      months: number;
+      /** Currencies */
+      currencies: components['schemas']['CurrencyAnalysis'][];
+    };
     /** BankRequestIn */
     BankRequestIn: {
       /** Bank Name */
@@ -483,6 +509,15 @@ export interface components {
       /** File */
       file: string;
       default_currency?: components['schemas']['Currency'] | null;
+    };
+    /** CategoryChange */
+    CategoryChange: {
+      /** Name */
+      name: string;
+      /** Amount */
+      amount: string;
+      /** Average */
+      average: string;
     };
     /**
      * CategoryKind
@@ -514,6 +549,26 @@ export interface components {
      * @enum {string}
      */
     Currency: 'BRL' | 'USD' | 'EUR';
+    /** CurrencyAnalysis */
+    CurrencyAnalysis: {
+      currency: components['schemas']['Currency'];
+      /** Months */
+      months: components['schemas']['MonthSpending'][];
+      /** Average */
+      average: string | null;
+      /** Changes */
+      changes: components['schemas']['CategoryChange'][];
+      /** Habits */
+      habits: components['schemas']['Habit'][];
+      /** Weekdays */
+      weekdays: string[];
+      /** Peaks */
+      peaks: components['schemas']['PeakDay'][];
+      /** Recurring */
+      recurring: components['schemas']['Recurring'][];
+      /** Recurring Total */
+      recurring_total: string;
+    };
     /** CurrencyDashboard */
     CurrencyDashboard: {
       currency: components['schemas']['Currency'];
@@ -592,6 +647,19 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components['schemas']['ValidationError'][];
+    };
+    /** Habit */
+    Habit: {
+      /** Name */
+      name: string;
+      /** Category */
+      category: string | null;
+      /** Count */
+      count: number;
+      /** Previous Count */
+      previous_count: number;
+      /** Total */
+      total: string;
     };
     /** ImportPreview */
     ImportPreview: {
@@ -791,6 +859,13 @@ export interface components {
       /** Currencies */
       currencies: components['schemas']['CurrencyDashboard'][];
     };
+    /** MonthSpending */
+    MonthSpending: {
+      /** Month */
+      month: string;
+      /** Amount */
+      amount: string;
+    };
     /** MonthSummary */
     MonthSummary: {
       /** Month */
@@ -806,6 +881,18 @@ export interface components {
       name: string;
       /** Member Id */
       member_id?: string | null;
+    };
+    /** PeakDay */
+    PeakDay: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Amount */
+      amount: string;
+      /** Merchants */
+      merchants: string[];
     };
     /** PreviewGroup */
     PreviewGroup: {
@@ -848,6 +935,22 @@ export interface components {
        */
       status: 'new' | 'duplicate' | 'skipped';
       kind: components['schemas']['TxKind'];
+    };
+    /** Recurring */
+    Recurring: {
+      /** Name */
+      name: string;
+      /** Category */
+      category: string | null;
+      /** Amount */
+      amount: string;
+      /**
+       * Last Date
+       * Format: date
+       */
+      last_date: string;
+      /** Months */
+      months: number;
     };
     /** RefreshRequest */
     RefreshRequest: {
@@ -1666,6 +1769,38 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['MonthDashboard'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  analysis_api_v1_transactions_analysis_get: {
+    parameters: {
+      query: {
+        month: string;
+        months?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Analysis'];
         };
       };
       /** @description Validation Error */

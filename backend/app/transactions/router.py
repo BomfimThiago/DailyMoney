@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query
 from app.core.deps import CurrentUser, DbSession
 from app.transactions.models import TxKind
 from app.transactions.schemas import (
+    Analysis,
     InvestmentOverview,
     KindUpdate,
     MonthDashboard,
@@ -15,7 +16,7 @@ from app.transactions.schemas import (
     TransactionUpdate,
     TransferOverview,
 )
-from app.transactions.services import overview_service, transaction_service
+from app.transactions.services import analysis_service, overview_service, transaction_service
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -55,6 +56,16 @@ async def month_summary(user: CurrentUser, db: DbSession, month: Month) -> Month
 @router.get("/dashboard", response_model=MonthDashboard)
 async def month_dashboard(user: CurrentUser, db: DbSession, month: Month) -> MonthDashboard:
     return await overview_service.month_dashboard(db, user.family_id, month)
+
+
+@router.get("/analysis", response_model=Analysis)
+async def analysis(
+    user: CurrentUser,
+    db: DbSession,
+    month: Month,
+    months: Annotated[int, Query(ge=1, le=12)] = 6,
+) -> Analysis:
+    return await analysis_service.analysis(db, user.family_id, month, months)
 
 
 @router.get("/investments", response_model=InvestmentOverview)
