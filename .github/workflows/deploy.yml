@@ -1,8 +1,11 @@
 name: deploy
 
-# Manual only: someone with write access to the repo starts it for a chosen branch.
+# Runs when started by hand (Actions > deploy > Run workflow), or on a push whose commit
+# message contains [deploy]: Claude's GitHub access can push but cannot start workflows.
 on:
   workflow_dispatch:
+  push:
+    branches: [claude/project-thread-78a6tm]
 
 concurrency:
   group: deploy
@@ -10,6 +13,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[deploy]')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

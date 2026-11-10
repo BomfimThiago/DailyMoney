@@ -60,7 +60,7 @@ próprio. Só a API entra na rede `raices_default` para o Caddy do Raíces alcan
 1. Uma vez: copiar `infra/.env.prod.example` para `infra/.env.prod` e preencher.
 2. Uma vez, com o ok do dono: adicionar `infra/Caddyfile.snippet` ao Caddyfile do Raíces.
 3. A cada versão, do Mac: `infra/deploy.sh` (copia o código por rsync e sobe só o projeto `dailymoney`).
-4. Ou pelo GitHub: workflow **deploy** (manual), que envia o código com uma chave própria
+4. Ou pelo GitHub: workflow **deploy** (manual, ou num push com `[deploy]` na mensagem do commit), que envia o código com uma chave própria
    que no servidor só consegue rodar `infra/receive-deploy.sh`. Para ativar, uma vez, do
    Mac: `infra/install-deploy-key.sh` (cria a chave, autoriza no servidor e grava os
    secrets `DEPLOY_SSH_KEY` e `DEPLOY_KNOWN_HOSTS` com o `gh`).
