@@ -4,10 +4,7 @@ import type { ReactNode } from 'react';
 import { api, clearTokens, getRefreshToken, saveTokens } from './api';
 import type { Me, TokenPair } from './types';
 
-type AuthState =
-  | { status: 'loading' }
-  | { status: 'signedOut' }
-  | { status: 'signedIn'; me: Me };
+type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; me: Me };
 
 interface AuthContextValue {
   state: AuthState;

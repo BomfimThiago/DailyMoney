@@ -620,9 +620,7 @@ function Rows({ rows }: { rows: PreviewRow[] }) {
                   </Text>
                 ) : (
                   <View style={styles.tagLine}>
-                    <Text style={styles.tag}>
-                      {TAGS[r.status]}
-                    </Text>
+                    <Text style={styles.tag}>{TAGS[r.status]}</Text>
                   </View>
                 )}
               </View>

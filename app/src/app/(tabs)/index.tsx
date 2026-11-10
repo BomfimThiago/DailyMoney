@@ -100,7 +100,9 @@ export default function HomeScreen() {
 
           {summary && summary.pending_transfers > 0 ? (
             <Pressable
-              onPress={() => router.navigate({ pathname: '/transacoes', params: { aba: 'transferencias' } })}
+              onPress={() =>
+                router.navigate({ pathname: '/transacoes', params: { aba: 'transferencias' } })
+              }
               accessibilityRole="link"
               style={styles.pending}
             >

@@ -1,0 +1,25 @@
+{
+  "extraKnownMarketplaces": {
+    "callstack-agent-skills": {
+      "source": { "source": "github", "repo": "callstackincubator/agent-skills" }
+    }
+  },
+  "enabledPlugins": {
+    "expo@claude-plugins-official": true,
+    "react-native-best-practices@callstack-agent-skills": true
+  },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh" }] }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit.sh" }]
+      }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/stop-check.sh" }] }
+    ]
+  }
+}

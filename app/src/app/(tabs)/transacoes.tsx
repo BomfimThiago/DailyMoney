@@ -1,5 +1,5 @@
 import { Redirect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MonthNav, Segment } from '@/components/nav';
@@ -31,10 +31,13 @@ export default function TransactionsScreen() {
   );
   const signedIn = state.status === 'signedIn';
 
-  // The screen stays mounted between tabs, so a link from Início with ?aba= must switch here.
-  useEffect(() => {
+  // The screen stays mounted between tabs, so a link from Início with ?aba= must switch
+  // here; adjusting state while rendering is React's pattern for following a prop.
+  const [seenAba, setSeenAba] = useState(params.aba);
+  if (params.aba !== seenAba) {
+    setSeenAba(params.aba);
     if (params.aba === 'transferencias') setTab('transferencias');
-  }, [params.aba]);
+  }
 
   const loadTransfers = useCallback(
     () =>
@@ -195,8 +198,8 @@ function PendingCard({ t, onDone }: { t: Transaction; onDone: () => void }) {
             {t.description}
           </Text>
           <Text style={styles.rowSub}>
-            {incoming ? 'Entrou no' : 'Saiu do'} {t.account_name} · {dayMonth(t.date)} · não
-            achamos o outro lado
+            {incoming ? 'Entrou no' : 'Saiu do'} {t.account_name} · {dayMonth(t.date)} · não achamos
+            o outro lado
           </Text>
         </View>
         <Text style={styles.rowValue}>{money(t.amount.replace('-', ''), t.currency)}</Text>

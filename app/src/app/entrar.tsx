@@ -16,24 +16,22 @@ export default function EnterScreen() {
   useEffect(() => {
     // The token is single use; React may run effects twice in development.
     if (started.current || state.status === 'loading') return;
+    if (!token) return;
     started.current = true;
-    if (!token) {
-      setError('Link incompleto. Peça um novo.');
-      return;
-    }
     signInWithLink(token).catch((e: unknown) =>
       setError(e instanceof ApiError ? e.message : 'Não foi possível entrar'),
     );
   }, [token, state.status, signInWithLink]);
 
   if (state.status === 'signedIn') return <Redirect href="/" />;
+  const shown = token ? error : 'Link incompleto. Peça um novo.';
 
   return (
     <View style={styles.page}>
-      {error ? (
+      {shown ? (
         <>
           <Text style={styles.title}>Não deu para entrar</Text>
-          <Text style={styles.body}>{error}</Text>
+          <Text style={styles.body}>{shown}</Text>
           <Link href="/login" style={styles.link}>
             Pedir outro link
           </Link>

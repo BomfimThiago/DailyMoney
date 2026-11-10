@@ -2,7 +2,7 @@ name: backend
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/project-thread-78a6tm]
   pull_request:
 
 jobs:

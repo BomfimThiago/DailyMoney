@@ -38,7 +38,8 @@ export default function InvestmentsScreen() {
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
   const data = loaded?.month === month ? loaded.data : null;
-  const cur = data?.totals.find((t) => t.currency === currency)?.currency ?? data?.totals[0]?.currency;
+  const cur =
+    data?.totals.find((t) => t.currency === currency)?.currency ?? data?.totals[0]?.currency;
   const total = data?.totals.find((t) => t.currency === cur);
   const history = data?.history.filter((h) => h.currency === cur) ?? [];
   const thisMonth = history[history.length - 1];
@@ -90,7 +91,9 @@ export default function InvestmentsScreen() {
               {view === 'produtos' ? (
                 <>
                   <View style={styles.hero}>
-                    <Text style={styles.heroLabel}>Aplicado no total, desde o primeiro extrato</Text>
+                    <Text style={styles.heroLabel}>
+                      Aplicado no total, desde o primeiro extrato
+                    </Text>
                     <Text style={styles.heroValue}>{money(total.net, cur)}</Text>
                     {thisMonth && !(isZero(thisMonth.put_in) && isZero(thisMonth.taken_out)) ? (
                       <Text style={styles.heroSub}>
@@ -107,7 +110,10 @@ export default function InvestmentsScreen() {
                   <SectionTitle>Seus produtos</SectionTitle>
                   <View>
                     {products.map((p, i) => (
-                      <View key={`${p.account_id}-${p.name}`} style={[styles.row, i === 0 && styles.first]}>
+                      <View
+                        key={`${p.account_id}-${p.name}`}
+                        style={[styles.row, i === 0 && styles.first]}
+                      >
                         <View style={styles.main}>
                           <Text style={styles.rowTitle} numberOfLines={1}>
                             {p.name}
@@ -135,7 +141,9 @@ export default function InvestmentsScreen() {
                 </>
               ) : (
                 <>
-                  <Text style={styles.chartLabel}>Investido por mês (aplicado menos resgatado)</Text>
+                  <Text style={styles.chartLabel}>
+                    Investido por mês (aplicado menos resgatado)
+                  </Text>
                   <Bars history={history} month={month} />
                   {thisMonth ? (
                     <View style={styles.trio}>
@@ -194,7 +202,11 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: boo
   return (
     <View style={styles.stat}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={[styles.statValue, tone && styles.invest]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text
+        style={[styles.statValue, tone && styles.invest]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {value}
       </Text>
     </View>

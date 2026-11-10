@@ -7,9 +7,12 @@ import { useEffect, useRef } from 'react';
 // change made on another tab shows up without a loader.
 export function useRefresh(load: () => void, enabled: boolean): void {
   const latest = useRef(load);
-  latest.current = load;
   const lastRun = useRef(0);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    latest.current = load;
+  }, [load]);
 
   useEffect(() => {
     if (!enabled) return;
