@@ -20,7 +20,7 @@ export function TabBar() {
           return (
             <Pressable
               key={t.href}
-              onPress={() => router.replace(t.href)}
+              onPress={() => router.navigate(t.href)}
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               style={styles.tab}

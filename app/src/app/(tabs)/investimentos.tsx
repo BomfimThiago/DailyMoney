@@ -1,11 +1,12 @@
-import { Redirect, useFocusEffect } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MonthNav, Segment, TabBar } from '@/components/nav';
+import { MonthNav, Segment } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Chip, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth, isZero, money, monthLabel, shortMonth } from '@/lib/format';
 import { getInvestments } from '@/lib/imports';
 import type { Currency, InvestmentOverview } from '@/lib/types';
@@ -19,21 +20,24 @@ export default function InvestmentsScreen() {
   const [month, setMonth] = useState(currentMonth);
   const [view, setView] = useState<View_>('produtos');
   const [currency, setCurrency] = useState<Currency | null>(null);
-  const [data, setData] = useState<InvestmentOverview | null>(null);
+  // Keyed by month so a refetch on focus keeps the screen as is, without a loader blink.
+  const [loaded, setLoaded] = useState<{ month: string; data: InvestmentOverview } | null>(null);
   const [failed, setFailed] = useState(false);
   const signedIn = state.status === 'signedIn';
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!signedIn) return;
-      setFailed(false);
-      getInvestments(month).then(setData, () => setFailed(true));
-    }, [signedIn, month]),
-  );
+  const load = useCallback(() => {
+    setFailed(false);
+    getInvestments(month).then(
+      (data) => setLoaded({ month, data }),
+      () => setFailed(true),
+    );
+  }, [month]);
+  useRefresh(load, signedIn);
 
   if (state.status === 'loading') return <View style={styles.page} />;
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
+  const data = loaded?.month === month ? loaded.data : null;
   const cur = data?.totals.find((t) => t.currency === currency)?.currency ?? data?.totals[0]?.currency;
   const total = data?.totals.find((t) => t.currency === cur);
   const history = data?.history.filter((h) => h.currency === cur) ?? [];
@@ -152,7 +156,6 @@ export default function InvestmentsScreen() {
           )}
         </View>
       </ScrollView>
-      <TabBar />
     </View>
   );
 }

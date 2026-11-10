@@ -1,12 +1,13 @@
-import { Redirect, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { Redirect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MonthNav, Segment, TabBar } from '@/components/nav';
+import { MonthNav, Segment } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { SectionTitle } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth, dayMonth, isIncome, money, monthLabel } from '@/lib/format';
 import { getTransfers, listTransactions, setKind } from '@/lib/imports';
 import type { Transaction, TransactionPage, Transfer, TransferOverview, TxKind } from '@/lib/types';
@@ -21,29 +22,43 @@ export default function TransactionsScreen() {
   const params = useLocalSearchParams<{ aba?: string }>();
   const [tab, setTab] = useState<Tab>(params.aba === 'transferencias' ? 'transferencias' : 'lista');
   const [month, setMonth] = useState(currentMonth);
-  const [page, setPage] = useState<TransactionPage | null>(null);
+  // Keyed by month: refetching on focus keeps the current list on screen (no blink); only
+  // a month change shows the loader.
+  const [loaded, setLoaded] = useState<{ month: string; data: TransactionPage } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [transfers, setTransfers] = useState<TransferOverview | null>(null);
+  const [transfersOf, setTransfersOf] = useState<{ month: string; data: TransferOverview } | null>(
+    null,
+  );
   const signedIn = state.status === 'signedIn';
 
+  // The screen stays mounted between tabs, so a link from Início with ?aba= must switch here.
+  useEffect(() => {
+    if (params.aba === 'transferencias') setTab('transferencias');
+  }, [params.aba]);
+
   const loadTransfers = useCallback(
-    () => getTransfers(month).then(setTransfers, () => setTransfers(null)),
+    () =>
+      getTransfers(month).then(
+        (data) => setTransfersOf({ month, data }),
+        () => setTransfersOf(null),
+      ),
     [month],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!signedIn) return;
-      setPage(null);
-      listTransactions({ month, kinds: ['regular'], limit: PAGE }).then(setPage, () =>
-        setPage({ total: 0, items: [] }),
-      );
-      loadTransfers();
-    }, [signedIn, month, loadTransfers]),
-  );
+  const load = useCallback(() => {
+    listTransactions({ month, kinds: ['regular'], limit: PAGE }).then(
+      (data) => setLoaded({ month, data }),
+      () => setLoaded({ month, data: { total: 0, items: [] } }),
+    );
+    loadTransfers();
+  }, [month, loadTransfers]);
+  useRefresh(load, signedIn);
 
   if (state.status === 'loading') return <View style={styles.page} />;
   if (state.status === 'signedOut') return <Redirect href="/login" />;
+
+  const page = loaded?.month === month ? loaded.data : null;
+  const transfers = transfersOf?.month === month ? transfersOf.data : null;
 
   const loadMore = async () => {
     if (!page) return;
@@ -55,7 +70,7 @@ export default function TransactionsScreen() {
         limit: PAGE,
         offset: page.items.length,
       });
-      setPage({ total: next.total, items: [...page.items, ...next.items] });
+      setLoaded({ month, data: { total: next.total, items: [...page.items, ...next.items] } });
     } finally {
       setLoadingMore(false);
     }
@@ -115,7 +130,6 @@ export default function TransactionsScreen() {
           )}
         </View>
       </ScrollView>
-      <TabBar />
     </View>
   );
 }

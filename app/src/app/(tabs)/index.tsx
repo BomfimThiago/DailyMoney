@@ -1,11 +1,12 @@
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MonthNav, TabBar } from '@/components/nav';
+import { MonthNav } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import { Button, Chip, SectionTitle } from '@/components/ui';
 import { useAuth } from '@/lib/auth';
+import { useRefresh } from '@/lib/useRefresh';
 import { currentMonth, money, plain } from '@/lib/format';
 import { getSummary, listTransactions } from '@/lib/imports';
 import type { Currency, MonthSummary, TransactionPage } from '@/lib/types';
@@ -16,17 +17,22 @@ export default function HomeScreen() {
   const { state, signOut } = useAuth();
   const [month, setMonth] = useState(currentMonth);
   const [currency, setCurrency] = useState<Currency | null>(null);
-  const [summary, setSummary] = useState<MonthSummary | null>(null);
-  const [page, setPage] = useState<TransactionPage | null>(null);
+  // Keyed by month so a refetch on focus keeps the screen as is, without a loader blink.
+  const [summaryOf, setSummaryOf] = useState<{ month: string; data: MonthSummary } | null>(null);
+  const [pageOf, setPageOf] = useState<{ month: string; data: TransactionPage } | null>(null);
   const signedIn = state.status === 'signedIn';
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!signedIn) return;
-      getSummary(month).then(setSummary, () => setSummary(null));
-      listTransactions({ month, limit: 8 }).then(setPage, () => setPage({ total: 0, items: [] }));
-    }, [signedIn, month]),
-  );
+  const load = useCallback(() => {
+    getSummary(month).then(
+      (data) => setSummaryOf({ month, data }),
+      () => setSummaryOf(null),
+    );
+    listTransactions({ month, limit: 8 }).then(
+      (data) => setPageOf({ month, data }),
+      () => setPageOf({ month, data: { total: 0, items: [] } }),
+    );
+  }, [month]);
+  useRefresh(load, signedIn);
 
   if (state.status === 'loading') {
     return (
@@ -37,6 +43,8 @@ export default function HomeScreen() {
   }
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
+  const summary = summaryOf?.month === month ? summaryOf.data : null;
+  const page = pageOf?.month === month ? pageOf.data : null;
   const shown =
     summary?.currencies.find((c) => c.currency === currency) ?? summary?.currencies[0] ?? null;
   const noAccounts = summary !== null && summary.currencies.length === 0;
@@ -92,7 +100,7 @@ export default function HomeScreen() {
 
           {summary && summary.pending_transfers > 0 ? (
             <Pressable
-              onPress={() => router.push('/transacoes?aba=transferencias')}
+              onPress={() => router.navigate({ pathname: '/transacoes', params: { aba: 'transferencias' } })}
               accessibilityRole="link"
               style={styles.pending}
             >
@@ -120,7 +128,7 @@ export default function HomeScreen() {
                   ))}
                   {page.total > page.items.length ? (
                     <Pressable
-                      onPress={() => router.replace('/transacoes')}
+                      onPress={() => router.navigate('/transacoes')}
                       accessibilityRole="link"
                       style={styles.more}
                     >
@@ -142,7 +150,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
       </ScrollView>
-      <TabBar />
     </View>
   );
 }
