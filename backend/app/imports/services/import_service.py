@@ -1,5 +1,6 @@
 """Statement upload: read the file, show what would come in, import after confirmation."""
 
+import asyncio
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -76,7 +77,8 @@ async def create_import(
     data: bytes,
     default_currency: Currency | None = None,
 ) -> StatementImport:
-    statement = read_statement(filename, data, default_currency)
+    # Scanned PDFs take seconds of OCR; keep the event loop free for other requests.
+    statement = await asyncio.to_thread(read_statement, filename, data, default_currency)
     keys = source_keys([r.raw for r in statement.rows])
     rows = [
         {

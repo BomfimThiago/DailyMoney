@@ -102,7 +102,7 @@ def test_generic_spanish_csv_with_comma_decimals_and_preamble() -> None:
 
 
 def test_description_falls_back_to_most_textual_column() -> None:
-    grid = [
+    grid: list[list[object]] = [
         ["Fecha", "Fecha valor", "Movimiento", "Más datos", "Importe", "Saldo"],
         ["03/10/2026", "03/10/2026", "BIZUM ENVIADO", "Pago cena", "-20,00", "100,00"],
     ]
@@ -111,7 +111,7 @@ def test_description_falls_back_to_most_textual_column() -> None:
 
 
 def test_file_without_currency_and_unknown_bank_needs_default() -> None:
-    grid = [["Data", "Descrição", "Valor"], ["01/10/2026", "Padaria", "-12,00"]]
+    grid: list[list[object]] = [["Data", "Descrição", "Valor"], ["01/10/2026", "Padaria", "-12,00"]]
     st = read_grid(grid)
     assert st.rows == []
     assert "moeda" in st.errors[0].message

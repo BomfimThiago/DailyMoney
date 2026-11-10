@@ -58,10 +58,12 @@ const ACCEPT = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/x-ofx',
   'application/ofx',
+  'application/pdf',
   'application/octet-stream',
   '.csv',
   '.ofx',
   '.xlsx',
+  '.pdf',
 ];
 
 function message(e: unknown): string {
@@ -388,7 +390,7 @@ function DropZone({
               ? 'Arraste o arquivo ou clique para escolher'
               : 'Toque para escolher o arquivo'}
           </Text>
-          <Text style={styles.dropSub}>CSV, OFX ou XLSX · qualquer banco · PDF em breve</Text>
+          <Text style={styles.dropSub}>CSV, OFX, XLSX ou PDF</Text>
         </>
       )}
     </Pressable>

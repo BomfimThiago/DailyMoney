@@ -54,11 +54,6 @@ def test_reads_xlsx_with_real_dates_and_numbers() -> None:
     ]
 
 
-def test_pdf_is_not_supported_yet() -> None:
-    with pytest.raises(StatementError, match="PDF"):
-        read_statement("extrato.pdf", b"%PDF-1.7 ...")
-
-
 def test_unknown_binary_is_rejected() -> None:
     with pytest.raises(StatementError, match="formato"):
         read_statement("foto.png", b"\x89PNG\r\n\x1a\n\x00\x00")

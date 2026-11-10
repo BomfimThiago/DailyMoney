@@ -1,5 +1,10 @@
 FROM python:3.12-slim
 
+# Scanned PDF statements (CaixaBank) are read by OCR.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-spa \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir "uv>=0.5,<0.6"
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
 

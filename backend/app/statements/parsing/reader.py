@@ -1,10 +1,13 @@
 """One entry point for every statement file: picks the reader by content."""
 
+from dataclasses import replace
 from datetime import date, datetime
 from io import BytesIO
 
 from app.statements.parsing.errors import StatementError
 from app.statements.parsing.ofx import is_ofx, read_ofx
+from app.statements.parsing.own_moves import is_own_move
+from app.statements.parsing.pdf import read_pdf
 from app.statements.parsing.tabular import Cell, read_csv, read_grid
 from app.statements.parsing.types import ParsedStatement
 
@@ -14,15 +17,22 @@ MAX_BYTES = 10 * 1024 * 1024
 def read_statement(
     filename: str, data: bytes, default_currency: str | None = None
 ) -> ParsedStatement:
+    statement = _read(filename, data, default_currency)
+    statement.rows = [
+        replace(r, is_transfer=True) if not r.is_transfer and is_own_move(r.description) else r
+        for r in statement.rows
+    ]
+    return statement
+
+
+def _read(filename: str, data: bytes, default_currency: str | None) -> ParsedStatement:
     if not data:
         raise StatementError("O arquivo está vazio.")
     if len(data) > MAX_BYTES:
         raise StatementError("O arquivo passa de 10 MB.")
     name = filename.lower()
     if data.startswith(b"%PDF"):
-        raise StatementError(
-            "Extrato em PDF ainda não é lido. Por enquanto, envie CSV, OFX ou XLSX."
-        )
+        return read_pdf(data)
     if is_ofx(data):
         return read_ofx(data)
     if data.startswith(b"PK\x03\x04"):

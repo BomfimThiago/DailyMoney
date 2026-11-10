@@ -3,7 +3,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Literal
 
-Format = Literal["csv", "ofx", "xlsx"]
+Format = Literal["csv", "ofx", "xlsx", "pdf"]
 SUPPORTED_CURRENCIES = ("BRL", "USD", "EUR")
 
 
