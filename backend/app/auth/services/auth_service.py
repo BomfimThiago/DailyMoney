@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.models import RefreshToken
 from app.auth.schemas import TokenPair
 from app.auth.services.google import GoogleIdentity
+from app.categories.services import category_service
 from app.core.config import settings
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import create_access_token, hash_token, new_refresh_token
@@ -63,6 +64,7 @@ async def _create_user_with_family(
     db.add(user)
     await db.flush()
     db.add(Member(family_id=family.id, name=first_name, user_id=user.id))
+    category_service.seed_defaults(db, family.id)
     return user
 
 

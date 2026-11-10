@@ -3,11 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.accounts.router import router as accounts_router
 from app.auth.router import router as auth_router
+from app.categories.router import router as categories_router
 from app.core.config import settings
 from app.core.exceptions import AppError
+from app.db import models as _models  # noqa: F401  (registers every model on Base)
 from app.db.session import SessionLocal
 from app.families.router import router as family_router
+from app.imports.router import router as imports_router
+from app.transactions.router import router as transactions_router
 
 app = FastAPI(
     title="Daily Money API",
@@ -36,6 +41,10 @@ async def handle_app_error(_: Request, exc: AppError) -> JSONResponse:
 api = APIRouter(prefix="/api/v1")
 api.include_router(auth_router)
 api.include_router(family_router)
+api.include_router(accounts_router)
+api.include_router(categories_router)
+api.include_router(imports_router)
+api.include_router(transactions_router)
 app.include_router(api)
 
 
