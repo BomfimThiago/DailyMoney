@@ -1,0 +1,33 @@
+name: deploy
+
+# Manual only: someone with write access to the repo starts it for a chosen branch.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy && chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Send code and bring up dailymoney
+        # The server key only runs receive-deploy.sh, which reads the archive on stdin.
+        run: git archive --format=tar.gz HEAD | ssh -i ~/.ssh/deploy raices@91.98.93.31
+      - name: Check the live app
+        run: |
+          for _ in $(seq 1 15); do
+            curl -fsS https://dm.91.98.93.31.sslip.io/api/health && exit 0
+            sleep 4
+          done
+          exit 1
