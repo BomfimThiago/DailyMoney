@@ -85,8 +85,17 @@ class InvestmentMonth(BaseModel):
     net: Decimal
 
 
+class InvestmentTotal(BaseModel):
+    currency: Currency
+    put_in: Decimal
+    taken_out: Decimal
+    net: Decimal
+
+
 class InvestmentOverview(BaseModel):
     month: str
+    # All products together, per currency, since the first imported line.
+    totals: list[InvestmentTotal]
     products: list[InvestmentProduct]
     # The chosen month and the five before it, per currency.
     history: list[InvestmentMonth]

@@ -5,7 +5,12 @@ import type {
   Currency,
   ImportPreview,
   ImportSummary,
+  InvestmentOverview,
+  MonthSummary,
+  Transaction,
   TransactionPage,
+  TransferOverview,
+  TxKind,
 } from './types';
 
 export interface PickedFile {
@@ -63,6 +68,31 @@ export function listAccounts() {
   return api<Account[]>('/accounts');
 }
 
-export function listTransactions(limit = 20) {
-  return api<TransactionPage>(`/transactions?limit=${limit}`);
+export function listTransactions(
+  opts: { limit?: number; offset?: number; month?: string; kinds?: TxKind[] } = {},
+) {
+  const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
+  if (opts.offset) q.set('offset', String(opts.offset));
+  if (opts.month) q.set('month', opts.month);
+  for (const k of opts.kinds ?? []) q.append('kind', k);
+  return api<TransactionPage>(`/transactions?${q.toString()}`);
+}
+
+export function getSummary(month: string) {
+  return api<MonthSummary>(`/transactions/summary?month=${month}`);
+}
+
+export function getInvestments(month: string) {
+  return api<InvestmentOverview>(`/transactions/investments?month=${month}`);
+}
+
+export function getTransfers(month: string) {
+  return api<TransferOverview>(`/transactions/transfers?month=${month}`);
+}
+
+export function setKind(id: string, kind: Exclude<TxKind, 'pending'>) {
+  return api<Transaction>(`/transactions/${id}/kind`, {
+    method: 'PUT',
+    body: JSON.stringify({ kind }),
+  });
 }

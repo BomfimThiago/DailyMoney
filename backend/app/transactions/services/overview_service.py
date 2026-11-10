@@ -21,6 +21,7 @@ from app.transactions.schemas import (
     InvestmentMonth,
     InvestmentOverview,
     InvestmentProduct,
+    InvestmentTotal,
     MonthSummary,
     TransactionOut,
     TransferOut,
@@ -134,8 +135,18 @@ async def investments(db: AsyncSession, family_id: uuid.UUID, month: str) -> Inv
             h[1] += taken_out
 
     currencies = sorted({c for _, c in history}, key=lambda c: c.value)
+    totals: dict[Currency, InvestmentTotal] = {}
+    for p in products.values():
+        t = totals.setdefault(
+            p.currency,
+            InvestmentTotal(currency=p.currency, put_in=ZERO, taken_out=ZERO, net=ZERO),
+        )
+        t.put_in += p.put_in
+        t.taken_out += p.taken_out
+        t.net += p.net
     return InvestmentOverview(
         month=month,
+        totals=sorted(totals.values(), key=lambda t: t.currency.value),
         products=sorted(products.values(), key=lambda p: (p.currency.value, -p.net, p.name)),
         history=[
             InvestmentMonth(

@@ -85,10 +85,9 @@ function totals(groups: PreviewGroup[]): GroupCounts {
     (acc, g) => ({
       new: acc.new + g.counts.new,
       duplicate: acc.duplicate + g.counts.duplicate,
-      transfer: acc.transfer + g.counts.transfer,
       skipped: acc.skipped + g.counts.skipped,
     }),
-    { new: 0, duplicate: 0, transfer: 0, skipped: 0 },
+    { new: 0, duplicate: 0, skipped: 0 },
   );
 }
 
@@ -236,7 +235,7 @@ export default function UploadScreen() {
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
   const count = preview ? totals(preview.groups) : null;
-  const toImport = count ? count.new + count.transfer : 0;
+  const toImport = count ? count.new : 0;
   const namesOk = preview
     ? preview.groups.every((g) => {
         const c = choices[g.currency];
@@ -422,11 +421,12 @@ function FileCard({
         : `${count.duplicate} transações já estavam no app e vão ser puladas.`,
     );
   }
-  if (count.transfer) {
+  const pending = preview.rows.filter((r) => r.status === 'new' && r.kind === 'pending').length;
+  if (pending) {
     notes.push(
-      count.transfer === 1
-        ? '1 é transferência entre contas e não conta como gasto.'
-        : `${count.transfer} são transferências entre contas e não contam como gasto.`,
+      pending === 1
+        ? '1 parece ir para uma conta sua: confirme depois em Transferências.'
+        : `${pending} parecem ir para contas suas: confirme depois em Transferências.`,
     );
   }
   if (count.skipped) {
@@ -459,7 +459,6 @@ function FileCard({
       <View style={styles.stats}>
         <Stat value={count.new} label={count.new === 1 ? 'nova' : 'novas'} positive />
         <Stat value={count.duplicate} label="já existiam" />
-        <Stat value={count.transfer} label="transferências" />
       </View>
 
       {notes.length ? <Text style={styles.note}>{notes.join(' ')}</Text> : null}
@@ -589,8 +588,13 @@ function SincePicker({
 
 const TAGS: Record<Exclude<PreviewRow['status'], 'new'>, string> = {
   duplicate: 'já existe',
-  transfer: 'transferência',
   skipped: 'fora do período',
+};
+
+const KIND_LABELS: Record<Exclude<PreviewRow['kind'], 'regular'>, string> = {
+  investment: 'Investimento',
+  transfer: 'Entre suas contas',
+  pending: 'Transferência a confirmar',
 };
 
 function Rows({ rows }: { rows: PreviewRow[] }) {
@@ -611,16 +615,25 @@ function Rows({ rows }: { rows: PreviewRow[] }) {
                   {r.description}
                 </Text>
                 {r.status === 'new' ? (
-                  <Text style={ui.rowSub}>{r.category ?? 'Outros'}</Text>
+                  <Text style={ui.rowSub}>
+                    {r.kind === 'regular' ? (r.category ?? 'Outros') : KIND_LABELS[r.kind]}
+                  </Text>
                 ) : (
                   <View style={styles.tagLine}>
-                    <Text style={[styles.tag, r.status === 'transfer' && styles.tagTransfer]}>
+                    <Text style={styles.tag}>
                       {TAGS[r.status]}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text style={[ui.rowAmount, isIncome(r.amount) && ui.income, faded && styles.struck]}>
+              <Text
+                style={[
+                  ui.rowAmount,
+                  isIncome(r.amount) && r.kind === 'regular' && ui.income,
+                  r.kind !== 'regular' && styles.neutral,
+                  faded && styles.struck,
+                ]}
+              >
                 {money(r.amount, r.currency, true)}
               </Text>
             </View>
@@ -641,9 +654,6 @@ function Rows({ rows }: { rows: PreviewRow[] }) {
 function Done({ summary, onAgain }: { summary: ImportSummary; onAgain: () => void }) {
   const extra = [
     summary.duplicate_count ? `${summary.duplicate_count} já existiam` : null,
-    summary.transfer_count
-      ? `${summary.transfer_count} ${summary.transfer_count === 1 ? 'transferência' : 'transferências'}`
-      : null,
     summary.skipped_count ? `${summary.skipped_count} fora do período` : null,
   ].filter(Boolean);
   return (
@@ -799,7 +809,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     overflow: 'hidden',
   },
-  tagTransfer: { color: colors.positive, backgroundColor: colors.positiveSoft },
+  neutral: { color: colors.muted },
   more: {
     paddingVertical: 12,
     alignItems: 'center',

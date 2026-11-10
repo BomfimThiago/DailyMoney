@@ -63,3 +63,38 @@ export function initials(name: string): string {
   const text = name.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 2);
   return text ? text[0].toUpperCase() + text.slice(1) : '··';
 }
+
+const MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]; // prettier-ignore
+
+// Months travel as "YYYY-MM".
+export function currentMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function shiftMonth(month: string, delta: number): string {
+  const [y, m] = month.split('-').map(Number);
+  const index = y * 12 + (m - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
+}
+
+export function monthLabel(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return `${MONTH_NAMES[m - 1]} ${y}`;
+}
+
+export function shortMonth(month: string): string {
+  return MONTHS[Number(month.split('-')[1]) - 1];
+}
+
+// Big numbers on summary cards: no cents, no currency symbol ("16.250").
+export function plain(amount: string): string {
+  return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 }).format(Number(amount));
+}
+
+export function isZero(amount: string): boolean {
+  return Number(amount) === 0;
+}

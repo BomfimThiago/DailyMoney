@@ -10,6 +10,14 @@ export const colors = {
   positiveSoft: '#EEF6F1',
   soft: '#F1F1F5',
   dashed: '#D6D6DE',
+  // Investments: one restrained blue.
+  invest: '#3D5AC2',
+  investSoft: '#DCE2F6',
+  // Transfers waiting for the person to confirm.
+  pending: '#C2600A',
+  pendingSoft: '#FFF6EC',
+  pendingLine: '#F3D9BE',
+  pendingText: '#8A4A0B',
 } as const;
 
 export const fonts = {

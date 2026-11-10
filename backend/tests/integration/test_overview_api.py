@@ -90,6 +90,9 @@ async def test_investments_by_product(client: AsyncClient) -> None:
     h = auth(await login(client))
     await _import(client, h, NUBANK, "nu.csv", "Nubank")
     inv = await _get(client, h, "/api/v1/transactions/investments?month=2026-10")
+    assert inv["totals"] == [
+        {"currency": "BRL", "put_in": "1400.0000", "taken_out": "300.0000", "net": "1100.0000"}
+    ]
     [product] = inv["products"]
     assert (product["name"], product["account_name"], product["currency"]) == (
         "RDB",
