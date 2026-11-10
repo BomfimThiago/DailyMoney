@@ -44,7 +44,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:ui": "node scripts/check-ui/run.mjs",
-    "test": "jest"
+    "test": "jest",
+    "api:types": "cd ../backend && PYTHONPATH=. uv run python scripts/export_openapi.py ../app/openapi.json && cd ../app && npx -y openapi-typescript@7.13.0 openapi.json -o src/lib/api.gen.ts && prettier --write openapi.json src/lib/api.gen.ts"
   },
   "private": true,
   "jest": {

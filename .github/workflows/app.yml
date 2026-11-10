@@ -34,3 +34,21 @@ jobs:
         with:
           name: ui-check-web
           path: app/ui-check
+
+  api-types:
+    # The app's API types are generated from the backend; fail if they are out of date.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: cd backend && uv sync --frozen
+      - run: cd app && npm ci && npm run api:types
+      - name: Types match the API
+        run: |
+          git diff --exit-code app/openapi.json app/src/lib/api.gen.ts \
+            || { echo "Rode 'npm run api:types' no app e faça commit do resultado."; exit 1; }

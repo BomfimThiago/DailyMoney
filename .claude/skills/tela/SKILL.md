@@ -26,7 +26,8 @@ nos dois. O Thiago aprovou o visual nos mocks; não invente outro.
 - `src/lib/format.ts`: `money`, `shortDate`, `dayMonth`, `monthLabel` etc. **Nunca**
   formate dinheiro ou data na mão. Valores chegam como string decimal da API; não
   converta para float para fazer conta.
-- Tipos da API em `src/lib/types.ts`; chamadas em `src/lib/api.ts`.
+- Tipos da API em `src/lib/types.ts`, gerados do backend (`npm run api:types`); chamadas
+  em `src/lib/api.ts`.
 
 ## Estados que toda tela precisa
 

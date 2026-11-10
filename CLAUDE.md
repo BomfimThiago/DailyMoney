@@ -13,3 +13,5 @@ Leia o README. Regras que valem sempre:
   projeto `dailymoney`; nunca reiniciar nada do Raíces. O Caddy do Raíces só muda com
   ok explícito do Thiago.
 - Commits em Conventional Commits; textos da interface e mensagens de erro em português.
+- **Tipos do app vêm da API:** mudou um schema do backend, rode `cd app && npm run api:types`
+  e faça commit de `openapi.json` e `src/lib/api.gen.ts` (o CI barra se ficarem desatualizados).
