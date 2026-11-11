@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     ENABLE_BANKING_APP_ID: str = ""
     ENABLE_BANKING_PRIVATE_KEY: str = ""
     ENABLE_BANKING_API_URL: str = "https://api.enablebanking.com"
+    # Where the bank sends the person back; must be one of the app's Redirect URLs in
+    # Enable Banking. Empty: APP_URL + /conexoes/retorno.
+    ENABLE_BANKING_REDIRECT_URL: str = ""
 
     # Meu Pluggy (Open Finance in Brazil: Nubank, Inter), free for personal use. Items are
     # connected in Pluggy's own app; their ids go here, comma separated.

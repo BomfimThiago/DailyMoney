@@ -37,6 +37,8 @@ class BankNotFoundError(AppError):
 
 
 def redirect_url() -> str:
+    if settings.ENABLE_BANKING_REDIRECT_URL:
+        return settings.ENABLE_BANKING_REDIRECT_URL
     return settings.APP_URL.rstrip("/") + CALLBACK_PATH
 
 

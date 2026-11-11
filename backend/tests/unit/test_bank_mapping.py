@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from app.connections.services import enablebanking, pluggy
-from app.connections.services.connection_service import canonical_bank
+from app.connections.services.connection_service import canonical_bank, redirect_url
 from app.core.config import settings
 from app.core.exceptions import ConflictError
 
@@ -183,3 +183,12 @@ def test_pluggy_item_checks() -> None:
     assert pluggy.bank_name({"connector": {"name": "Banco Inter"}}) == "Inter"
     assert pluggy.bank_name({"connector": {"name": "C6"}}) == "C6"
     assert pluggy.bank_name({}) == "Banco"
+
+
+def test_redirect_url_can_be_the_one_registered_in_enable_banking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "APP_URL", "https://dm.example.org/")
+    assert redirect_url() == "https://dm.example.org/conexoes/retorno"
+    monkeypatch.setattr(settings, "ENABLE_BANKING_REDIRECT_URL", "https://old.example.org/cb")
+    assert redirect_url() == "https://old.example.org/cb"
