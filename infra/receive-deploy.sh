@@ -14,7 +14,7 @@ test -f "$incoming/infra/server-up.sh" || { echo "archive has no infra/server-up
 
 rsync -a --delete \
   --exclude .git --exclude node_modules --exclude .venv --exclude .expo --exclude dist \
-  --exclude 'infra/.env.prod' --exclude '__pycache__' \
+  --exclude 'infra/.env.prod*' --exclude '__pycache__' \
   "$incoming/" "$dir/"
 
 cd "$dir" && infra/server-up.sh
