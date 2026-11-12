@@ -22,9 +22,9 @@ function parts(iso: string): { y: number; m: number; d: number } {
   return { y, m, d };
 }
 
+// "DD/MM": the first five characters of the full date.
 export function shortDate(iso: string): string {
-  const { m, d } = parts(iso);
-  return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+  return fullDate(iso).slice(0, 5);
 }
 
 export function dayMonth(iso: string): string {
