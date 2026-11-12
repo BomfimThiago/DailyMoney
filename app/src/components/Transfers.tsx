@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { SectionTitle } from '@/components/ui';
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { dayMonth, isIncome, money, monthLabel } from '@/lib/format';
 import { setKind } from '@/lib/imports';
 import type { Transaction, Transfer, TransferOverview, TxKind } from '@/lib/types';
@@ -58,7 +58,7 @@ function PendingCard({ t, onDone }: { t: Transaction; onDone: () => void }) {
       await setKind(t.id, kind);
       onDone();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Algo deu errado. Tente de novo.');
+      setError(errorText(e));
       setBusy(null);
     }
   };

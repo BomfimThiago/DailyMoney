@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { fullDate, isIncome, money } from '@/lib/format';
 import { updateCategory } from '@/lib/imports';
 import { useCategories } from '@/lib/queries';
@@ -28,7 +28,7 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       await updateCategory(t.id, categoryId, forMerchant);
       onChanged();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Algo deu errado. Tente de novo.');
+      setError(errorText(e));
     } finally {
       setBusy(null);
     }

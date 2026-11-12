@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button, SectionTitle, ui } from '@/components/ui';
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { askForBank } from '@/lib/imports';
 import { useBankRequests } from '@/lib/queries';
 import { colors, fonts } from '@/theme';
@@ -40,7 +40,7 @@ export function SupportedBanks() {
       setSent(bank);
       await client.invalidateQueries({ queryKey: ['bank-requests'] });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não consegui enviar. Tente de novo.');
+      setError(errorText(e, 'Não consegui enviar. Tente de novo.'));
     } finally {
       setSending(false);
     }

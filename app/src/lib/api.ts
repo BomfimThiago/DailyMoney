@@ -14,6 +14,12 @@ export class ApiError extends Error {
   }
 }
 
+// What to tell the person: the server's own message, or a fallback for anything else
+// (a dropped connection, a bug).
+export function errorText(e: unknown, fallback = 'Algo deu errado. Tente de novo.'): string {
+  return e instanceof ApiError ? e.message : fallback;
+}
+
 export async function saveTokens(tokens: TokenPair): Promise<void> {
   await setItem(ACCESS, tokens.access_token);
   await setItem(REFRESH, tokens.refresh_token);

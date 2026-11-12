@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
-import { errorMessage } from './connections';
+import { errorText } from './api';
 import { startConnection } from './imports';
 
 export function useConnect() {
@@ -17,7 +17,7 @@ export function useConnect() {
       if (Platform.OS === 'web') window.location.assign(url);
       else await Linking.openURL(url);
     } catch (e) {
-      setError(errorMessage(e, 'Não deu para abrir o banco.'));
+      setError(errorText(e, 'Não deu para abrir o banco.'));
       setOpening(null);
     }
   }

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { errorText } from './api';
 import {
   cancelImport,
   confirmImport,
@@ -9,14 +10,7 @@ import {
 } from './imports';
 import { useRefreshMoney } from './queries';
 import type { Currency, ImportPreview, ImportSummary } from './types';
-import {
-  accountIds,
-  confirmBody,
-  errorText,
-  initialChoices,
-  type Choice,
-  type Choices,
-} from './upload';
+import { accountIds, confirmBody, initialChoices, type Choice, type Choices } from './upload';
 
 type Setters = {
   setPreview: (p: ImportPreview) => void;

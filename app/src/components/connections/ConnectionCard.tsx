@@ -6,12 +6,12 @@ import { Button, ui } from '@/components/ui';
 import {
   canReconnect,
   connectedAccounts,
-  errorMessage,
   expiryWarning,
   providerName,
   statusLine,
   summary,
 } from '@/lib/connections';
+import { errorText } from '@/lib/api';
 import { disconnectBank, syncConnection } from '@/lib/imports';
 import type { Connection, SyncResult } from '@/lib/types';
 
@@ -38,7 +38,7 @@ export function ConnectionCard({
   });
   const remove = useMutation({ mutationFn: () => disconnectBank(c.id), onSuccess: refresh });
   const warning = expiryWarning(c);
-  const failed = sync.error ? errorMessage(sync.error, 'Não deu para sincronizar.') : null;
+  const failed = sync.error ? errorText(sync.error, 'Não deu para sincronizar.') : null;
 
   return (
     <View style={styles.card}>

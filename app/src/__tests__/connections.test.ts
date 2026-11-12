@@ -1,12 +1,11 @@
 import { expect, test } from '@jest/globals';
-import { ApiError } from '@/lib/api';
+import { ApiError, errorText } from '@/lib/api';
 import {
   accountDetails,
   automaticAccounts,
   canReconnect,
   connectedAccounts,
   daysUntil,
-  errorMessage,
   expiryWarning,
   providerName,
   statusLine,
@@ -118,6 +117,6 @@ test('describes an account and an error', () => {
   expect(accountDetails(nubank)).toBe('Nubank · BRL · Conta');
   expect(accountDetails({ ...nubank, name: 'Nubank roxinho', is_card: true })).toBe('BRL · Cartão');
   expect(accountDetails({ ...nubank, bank: '' })).toBe('BRL · Conta');
-  expect(errorMessage(new ApiError(409, 'Já conectado'), 'x')).toBe('Já conectado');
-  expect(errorMessage(new Error('boom'), 'Não deu.')).toBe('Não deu.');
+  expect(errorText(new ApiError(409, 'Já conectado'), 'x')).toBe('Já conectado');
+  expect(errorText(new Error('boom'), 'Não deu.')).toBe('Não deu.');
 });

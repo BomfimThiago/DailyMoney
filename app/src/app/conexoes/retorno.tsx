@@ -4,66 +4,79 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui';
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { summary } from '@/lib/connections';
 import { finishConnection } from '@/lib/imports';
 import type { SyncResult } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
+type Params = { code?: string; state?: string; error?: string };
+
 // Where the bank sends the person back after authorizing (Enable Banking): saves the
 // connection and reads it right away.
 export default function ConnectionReturnScreen() {
-  const params = useLocalSearchParams<{ code?: string; state?: string; error?: string }>();
+  const params = useLocalSearchParams<Params>();
   const { state } = useAuth();
+  const { result, error } = useFinishConnection(params, state.status === 'signedIn');
+  if (state.status === 'signedOut') return <Redirect href="/login" />;
+  const refused = params.error || !params.code || !params.state;
+  const shown = refused ? 'O banco não autorizou a conexão. Você pode tentar de novo.' : error;
+  return (
+    <View style={styles.page}>
+      {shown ? <NotConnected message={shown} /> : <Reading result={result} />}
+    </View>
+  );
+}
+
+// The code works once, so the connection is finished a single time, after sign-in.
+function useFinishConnection({ code, state }: Params, signedIn: boolean) {
   const client = useQueryClient();
   const [result, setResult] = useState<SyncResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
-
   useEffect(() => {
-    // The code works once; React may run effects twice in development.
-    if (started.current || state.status !== 'signedIn') return;
-    if (!params.code || !params.state) return;
+    // React may run effects twice in development.
+    if (started.current || !signedIn || !code || !state) return;
     started.current = true;
-    finishConnection(params.code, params.state)
+    finishConnection(code, state)
       .then(async (r) => {
         setResult(r);
         await client.invalidateQueries({ queryKey: ['money'] });
       })
-      .catch((e: unknown) =>
-        setError(e instanceof ApiError ? e.message : 'Não deu para concluir a conexão.'),
-      );
-  }, [params.code, params.state, state.status, client]);
+      .catch((e: unknown) => setError(errorText(e, 'Não deu para concluir a conexão.')));
+  }, [code, state, signedIn, client]);
+  return { result, error };
+}
 
-  if (state.status === 'signedOut') return <Redirect href="/login" />;
-  const refused = params.error || !params.code || !params.state;
-  const shown = refused ? 'O banco não autorizou a conexão. Você pode tentar de novo.' : error;
-
+function NotConnected({ message }: { message: string }) {
   return (
-    <View style={styles.page}>
-      {shown ? (
-        <>
-          <Text style={styles.title}>Banco não conectado</Text>
-          <Text style={styles.body}>{shown}</Text>
-          <Link href="/conexoes" style={styles.link}>
-            Voltar para Conexões
-          </Link>
-        </>
-      ) : result ? (
-        <>
-          <Text style={styles.title}>{result.connection.bank} conectado</Text>
-          <Text style={styles.body}>{summary(result)}</Text>
-          <Text style={styles.body}>A partir de agora as transações chegam todo dia às 6h.</Text>
-          <Button primary label="Ver Conexões" onPress={() => router.replace('/conexoes')} />
-        </>
-      ) : (
-        <>
-          <ActivityIndicator color={colors.ink} />
-          <Text style={styles.body}>Lendo as transações do banco…</Text>
-        </>
-      )}
-    </View>
+    <>
+      <Text style={styles.title}>Banco não conectado</Text>
+      <Text style={styles.body}>{message}</Text>
+      <Link href="/conexoes" style={styles.link}>
+        Voltar para Conexões
+      </Link>
+    </>
+  );
+}
+
+function Reading({ result }: { result: SyncResult | null }) {
+  if (!result) {
+    return (
+      <>
+        <ActivityIndicator color={colors.ink} />
+        <Text style={styles.body}>Lendo as transações do banco…</Text>
+      </>
+    );
+  }
+  return (
+    <>
+      <Text style={styles.title}>{result.connection.bank} conectado</Text>
+      <Text style={styles.body}>{summary(result)}</Text>
+      <Text style={styles.body}>A partir de agora as transações chegam todo dia às 6h.</Text>
+      <Button primary label="Ver Conexões" onPress={() => router.replace('/conexoes')} />
+    </>
   );
 }
 

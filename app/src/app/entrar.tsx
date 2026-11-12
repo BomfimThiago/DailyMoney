@@ -2,7 +2,7 @@ import { Link, Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts } from '@/theme';
 
@@ -18,9 +18,7 @@ export default function EnterScreen() {
     if (started.current || state.status === 'loading') return;
     if (!token) return;
     started.current = true;
-    signInWithLink(token).catch((e: unknown) =>
-      setError(e instanceof ApiError ? e.message : 'Não foi possível entrar'),
-    );
+    signInWithLink(token).catch((e: unknown) => setError(errorText(e, 'Não foi possível entrar')));
   }, [token, state.status, signInWithLink]);
 
   if (state.status === 'signedIn') return <Redirect href="/" />;

@@ -1,5 +1,4 @@
 // What the statement upload screen decides, kept apart from the screen so it can be tested.
-import { ApiError } from './api';
 import { addDays, dayMonth, daysBetween, period } from './format';
 import type {
   AccountChoice,
@@ -14,10 +13,6 @@ export type Choice = { kind: 'existing'; id: string } | { kind: 'new'; name: str
 export type Choices = Partial<Record<Currency, Choice>>;
 
 export const CURRENCIES: Currency[] = ['BRL', 'USD', 'EUR'];
-
-export function errorText(e: unknown): string {
-  return e instanceof ApiError ? e.message : 'Algo deu errado. Tente de novo.';
-}
 
 // "1 transação" or "3 transações": the singular sentence is written out in full.
 export function plural(n: number, one: string, many: (n: number) => string): string {

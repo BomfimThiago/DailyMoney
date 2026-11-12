@@ -1,13 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { ApiError } from '@/lib/api';
+import { ApiError, errorText } from '@/lib/api';
 import type { ImportPreview } from '@/lib/types';
 import {
   accountIds,
   confirmBody,
   doneNote,
   doneTitle,
-  errorText,
   fileDetails,
   fileNotes,
   historyLine,

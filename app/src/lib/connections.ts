@@ -1,5 +1,4 @@
 import { fullDate } from './format';
-import { ApiError } from './api';
 import type { Account, Connection, SyncResult } from './types';
 
 // An authorization this close to its end gets a warning.
@@ -86,8 +85,4 @@ export function accountDetails(account: Account): string {
       ? account.bank
       : null;
   return [bank, account.currency, account.is_card ? 'Cartão' : 'Conta'].filter(Boolean).join(' · ');
-}
-
-export function errorMessage(e: unknown, fallback: string): string {
-  return e instanceof ApiError ? e.message : fallback;
 }

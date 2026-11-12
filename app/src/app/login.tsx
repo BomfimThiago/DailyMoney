@@ -2,35 +2,14 @@ import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { ApiError } from '@/lib/api';
+import { errorText } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { colors, fonts } from '@/theme';
 
 export default function LoginScreen() {
-  const { state, requestLink } = useAuth();
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
+  const { state } = useAuth();
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   if (state.status === 'signedIn') return <Redirect href="/" />;
-
-  const valid = /^\S+@\S+\.\S+$/.test(email.trim());
-
-  const submit = async () => {
-    if (!valid || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await requestLink(email.trim());
-      setSentTo(email.trim());
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Não foi possível enviar o link');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <View style={styles.page}>
       <View style={styles.card}>
@@ -38,50 +17,83 @@ export default function LoginScreen() {
         <Text style={styles.tagline}>
           Para onde vai o dinheiro da família, em real, dólar e euro.
         </Text>
-
         {sentTo ? (
-          <View style={styles.sent}>
-            <Text style={styles.sentTitle}>Confira seu e-mail</Text>
-            <Text style={styles.sentBody}>
-              Se {sentTo} tiver acesso, o link para entrar chega em instantes. Ele vale por 15
-              minutos.
-            </Text>
-            <Pressable onPress={() => setSentTo(null)} accessibilityRole="button">
-              <Text style={styles.link}>Usar outro e-mail</Text>
-            </Pressable>
-          </View>
+          <LinkSent to={sentTo} onAgain={() => setSentTo(null)} />
         ) : (
-          <View style={styles.form}>
-            <Text style={styles.label}>E-MAIL</Text>
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              onSubmitEditing={submit}
-              placeholder="voce@exemplo.com"
-              placeholderTextColor={colors.muted}
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              inputMode="email"
-              style={styles.input}
-              accessibilityLabel="E-mail"
-            />
-            <Pressable
-              onPress={submit}
-              disabled={!valid || busy}
-              accessibilityRole="button"
-              style={[styles.button, (!valid || busy) && styles.buttonDisabled]}
-            >
-              {busy ? (
-                <ActivityIndicator color={colors.page} />
-              ) : (
-                <Text style={styles.buttonText}>Enviar link para entrar</Text>
-              )}
-            </Pressable>
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-          </View>
+          <EmailForm onSent={setSentTo} />
         )}
       </View>
+    </View>
+  );
+}
+
+function isEmail(text: string): boolean {
+  return /^\S+@\S+\.\S+$/.test(text.trim());
+}
+
+function LinkSent({ to, onAgain }: { to: string; onAgain: () => void }) {
+  return (
+    <View style={styles.sent}>
+      <Text style={styles.sentTitle}>Confira seu e-mail</Text>
+      <Text style={styles.sentBody}>
+        Se {to} tiver acesso, o link para entrar chega em instantes. Ele vale por 15 minutos.
+      </Text>
+      <Pressable onPress={onAgain} accessibilityRole="button">
+        <Text style={styles.link}>Usar outro e-mail</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+function EmailForm({ onSent }: { onSent: (email: string) => void }) {
+  const { requestLink } = useAuth();
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const off = !isEmail(email) || busy;
+
+  const submit = async () => {
+    if (off) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestLink(email.trim());
+      onSent(email.trim());
+    } catch (e) {
+      setError(errorText(e, 'Não foi possível enviar o link'));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <View style={styles.form}>
+      <Text style={styles.label}>E-MAIL</Text>
+      <TextInput
+        value={email}
+        onChangeText={setEmail}
+        onSubmitEditing={submit}
+        placeholder="voce@exemplo.com"
+        placeholderTextColor={colors.muted}
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        inputMode="email"
+        style={styles.input}
+        accessibilityLabel="E-mail"
+      />
+      <Pressable
+        onPress={submit}
+        disabled={off}
+        accessibilityRole="button"
+        style={[styles.button, off && styles.buttonDisabled]}
+      >
+        {busy ? (
+          <ActivityIndicator color={colors.page} />
+        ) : (
+          <Text style={styles.buttonText}>Enviar link para entrar</Text>
+        )}
+      </Pressable>
+      {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
 }
