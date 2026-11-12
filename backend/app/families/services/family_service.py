@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import ConflictError, NotFoundError
+from app.core.family_scope import get_in_family
 from app.families.models import Family, Member
 from app.families.schemas import FamilyUpdate, MemberCreate, MemberUpdate
 
@@ -63,11 +64,7 @@ async def delete_member(db: AsyncSession, family_id: uuid.UUID, member_id: uuid.
 
 
 async def _get_member(db: AsyncSession, family_id: uuid.UUID, member_id: uuid.UUID) -> Member:
-    member = await db.get(Member, member_id)
-    # Same 404 for "missing" and "other family" so ids from other families leak nothing.
-    if member is None or member.family_id != family_id:
-        raise NotFoundError("Membro não encontrado")
-    return member
+    return await get_in_family(db, Member, family_id, member_id, "Membro não encontrado")
 
 
 async def _flush_unique_name(db: AsyncSession) -> None:

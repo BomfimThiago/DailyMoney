@@ -22,6 +22,7 @@ from app.accounts.models import Account
 from app.accounts.services import account_service
 from app.connections.models import BankConnection
 from app.connections.services import enablebanking, pluggy
+from app.connections.services.timestamps import instant
 from app.core.exceptions import AppError, ConflictError
 from app.families.models import Currency, Member, User
 from app.imports.schemas import AccountChoice
@@ -278,15 +279,6 @@ async def _read_from(
         select(func.max(Transaction.date)).where(Transaction.account_id == target.id)
     )
     return max(conn.sync_from, last) if last else conn.sync_from
-
-
-def instant(text: object) -> datetime | None:
-    if not text:
-        return None
-    try:
-        return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
-    except ValueError:
-        return None
 
 
 def first_read_day(today: date) -> date:

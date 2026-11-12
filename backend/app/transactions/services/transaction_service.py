@@ -10,6 +10,7 @@ from app.categories.models import Category, CategoryKind, CategoryRule
 from app.categories.services import category_service
 from app.categories.services.categorize import TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
+from app.core.family_scope import get_in_family
 from app.imports.services.transfers import MAX_DAYS
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
@@ -64,10 +65,7 @@ async def list_transactions(
 
 
 async def _get(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> Transaction:
-    tx = await db.get(Transaction, tx_id)
-    if tx is None or tx.family_id != family_id:
-        raise NotFoundError("Transação não encontrada")
-    return tx
+    return await get_in_family(db, Transaction, family_id, tx_id, "Transação não encontrada")
 
 
 async def update_transaction(

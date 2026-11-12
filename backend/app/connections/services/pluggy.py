@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
+from app.connections.services.timestamps import instant
 from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError
 from app.statements.parsing.types import SUPPORTED_CURRENCIES, ParsedRow, RowError, RowKind
@@ -96,7 +97,7 @@ async def get_item(item_id: str) -> dict[str, Any]:
 
 def check_item(item: dict[str, Any], now: datetime) -> datetime | None:
     """When the authorization ends; raises when the bank can't be read any more."""
-    until = _instant(item.get("consentExpiresAt"))
+    until = instant(item.get("consentExpiresAt"))
     if until and until < now:
         raise ConflictError(
             "A autorização deste banco no Meu Pluggy venceu. Autorize de novo no meu.pluggy.ai."
@@ -143,15 +144,6 @@ async def list_transactions(account_id: str) -> list[dict[str, Any]]:
     raise PluggyError("A Pluggy não terminou de listar as transações.")
 
 
-def _instant(text: object) -> datetime | None:
-    if not text:
-        return None
-    try:
-        return datetime.fromisoformat(str(text).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-
-
 def is_card(account: dict[str, Any]) -> bool:
     return account.get("type") == "CREDIT"
 
@@ -180,7 +172,7 @@ def map_transactions(
     errors: list[RowError] = []
     for n, tx in enumerate(txs, start=1):
         raw = f"PLUGGY {tx.get('id')}"
-        when = _instant(tx.get("date"))
+        when = instant(tx.get("date"))
         if when is None:
             errors.append(RowError(row=n, message="Data ilegível", raw=raw))
             continue

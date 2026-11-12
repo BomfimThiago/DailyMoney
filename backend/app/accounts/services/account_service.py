@@ -5,7 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import Account
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError
+from app.core.family_scope import get_in_family
 from app.families.models import Currency, Member
 
 
@@ -17,10 +18,7 @@ async def list_accounts(db: AsyncSession, family_id: uuid.UUID) -> list[Account]
 
 
 async def get_account(db: AsyncSession, family_id: uuid.UUID, account_id: uuid.UUID) -> Account:
-    account = await db.get(Account, account_id)
-    if account is None or account.family_id != family_id:
-        raise NotFoundError("Conta não encontrada")
-    return account
+    return await get_in_family(db, Account, family_id, account_id, "Conta não encontrada")
 
 
 async def create_account(
@@ -34,9 +32,7 @@ async def create_account(
     member_id: uuid.UUID | None,
 ) -> Account:
     if member_id is not None:
-        member = await db.get(Member, member_id)
-        if member is None or member.family_id != family_id:
-            raise NotFoundError("Membro não encontrado")
+        await get_in_family(db, Member, family_id, member_id, "Membro não encontrado")
     account = Account(
         family_id=family_id,
         name=name.strip(),

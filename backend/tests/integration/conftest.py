@@ -1,4 +1,5 @@
 import subprocess
+import sys
 from collections.abc import AsyncIterator
 
 import pytest
@@ -14,8 +15,11 @@ from app.main import app
 
 @pytest.fixture(scope="session", autouse=True)
 def migrated_db() -> None:
-    subprocess.run(["alembic", "downgrade", "base"], check=True, capture_output=True)
-    subprocess.run(["alembic", "upgrade", "head"], check=True, capture_output=True)
+    # The interpreter running the tests, not whatever "alembic" is first on PATH: tools
+    # such as crapper and mutator call .venv/bin/python directly.
+    alembic = [sys.executable, "-m", "alembic"]
+    subprocess.run([*alembic, "downgrade", "base"], check=True, capture_output=True)
+    subprocess.run([*alembic, "upgrade", "head"], check=True, capture_output=True)
 
 
 @pytest.fixture

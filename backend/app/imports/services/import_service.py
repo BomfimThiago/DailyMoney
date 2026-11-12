@@ -13,7 +13,8 @@ from app.accounts.models import Account
 from app.accounts.services import account_service
 from app.categories.services import category_service
 from app.categories.services.categorize import TRANSFER
-from app.core.exceptions import AppError, ConflictError, NotFoundError
+from app.core.exceptions import AppError, ConflictError
+from app.core.family_scope import get_in_family
 from app.families.models import Currency, Member, User
 from app.imports.models import ImportStatus, StatementImport
 from app.imports.schemas import (
@@ -129,10 +130,7 @@ async def store_statement(
 async def get_import(
     db: AsyncSession, family_id: uuid.UUID, import_id: uuid.UUID
 ) -> StatementImport:
-    imp = await db.get(StatementImport, import_id)
-    if imp is None or imp.family_id != family_id:
-        raise NotFoundError("Envio não encontrado")
-    return imp
+    return await get_in_family(db, StatementImport, family_id, import_id, "Envio não encontrado")
 
 
 async def list_imports(db: AsyncSession, family_id: uuid.UUID) -> list[StatementImport]:

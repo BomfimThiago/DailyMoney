@@ -18,8 +18,10 @@ from app.connections.schemas import (
     SyncOut,
 )
 from app.connections.services import enablebanking, pluggy, sync_service
+from app.connections.services.timestamps import instant
 from app.core.config import settings
-from app.core.exceptions import AppError, ConflictError, NotFoundError
+from app.core.exceptions import AppError, ConflictError
+from app.core.family_scope import get_in_family
 from app.families.models import User
 
 log = logging.getLogger(__name__)
@@ -96,10 +98,9 @@ async def _ensure_pluggy_items(db: AsyncSession, user: User) -> None:
 async def get_connection(
     db: AsyncSession, family_id: uuid.UUID, connection_id: uuid.UUID
 ) -> BankConnection:
-    conn = await db.get(BankConnection, connection_id)
-    if conn is None or conn.family_id != family_id:
-        raise NotFoundError("Conexão não encontrada")
-    return conn
+    return await get_in_family(
+        db, BankConnection, family_id, connection_id, "Conexão não encontrada"
+    )
 
 
 async def start_authorization(user: User, bank: str, country: str = DEFAULT_COUNTRY) -> str:
@@ -158,7 +159,7 @@ async def finish_authorization(
     aspsp = session.get("aspsp") or {}
     name = str(aspsp.get("name") or claims["aspsp"])
     bank = canonical_bank(name)
-    until = sync_service.instant((session.get("access") or {}).get("valid_until"))
+    until = instant((session.get("access") or {}).get("valid_until"))
 
     conn = await db.scalar(
         select(BankConnection).where(
