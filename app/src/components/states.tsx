@@ -1,7 +1,14 @@
 // The states every signed-in page goes through: the session, then its data.
 import { Redirect } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  View,
+} from 'react-native';
 
 import { useAuth } from '@/lib/auth';
 import { colors, fonts } from '@/theme';
@@ -22,6 +29,7 @@ export function Loadable<T>({
   value,
   empty,
   error = LOAD_ERROR,
+  textStyle = styles.text,
   children,
 }: {
   isError: boolean;
@@ -29,11 +37,12 @@ export function Loadable<T>({
   value: T | null | undefined;
   empty: string;
   error?: string;
+  textStyle?: StyleProp<TextStyle>;
   children: (value: T) => ReactNode;
 }) {
-  if (isError) return <Text style={styles.text}>{error}</Text>;
+  if (isError) return <Text style={textStyle}>{error}</Text>;
   if (loading) return <ActivityIndicator color={colors.muted} style={styles.loading} />;
-  if (value === null || value === undefined) return <Text style={styles.text}>{empty}</Text>;
+  if (value === null || value === undefined) return <Text style={textStyle}>{empty}</Text>;
   return children(value);
 }
 
