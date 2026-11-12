@@ -1,4 +1,5 @@
-import { monthLabel, shiftMonth } from './format';
+import { money, monthLabel, shiftMonth } from './format';
+import type { Currency } from './types';
 
 // Below this width the app uses the phone layout (bottom tabs, one column).
 export const WIDE_MIN = 900;
@@ -86,4 +87,57 @@ export function topShares<T extends { name: string; amount: string }>(
   if (rows.length <= keep) return rows;
   const rest = rows.slice(keep - 1).reduce((s, r) => s + r.amount, 0);
   return [...rows.slice(0, keep - 1), { name: 'Demais', amount: rest }];
+}
+
+// "Até o dia 12: R$ 1.234,00 em gastos, 13% a menos que outubro no mesmo dia."
+export function paceText(month: string, daily: string[], previous: string[], currency: Currency) {
+  const day = paceDay(month, daily.length);
+  const spent = cumulative(daily)[day - 1] ?? 0;
+  if (day <= 0 || spent <= 0) return 'Nenhum gasto neste mês ainda.';
+  const change = paceSentence(paceChange(daily, previous, day), month);
+  const head = `Até o dia ${day}: ${money(String(spent), currency)} em gastos`;
+  return change === null ? `${head}.` : `${head}, ${change} no mesmo dia.`;
+}
+
+// Points of the pace chart: day 1 on the left, the top of the scale at the top.
+export function paceScale(days: number, max: number, width: number, height: number) {
+  const plot = width - CHART_AXIS - 8;
+  const x = (d: number) => CHART_AXIS + ((d - 1) / Math.max(days - 1, 1)) * plot;
+  const y = (v: number) => 12 + (1 - v / max) * (height - 32);
+  const points = (values: number[]) =>
+    values.map((v, i) => `${x(Math.min(i + 1, days))},${y(v)}`).join(' ');
+  return { x, y, points };
+}
+
+export const CHART_AXIS = 44;
+
+export function gridValues(max: number, step: number): number[] {
+  const ticks: number[] = [];
+  for (let v = 0; v <= max + 1e-9; v += step) ticks.push(v);
+  return ticks;
+}
+
+// Share of each line in the spending, and its bar width against the biggest one.
+export function shareBars(rows: { name: string; amount: number }[]) {
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  const top = rows[0]?.amount ?? 0;
+  return rows.map((r) => ({
+    ...r,
+    pct: Math.round((r.amount / total) * 100),
+    width: `${(r.amount / top) * 100}%` as const,
+  }));
+}
+
+// How dark a calendar day is: square root so a single big bill does not wash out
+// every other day. 0 for a day without spending.
+export function dayLevel(value: number, peak: number): number {
+  return peak > 0 && value > 0 ? 0.12 + 0.88 * Math.sqrt(value / peak) : 0;
+}
+
+export function calendarLegend(month: string, daily: string[], currency: Currency): string {
+  const values = daily.map(Number);
+  const peak = Math.max(...values, 0);
+  if (peak <= 0) return 'Nenhum gasto neste mês.';
+  const name = monthLabel(month).split(' ')[0].toLowerCase();
+  return `Dia mais caro: ${values.indexOf(peak) + 1} de ${name}, ${money(String(peak), currency)}.`;
 }

@@ -20,7 +20,17 @@ export const colors = {
   pendingText: '#8A4A0B',
   // Lines of a statement the app could not read.
   warning: '#9A5B00',
+  // Charts: gridlines, last month's dashed line, and the calendar's shading (ink).
+  chartGrid: '#F4F4F7',
+  chartPrevious: '#B7B5C3',
+  // The sheet's dimmed background (ink at 18%).
+  dim: 'rgba(43,40,64,0.18)',
 } as const;
+
+// Ink at a given opacity, for shading by amount.
+export function inkShade(alpha: number): string {
+  return `rgba(43,40,64,${alpha.toFixed(2)})`;
+}
 
 export const fonts = {
   regular: 'Figtree_400Regular',

@@ -91,7 +91,7 @@ export const styles = StyleSheet.create({
   panelTitle: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
   transfersBox: { maxWidth: 640 },
 
-  dim: { flex: 1, backgroundColor: 'rgba(43,40,64,0.18)' },
+  dim: { flex: 1, backgroundColor: colors.dim },
   sheet: {
     backgroundColor: colors.page,
     borderTopLeftRadius: 18,

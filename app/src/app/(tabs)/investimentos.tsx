@@ -3,13 +3,13 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import {
   Bars,
-  CurrencyChips,
   Figure,
   Movements,
   Products,
   ReadFromStatements,
   Stat,
 } from '@/components/investments/parts';
+import { CurrencyChips } from '@/components/CurrencyChips';
 import { styles, wide } from '@/components/investments/styles';
 import { MonthNav, Segment } from '@/components/nav';
 import { Loadable, SignedIn } from '@/components/states';
@@ -81,7 +81,7 @@ function WideInvestments({
           <View style={wide.headRight}>
             {view ? (
               <CurrencyChips
-                totals={totals}
+                currencies={totals}
                 current={view.currency}
                 onChange={setCurrency}
                 style={wide.chips}
@@ -165,7 +165,7 @@ function PhoneInvestments({ month, setMonth, totals, setCurrency, load }: PagePr
             {(v) => (
               <>
                 <CurrencyChips
-                  totals={totals}
+                  currencies={totals}
                   current={v.currency}
                   onChange={setCurrency}
                   style={styles.chips}

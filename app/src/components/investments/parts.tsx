@@ -1,38 +1,11 @@
 import { Text, View } from 'react-native';
 
 import { TxRow } from '@/components/TxRow';
-import { Chip } from '@/components/ui';
 import { isZero, money, shortMonth } from '@/lib/format';
 import { barHeights, productMonth } from '@/lib/investments';
-import type { Currency, InvestmentOverview, Transaction } from '@/lib/types';
+import type { InvestmentOverview, Transaction } from '@/lib/types';
 
 import { styles, wide } from './styles';
-
-export function CurrencyChips({
-  totals,
-  current,
-  onChange,
-  style,
-}: {
-  totals: InvestmentOverview['totals'];
-  current: Currency;
-  onChange: (c: Currency) => void;
-  style: object;
-}) {
-  if (totals.length < 2) return null;
-  return (
-    <View style={style} accessibilityRole="radiogroup">
-      {totals.map((t) => (
-        <Chip
-          key={t.currency}
-          label={t.currency}
-          selected={t.currency === current}
-          onPress={() => onChange(t.currency)}
-        />
-      ))}
-    </View>
-  );
-}
 
 export function Products({ products }: { products: InvestmentOverview['products'] }) {
   return (
