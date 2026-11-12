@@ -15,3 +15,6 @@ Leia o README. Regras que valem sempre:
 - Commits em Conventional Commits; textos da interface e mensagens de erro em português.
 - **Tipos do app vêm da API:** mudou um schema do backend, rode `cd app && npm run api:types`
   e faça commit de `openapi.json` e `src/lib/api.gen.ts` (o CI barra se ficarem desatualizados).
+- **Qualidade (skill `/ub-mode`, do Uncle Bob):** ao mudar código, siga
+  `.claude/skills/ub-mode/SKILL.md`; `scripts/ub-tools.sh` roda crapper (CRAP < 10),
+  dryer (duplicação < 0.8) e mutator (teste de mutação) no `backend` ou no `app`.

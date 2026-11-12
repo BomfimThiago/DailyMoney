@@ -13,3 +13,8 @@ htmlcov/
 node_modules/
 # Real bank statements used by parser tests stay local, never in git.
 fixtures/
+# ub-mode tools and their results (scripts/ub-tools.sh).
+.tools/
+.metrics/
+target/
+coverage/
