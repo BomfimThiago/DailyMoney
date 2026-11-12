@@ -18,6 +18,8 @@ export const colors = {
   pendingSoft: '#FFF6EC',
   pendingLine: '#F3D9BE',
   pendingText: '#8A4A0B',
+  // Lines of a statement the app could not read.
+  warning: '#9A5B00',
 } as const;
 
 export const fonts = {
