@@ -1,5 +1,5 @@
 import { dayMonth, money, monthLabel, shiftMonth, shortMonth } from './format';
-import type { CurrencyAnalysis } from './types';
+import type { Currency, CurrencyAnalysis } from './types';
 
 // The API sends weekdays Monday first.
 export const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
@@ -71,4 +71,50 @@ export function firstWithSpending(currencies: CurrencyAnalysis[]): CurrencyAnaly
   return (
     currencies.find((c) => c.months.some((m) => Number(m.amount) > 0)) ?? currencies[0] ?? null
   );
+}
+
+// The currency to show: the chosen one, else the first with spending; null when the
+// period has no spending at all in it, so the page can say so instead of empty cards.
+export function shownAnalysis(
+  currencies: CurrencyAnalysis[],
+  chosen: Currency | null,
+): CurrencyAnalysis | null {
+  const a = currencies.find((c) => c.currency === chosen) ?? firstWithSpending(currencies);
+  return a && a.months.some((m) => Number(m.amount) > 0) ? a : null;
+}
+
+// Bar height in points: any spending shows at least a sliver.
+export function barHeight(value: number, top: number, height: number): number {
+  return Math.max((value / top) * height, value > 0 ? 3 : 0);
+}
+
+// One line of "O que mais mudou": a bar from the middle, right when up, left when down.
+export function changeRows(changes: CurrencyAnalysis['changes']) {
+  const rows = changes.map((c) => ({ ...c, change: changeOf(c.amount, c.average) }));
+  const widest = Math.max(...rows.map((r) => Math.abs(r.change ?? 0)), 0.01);
+  return rows.map((r) => ({
+    name: r.name,
+    up: (r.change ?? 1) >= 0,
+    width: r.change === null ? 50 : (Math.abs(r.change) / widest) * 50,
+    label: r.change === null ? 'novo' : percent(r.change),
+  }));
+}
+
+// "R$ 12,50 por vez · Padaria"
+export function habitDetail(h: CurrencyAnalysis['habits'][number], currency: Currency): string {
+  const each = money(String(Number(h.total) / h.count), currency);
+  return h.category ? `${each} por vez · ${h.category}` : `${each} por vez`;
+}
+
+// "3 cobranças, cerca de R$ 90,00 por mês (R$ 1.080,00 por ano)."
+export function recurringSentence(a: CurrencyAnalysis): string | undefined {
+  const n = a.recurring.length;
+  if (n === 0) return undefined;
+  const count = n === 1 ? '1 cobrança' : `${n} cobranças`;
+  const year = money(String(Number(a.recurring_total) * 12), a.currency);
+  return `${count}, cerca de ${money(a.recurring_total, a.currency)} por mês (${year} por ano).`;
+}
+
+export function recurringDetail(r: CurrencyAnalysis['recurring'][number]): string {
+  return [r.category, `última em ${dayMonth(r.last_date)}`].filter(Boolean).join(' · ');
 }

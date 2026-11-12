@@ -1,34 +1,22 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  barHeight,
   changeOf,
+  changeRows,
   dayLabel,
   firstWithSpending,
+  habitDetail,
   habitTrend,
   monthSentence,
   percent,
+  recurringDetail,
+  recurringSentence,
+  shownAnalysis,
   topWeekday,
   weekdaySentence,
 } from '@/lib/analysis';
-import type { CurrencyAnalysis } from '@/lib/types';
-
-function analysis(over: Partial<CurrencyAnalysis> = {}): CurrencyAnalysis {
-  return {
-    currency: 'BRL',
-    months: [
-      { month: '2026-09', amount: '1000.0000' },
-      { month: '2026-10', amount: '1200.0000' },
-    ],
-    average: '1000.0000',
-    changes: [],
-    habits: [],
-    weekdays: ['10', '0', '0', '0', '0', '40', '0'],
-    peaks: [],
-    recurring: [],
-    recurring_total: '0',
-    ...over,
-  };
-}
+import { analysis } from '@/testing/analysis';
 
 const nbsp = (s: string) => s.replace(/ /g, ' ');
 
@@ -79,5 +67,64 @@ describe('análises', () => {
     expect(firstWithSpending([empty, analysis()])?.currency).toBe('BRL');
     expect(firstWithSpending([empty])?.currency).toBe('EUR');
     expect(firstWithSpending([])).toBeNull();
+  });
+});
+
+describe('análises cards', () => {
+  it('shows the chosen currency, or the first with spending, or nothing', () => {
+    const brl = analysis();
+    const eur = analysis({ currency: 'EUR', months: [{ month: '2026-10', amount: '0' }] });
+    expect(shownAnalysis([eur, brl], null)?.currency).toBe('BRL');
+    expect(shownAnalysis([eur, brl], 'BRL')?.currency).toBe('BRL');
+    expect(shownAnalysis([eur, brl], 'EUR')).toBeNull();
+    expect(shownAnalysis([], null)).toBeNull();
+  });
+
+  it('keeps a sliver for any spending', () => {
+    expect(barHeight(50, 100, 120)).toBe(60);
+    expect(barHeight(0.1, 100, 120)).toBe(3);
+    expect(barHeight(0, 100, 120)).toBe(0);
+  });
+
+  it('draws changes from the middle, up to the right and down to the left', () => {
+    expect(
+      changeRows([
+        { name: 'Mercado', amount: '150', average: '100' },
+        { name: 'Uber', amount: '75', average: '100' },
+        { name: 'Pet', amount: '30', average: '0' },
+      ]),
+    ).toEqual([
+      { name: 'Mercado', up: true, width: 50, label: '+50%' },
+      { name: 'Uber', up: false, width: 25, label: '−25%' },
+      { name: 'Pet', up: true, width: 50, label: 'novo' },
+    ]);
+  });
+
+  it('describes habits and recurring charges', () => {
+    const habit = {
+      name: 'Padaria',
+      category: 'Mercado',
+      count: 4,
+      previous_count: 2,
+      total: '50',
+    };
+    expect(nbsp(habitDetail(habit, 'BRL'))).toBe('R$ 12,50 por vez · Mercado');
+    expect(nbsp(habitDetail({ ...habit, category: null }, 'BRL'))).toBe('R$ 12,50 por vez');
+    const netflix = {
+      name: 'Netflix',
+      category: 'Assinaturas',
+      amount: '55.9',
+      last_date: '2026-10-22',
+      months: 4,
+    };
+    expect(recurringDetail(netflix)).toBe('Assinaturas · última em 22 out');
+    expect(recurringDetail({ ...netflix, category: null })).toBe('última em 22 out');
+    expect(recurringSentence(analysis())).toBeUndefined();
+    expect(
+      nbsp(recurringSentence(analysis({ recurring: [netflix], recurring_total: '55.9' }))!),
+    ).toBe('1 cobrança, cerca de R$ 55,90 por mês (R$ 670,80 por ano).');
+    expect(
+      recurringSentence(analysis({ recurring: [netflix, netflix], recurring_total: '10' })),
+    ).toMatch(/^2 cobranças/);
   });
 });

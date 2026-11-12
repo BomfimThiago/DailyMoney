@@ -23,6 +23,8 @@ export const colors = {
   // Charts: gridlines, last month's dashed line, and the calendar's shading (ink).
   chartGrid: '#F4F4F7',
   chartPrevious: '#B7B5C3',
+  // Bars of the months and weekdays that are not the current one.
+  barSoft: '#DCDBE3',
   // The sheet's dimmed background (ink at 18%).
   dim: 'rgba(43,40,64,0.18)',
 } as const;

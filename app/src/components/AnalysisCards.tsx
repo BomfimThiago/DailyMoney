@@ -2,17 +2,20 @@ import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import {
-  changeOf,
+  barHeight,
+  changeRows,
   dayLabel,
+  habitDetail,
   habitTrend,
   monthSentence,
-  percent,
+  recurringDetail,
+  recurringSentence,
   topWeekday,
   WEEKDAYS,
   weekdaySentence,
 } from '@/lib/analysis';
-import { dayMonth, money, plain, shortMonth } from '@/lib/format';
-import type { CurrencyAnalysis } from '@/lib/types';
+import { money, plain, shortMonth } from '@/lib/format';
+import type { Currency, CurrencyAnalysis } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
 // The cards of Análises (validated mock: trend, what changed, habits, weekday, peaks),
@@ -40,21 +43,7 @@ export function MonthsCard({ a, month }: { a: CurrencyAnalysis; month: string })
       <View style={styles.chart}>
         <View style={styles.bars}>
           {a.months.map((m, i) => (
-            <View key={m.month} style={styles.barCol}>
-              {i === last && values[i] > 0 ? (
-                <Text style={styles.barValue} numberOfLines={1}>
-                  {plain(m.amount)}
-                </Text>
-              ) : null}
-              <View
-                style={[
-                  styles.bar,
-                  { height: Math.max((values[i] / top) * BARS_H, values[i] > 0 ? 3 : 0) },
-                  i === last && styles.barOn,
-                ]}
-                accessibilityLabel={`${shortMonth(m.month)}: ${money(m.amount, a.currency)}`}
-              />
-            </View>
+            <MonthBar key={m.month} m={m} top={top} on={i === last} currency={a.currency} />
           ))}
         </View>
         {average ? (
@@ -74,69 +63,100 @@ export function MonthsCard({ a, month }: { a: CurrencyAnalysis; month: string })
   );
 }
 
+function MonthBar({
+  m,
+  top,
+  on,
+  currency,
+}: {
+  m: CurrencyAnalysis['months'][number];
+  top: number;
+  on: boolean;
+  currency: Currency;
+}) {
+  const value = Number(m.amount);
+  return (
+    <View style={styles.barCol}>
+      {on && value > 0 ? (
+        <Text style={styles.barValue} numberOfLines={1}>
+          {plain(m.amount)}
+        </Text>
+      ) : null}
+      <View
+        style={[styles.bar, { height: barHeight(value, top, BARS_H) }, on && styles.barOn]}
+        accessibilityLabel={`${shortMonth(m.month)}: ${money(m.amount, currency)}`}
+      />
+    </View>
+  );
+}
+
+// The list of a card, or a short sentence when it has nothing to show.
+function Rows<T>({
+  items,
+  empty,
+  children,
+}: {
+  items: T[];
+  empty: string;
+  children: (item: T, i: number) => ReactNode;
+}) {
+  if (items.length === 0) return <Text style={styles.empty}>{empty}</Text>;
+  return items.map(children);
+}
+
 export function ChangesCard({ a }: { a: CurrencyAnalysis }) {
-  const rows = a.changes.map((c) => ({ ...c, change: changeOf(c.amount, c.average) }));
-  const widest = Math.max(...rows.map((r) => Math.abs(r.change ?? 0)), 0.01);
-  const first = rows[0];
+  const first = a.changes[0];
   return (
     <Card title="O QUE MAIS MUDOU" sub="Cada categoria neste mês, comparada com a média dela.">
-      {rows.length === 0 ? (
-        <Text style={styles.empty}>Precisa de pelo menos um mês anterior para comparar.</Text>
-      ) : (
-        <>
-          {rows.map((r) => {
-            const up = (r.change ?? 1) >= 0;
-            const w = r.change === null ? 50 : (Math.abs(r.change) / widest) * 50;
-            return (
-              <View key={r.name} style={styles.change}>
-                <Text style={styles.changeName} numberOfLines={1}>
-                  {r.name}
-                </Text>
-                <View style={styles.track}>
-                  <View style={styles.mid} />
-                  <View
-                    style={[
-                      styles.changeBar,
-                      up ? styles.up : styles.down,
-                      { width: `${w}%` },
-                      up ? { left: '50%' } : { right: '50%' },
-                    ]}
-                  />
-                </View>
-                <Text style={[styles.changePct, up ? styles.upText : styles.downText]}>
-                  {r.change === null ? 'novo' : percent(r.change)}
-                </Text>
-              </View>
-            );
-          })}
-          {first ? (
-            <Text style={styles.foot}>
-              {first.name}: {money(first.amount, a.currency)} contra{' '}
-              {money(first.average, a.currency)} de costume.
-            </Text>
-          ) : null}
-        </>
-      )}
+      <Rows
+        items={changeRows(a.changes)}
+        empty="Precisa de pelo menos um mês anterior para comparar."
+      >
+        {(r) => <ChangeRow key={r.name} r={r} />}
+      </Rows>
+      {first ? (
+        <Text style={styles.foot}>
+          {first.name}: {money(first.amount, a.currency)} contra {money(first.average, a.currency)}{' '}
+          de costume.
+        </Text>
+      ) : null}
     </Card>
+  );
+}
+
+function ChangeRow({ r }: { r: ReturnType<typeof changeRows>[number] }) {
+  return (
+    <View style={styles.change}>
+      <Text style={styles.changeName} numberOfLines={1}>
+        {r.name}
+      </Text>
+      <View style={styles.track}>
+        <View style={styles.mid} />
+        <View
+          style={[
+            styles.changeBar,
+            r.up ? styles.up : styles.down,
+            { width: `${r.width}%` },
+            r.up ? { left: '50%' } : { right: '50%' },
+          ]}
+        />
+      </View>
+      <Text style={[styles.changePct, r.up ? styles.upText : styles.downText]}>{r.label}</Text>
+    </View>
   );
 }
 
 export function HabitsCard({ a, month }: { a: CurrencyAnalysis; month: string }) {
   return (
     <Card title="HÁBITOS" sub="Compras que se repetem três vezes ou mais no mês.">
-      {a.habits.length === 0 ? (
-        <Text style={styles.empty}>Nenhuma compra se repetiu tanto neste mês.</Text>
-      ) : (
-        a.habits.map((h, i) => (
+      <Rows items={a.habits} empty="Nenhuma compra se repetiu tanto neste mês.">
+        {(h, i) => (
           <View key={h.name} style={[styles.row, i === 0 && styles.rowFirst]}>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle} numberOfLines={1}>
                 {h.name}
               </Text>
-              <Text style={styles.rowSub}>
-                {money(String(Number(h.total) / h.count), a.currency)} por vez
-                {h.category ? ` · ${h.category}` : ''}
-              </Text>
+              <Text style={styles.rowSub}>{habitDetail(h, a.currency)}</Text>
             </View>
             <View style={styles.count}>
               <Text style={styles.countValue}>{h.count}×</Text>
@@ -146,8 +166,8 @@ export function HabitsCard({ a, month }: { a: CurrencyAnalysis; month: string })
             </View>
             <Text style={styles.rowAmount}>{money(h.total, a.currency)}</Text>
           </View>
-        ))
-      )}
+        )}
+      </Rows>
     </Card>
   );
 }
@@ -162,19 +182,7 @@ export function WeekdaysCard({ a }: { a: CurrencyAnalysis }) {
     <Card title="POR DIA DA SEMANA" sub={weekdaySentence(a)}>
       <View style={styles.week}>
         {values.map((v, i) => (
-          <View key={WEEKDAYS[i]} style={styles.weekCol}>
-            <Text style={[styles.weekValue, i === top && styles.weekValueOn]} numberOfLines={1}>
-              {v > 0 ? plain(String(v)) : ''}
-            </Text>
-            <View
-              style={[
-                styles.weekBar,
-                { height: Math.max((v / max) * WEEK_H, v > 0 ? 3 : 0) },
-                i === top && styles.barOn,
-              ]}
-            />
-            <Text style={[styles.barLabel, i === top && styles.barLabelOn]}>{WEEKDAYS[i]}</Text>
-          </View>
+          <WeekdayBar key={WEEKDAYS[i]} label={WEEKDAYS[i]} value={v} max={max} on={i === top} />
         ))}
       </View>
       <Text style={styles.foot}>Média por dia no período, de acordo com os extratos enviados.</Text>
@@ -182,13 +190,35 @@ export function WeekdaysCard({ a }: { a: CurrencyAnalysis }) {
   );
 }
 
+function WeekdayBar({
+  label,
+  value,
+  max,
+  on,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  on: boolean;
+}) {
+  return (
+    <View style={styles.weekCol}>
+      <Text style={[styles.weekValue, on && styles.weekValueOn]} numberOfLines={1}>
+        {value > 0 ? plain(String(value)) : ''}
+      </Text>
+      <View
+        style={[styles.weekBar, { height: barHeight(value, max, WEEK_H) }, on && styles.barOn]}
+      />
+      <Text style={[styles.barLabel, on && styles.barLabelOn]}>{label}</Text>
+    </View>
+  );
+}
+
 export function PeaksCard({ a }: { a: CurrencyAnalysis }) {
   return (
     <Card title="PICOS DO MÊS" sub="Os dias mais caros, sem contar moradia.">
-      {a.peaks.length === 0 ? (
-        <Text style={styles.empty}>Nenhum gasto neste mês.</Text>
-      ) : (
-        a.peaks.map((p, i) => (
+      <Rows items={a.peaks} empty="Nenhum gasto neste mês.">
+        {(p, i) => (
           <View key={p.date} style={[styles.row, i === 0 && styles.rowFirst]}>
             <View style={styles.rank}>
               <Text style={styles.rankText}>{i + 1}</Text>
@@ -201,44 +231,34 @@ export function PeaksCard({ a }: { a: CurrencyAnalysis }) {
             </View>
             <Text style={styles.rowAmount}>{money(p.amount, a.currency)}</Text>
           </View>
-        ))
-      )}
+        )}
+      </Rows>
     </Card>
   );
 }
 
 export function RecurringCard({ a }: { a: CurrencyAnalysis }) {
-  const n = a.recurring.length;
-  const sub =
-    n === 0
-      ? undefined
-      : `${n === 1 ? '1 cobrança' : `${n} cobranças`}, cerca de ${money(a.recurring_total, a.currency)} por mês (${money(String(Number(a.recurring_total) * 12), a.currency)} por ano).`;
   return (
-    <Card title="COBRANÇAS QUE SE REPETEM" sub={sub}>
-      {n === 0 ? (
-        <Text style={styles.empty}>
-          Nenhuma assinatura ou cobrança mensal encontrada nos últimos meses.
-        </Text>
-      ) : (
-        a.recurring.map((r, i) => (
+    <Card title="COBRANÇAS QUE SE REPETEM" sub={recurringSentence(a)}>
+      <Rows
+        items={a.recurring}
+        empty="Nenhuma assinatura ou cobrança mensal encontrada nos últimos meses."
+      >
+        {(r, i) => (
           <View key={r.name} style={[styles.row, i === 0 && styles.rowFirst]}>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle} numberOfLines={1}>
                 {r.name}
               </Text>
-              <Text style={styles.rowSub}>
-                {[r.category, `última em ${dayMonth(r.last_date)}`].filter(Boolean).join(' · ')}
-              </Text>
+              <Text style={styles.rowSub}>{recurringDetail(r)}</Text>
             </View>
             <Text style={styles.rowAmount}>{money(r.amount, a.currency)}</Text>
           </View>
-        ))
-      )}
+        )}
+      </Rows>
     </Card>
   );
 }
-
-const BAR_SOFT = '#DCDBE3';
 
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderColor: colors.line, borderRadius: 14, padding: 18, gap: 6 },
@@ -249,7 +269,7 @@ const styles = StyleSheet.create({
   chart: { height: BARS_H + 22, marginTop: 8, justifyContent: 'flex-end' },
   bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: BARS_H + 22 },
   barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  bar: { width: '100%', maxWidth: 56, borderRadius: 5, backgroundColor: BAR_SOFT },
+  bar: { width: '100%', maxWidth: 56, borderRadius: 5, backgroundColor: colors.barSoft },
   barOn: { backgroundColor: colors.ink },
   barValue: { fontFamily: fonts.medium, fontSize: 11, color: colors.ink },
   avgLine: {
@@ -322,7 +342,7 @@ const styles = StyleSheet.create({
   rankText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
   week: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 8 },
   weekCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  weekBar: { width: '100%', maxWidth: 34, borderRadius: 5, backgroundColor: BAR_SOFT },
+  weekBar: { width: '100%', maxWidth: 34, borderRadius: 5, backgroundColor: colors.barSoft },
   weekValue: { fontFamily: fonts.regular, fontSize: 10, color: colors.muted },
   weekValueOn: { fontFamily: fonts.semibold, color: colors.ink },
 });

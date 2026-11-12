@@ -1,13 +1,5 @@
-import { Redirect } from 'expo-router';
 import { type ReactNode, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
 import {
   ChangesCard,
@@ -17,120 +9,136 @@ import {
   RecurringCard,
   WeekdaysCard,
 } from '@/components/AnalysisCards';
+import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
+import { Loadable, SignedIn } from '@/components/states';
 import { Chip } from '@/components/ui';
-import { firstWithSpending, PERIODS, type Period } from '@/lib/analysis';
-import { useAuth } from '@/lib/auth';
+import { PERIODS, type Period, shownAnalysis } from '@/lib/analysis';
 import { contentWidth, PAGE_MAX, PAGE_PAD, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
 import { currentMonth } from '@/lib/format';
 import { useAnalysis } from '@/lib/queries';
-import type { Currency } from '@/lib/types';
+import type { Currency, CurrencyAnalysis } from '@/lib/types';
 import { colors, fonts } from '@/theme';
+
+const EMPTY =
+  'Nenhum gasto nos extratos enviados para este período. Envie um extrato para ver as análises.';
 
 // Análises (validated mock): how this month compares, what changed, habits, weekdays, peaks,
 // and the charges that repeat. One currency at a time, like Início.
 export default function AnalysisScreen() {
-  const { state } = useAuth();
+  return (
+    <SignedIn>
+      <Analyses />
+    </SignedIn>
+  );
+}
+
+function Analyses() {
   const { width } = useWindowDimensions();
   const [month, setMonth] = useState(currentMonth);
   const [period, setPeriod] = useState<Period>(6);
   const [currency, setCurrency] = useState<Currency | null>(null);
-  const query = useAnalysis(month, period, state.status === 'signedIn');
-
-  if (state.status === 'loading') return <View style={styles.page} />;
-  if (state.status === 'signedOut') return <Redirect href="/login" />;
-
-  const data = query.data ?? null;
-  const a =
-    data?.currencies.find((c) => c.currency === currency) ??
-    firstWithSpending(data?.currencies ?? []);
+  const query = useAnalysis(month, period, true);
+  const currencies = query.data?.currencies ?? [];
+  const a = shownAnalysis(currencies, currency);
   const isWide = width >= WIDE_MIN;
-  const twoColumns = isWide && contentWidth(width) >= TWO_COLUMNS;
-  const hasSpending = !!a && a.months.some((m) => Number(m.amount) > 0);
-
-  const currencyChips =
-    data && data.currencies.length > 1 ? (
-      <View style={styles.chips} accessibilityRole="radiogroup">
-        {data.currencies.map((c) => (
-          <Chip
-            key={c.currency}
-            label={c.currency}
-            selected={c.currency === a?.currency}
-            onPress={() => setCurrency(c.currency)}
-          />
-        ))}
-      </View>
-    ) : null;
-
-  const periodChips = (
-    <View style={styles.chips} accessibilityRole="radiogroup">
-      {PERIODS.map((p) => (
-        <Chip key={p} label={`${p} meses`} selected={p === period} onPress={() => setPeriod(p)} />
-      ))}
-    </View>
+  const chips = (
+    <CurrencyChips
+      currencies={currencies}
+      current={a?.currency}
+      onChange={setCurrency}
+      style={styles.chips}
+    />
   );
-
-  let body;
-  if (query.isError) {
-    body = <Text style={styles.empty}>Não consegui carregar. Tente de novo.</Text>;
-  } else if (!data) {
-    body = <ActivityIndicator color={colors.muted} style={styles.loading} />;
-  } else if (!a || !hasSpending) {
-    body = (
-      <Text style={styles.empty}>
-        Nenhum gasto nos extratos enviados para este período. Envie um extrato para ver as análises.
-      </Text>
-    );
-  } else {
-    const pair = (left: ReactNode, right: ReactNode) => (
-      <View style={[styles.pair, !twoColumns && styles.stack]}>
-        <View style={twoColumns && styles.half}>{left}</View>
-        <View style={twoColumns && styles.half}>{right}</View>
-      </View>
-    );
-    body = (
-      <View style={styles.cards}>
-        <MonthsCard a={a} month={month} />
-        {pair(<ChangesCard a={a} />, <WeekdaysCard a={a} />)}
-        {pair(<HabitsCard a={a} month={month} />, <PeaksCard a={a} />)}
-        <RecurringCard a={a} />
-      </View>
-    );
-  }
-
-  if (isWide) {
-    return (
-      <ScrollView style={styles.page} contentContainerStyle={wide.content}>
-        <View style={wide.column}>
-          <View style={wide.head}>
-            <Text style={styles.title}>Análises</Text>
-            <View style={wide.headRight}>
-              {currencyChips}
-              {periodChips}
-              <MonthNav month={month} onChange={setMonth} compact />
-            </View>
+  const periods = <PeriodChips period={period} onChange={setPeriod} />;
+  const body = (
+    <Loadable isError={query.isError} loading={!query.data} value={a} empty={EMPTY}>
+      {(shown) => (
+        <Cards a={shown} month={month} twoColumns={isWide && contentWidth(width) >= TWO_COLUMNS} />
+      )}
+    </Loadable>
+  );
+  const monthNav = <MonthNav month={month} onChange={setMonth} compact />;
+  return isWide ? (
+    <ScrollView style={styles.page} contentContainerStyle={wide.content}>
+      <View style={wide.column}>
+        <View style={wide.head}>
+          <Text style={styles.title}>Análises</Text>
+          <View style={wide.headRight}>
+            {chips}
+            {periods}
+            {monthNav}
           </View>
-          {body}
         </View>
-      </ScrollView>
-    );
-  }
-
-  return (
+        {body}
+      </View>
+    </ScrollView>
+  ) : (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.column}>
           <View style={styles.head}>
             <Text style={styles.title}>Análises</Text>
-            <MonthNav month={month} onChange={setMonth} compact />
+            {monthNav}
           </View>
           <View style={styles.filters}>
-            {periodChips}
-            {currencyChips}
+            {periods}
+            {chips}
           </View>
           {body}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function PeriodChips({ period, onChange }: { period: Period; onChange: (p: Period) => void }) {
+  return (
+    <View style={styles.chips} accessibilityRole="radiogroup">
+      {PERIODS.map((p) => (
+        <Chip key={p} label={`${p} meses`} selected={p === period} onPress={() => onChange(p)} />
+      ))}
+    </View>
+  );
+}
+
+function Cards({
+  a,
+  month,
+  twoColumns,
+}: {
+  a: CurrencyAnalysis;
+  month: string;
+  twoColumns: boolean;
+}) {
+  return (
+    <View style={styles.cards}>
+      <MonthsCard a={a} month={month} />
+      <Pair twoColumns={twoColumns} left={<ChangesCard a={a} />} right={<WeekdaysCard a={a} />} />
+      <Pair
+        twoColumns={twoColumns}
+        left={<HabitsCard a={a} month={month} />}
+        right={<PeaksCard a={a} />}
+      />
+      <RecurringCard a={a} />
+    </View>
+  );
+}
+
+// Two cards side by side on a wide computer, one under the other elsewhere.
+function Pair({
+  twoColumns,
+  left,
+  right,
+}: {
+  twoColumns: boolean;
+  left: ReactNode;
+  right: ReactNode;
+}) {
+  return (
+    <View style={[styles.pair, !twoColumns && styles.stack]}>
+      <View style={twoColumns && styles.half}>{left}</View>
+      <View style={twoColumns && styles.half}>{right}</View>
     </View>
   );
 }
@@ -154,8 +162,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   chips: { flexDirection: 'row', gap: 6 },
-  loading: { marginVertical: 32 },
-  empty: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },
   cards: { gap: 16 },
   pair: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   stack: { flexDirection: 'column', alignItems: 'stretch' },
