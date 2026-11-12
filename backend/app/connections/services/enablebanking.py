@@ -199,13 +199,25 @@ def _clean(text: object) -> str:
 
 
 def _description(tx: dict[str, Any]) -> str:
-    side = tx.get("creditor") if tx.get("credit_debit_indicator") == "DBIT" else tx.get("debtor")
-    party = _clean((side or {}).get("name"))
-    remittance = _clean(" ".join(tx.get("remittance_information") or []))
+    party, remittance = _counterparty(tx), _remittance(tx)
     if party and remittance:
         return remittance if party.lower() in remittance.lower() else f"{party} · {remittance}"
+    return party or remittance or _fallback_text(tx)
+
+
+def _counterparty(tx: dict[str, Any]) -> str:
+    """Who is on the other side: whom we paid, or who paid us."""
+    side = tx.get("creditor") if tx.get("credit_debit_indicator") == "DBIT" else tx.get("debtor")
+    return _clean((side or {}).get("name"))
+
+
+def _remittance(tx: dict[str, Any]) -> str:
+    return _clean(" ".join(tx.get("remittance_information") or []))
+
+
+def _fallback_text(tx: dict[str, Any]) -> str:
     code = (tx.get("bank_transaction_code") or {}).get("description")
-    return party or remittance or _clean(tx.get("note")) or _clean(code)
+    return _clean(tx.get("note")) or _clean(code)
 
 
 class _Unreadable(Exception):
@@ -239,33 +251,45 @@ def map_transactions(
     for n, tx in enumerate(txs, start=1):
         if tx.get("status") != "BOOK":
             continue
-        ref = _clean(tx.get("entry_reference"))
-        raw = f"EB {ref}" if ref else f"EB linha {n}"
         try:
-            day = _day(tx)
-            if day < since:
-                continue
-            amount = _amount(tx)
-            cur = str((tx.get("transaction_amount") or {}).get("currency") or currency or "")
-            cur = cur.upper()
-            if cur not in SUPPORTED_CURRENCIES:
-                raise _Unreadable(f"Moeda não suportada: {cur or 'vazia'}")
-            description = _description(tx)
-            if not description:
-                raise _Unreadable("Transação sem descrição")
+            row = _row(tx, currency, since)
         except _Unreadable as exc:
-            errors.append(RowError(row=n, message=str(exc), raw=raw))
+            errors.append(RowError(row=n, message=str(exc), raw=_raw_label(tx, n)))
             continue
-        if not ref:
-            raw = f"EB {day.isoformat()}|{amount}|{cur}|{description}"
-        rows.append(
-            ParsedRow(
-                date=day,
-                description=description,
-                amount=amount,
-                currency=cur,
-                raw=raw,
-                external_id=f"eb:{ref}" if ref else None,
-            )
-        )
+        if row is not None:
+            rows.append(row)
     return rows, errors
+
+
+def _raw_label(tx: dict[str, Any], n: int) -> str:
+    ref = _clean(tx.get("entry_reference"))
+    return f"EB {ref}" if ref else f"EB linha {n}"
+
+
+def _row(tx: dict[str, Any], currency: str | None, since: date) -> ParsedRow | None:
+    """One booked transaction, or None when it is older than the sync window."""
+    day = _day(tx)
+    if day < since:
+        return None
+    amount = _amount(tx)
+    cur = _currency(tx, currency)
+    description = _description(tx)
+    if not description:
+        raise _Unreadable("Transação sem descrição")
+    ref = _clean(tx.get("entry_reference"))
+    return ParsedRow(
+        date=day,
+        description=description,
+        amount=amount,
+        currency=cur,
+        raw=f"EB {ref}" if ref else f"EB {day.isoformat()}|{amount}|{cur}|{description}",
+        external_id=f"eb:{ref}" if ref else None,
+    )
+
+
+def _currency(tx: dict[str, Any], account_currency: str | None) -> str:
+    amount = tx.get("transaction_amount") or {}
+    cur = str(amount.get("currency") or account_currency or "").upper()
+    if cur not in SUPPORTED_CURRENCIES:
+        raise _Unreadable(f"Moeda não suportada: {cur or 'vazia'}")
+    return cur

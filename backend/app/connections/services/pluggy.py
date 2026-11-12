@@ -149,20 +149,42 @@ def is_card(account: dict[str, Any]) -> bool:
 
 
 def _kind(tx: dict[str, Any], card: bool) -> RowKind:
-    category = tx.get("category")
-    operation = tx.get("operationType")
-    description = str(tx.get("description") or "").strip()
-    if category in _INVESTMENT_CATEGORIES or operation in _INVESTMENT_OPERATIONS:
+    if _is_investment(tx):
         return "investment"
-    if category == "Proceeds interests and dividends" and _B3_TRADE.search(description):
-        return "investment"
-    if category in _TRANSFER_CATEGORIES or operation in _TRANSFER_OPERATIONS:
-        return "transfer"
-    if _GLOBAL_ACCOUNT.match(description):
-        return "transfer"
-    if not card and Decimal(str(tx.get("amount", 0))) < 0 and _BILL_PAYMENT.match(description):
+    if _is_transfer(tx, card):
         return "transfer"
     return "regular"
+
+
+def _text(tx: dict[str, Any]) -> str:
+    return str(tx.get("description") or "").strip()
+
+
+def _is_investment(tx: dict[str, Any]) -> bool:
+    category = tx.get("category")
+    if category in _INVESTMENT_CATEGORIES or tx.get("operationType") in _INVESTMENT_OPERATIONS:
+        return True
+    return category == "Proceeds interests and dividends" and bool(_B3_TRADE.search(_text(tx)))
+
+
+def _is_transfer(tx: dict[str, Any], card: bool) -> bool:
+    if tx.get("category") in _TRANSFER_CATEGORIES:
+        return True
+    if tx.get("operationType") in _TRANSFER_OPERATIONS:
+        return True
+    description = _text(tx)
+    if _GLOBAL_ACCOUNT.match(description):
+        return True
+    # Paying the card bill from the checking account; on the card itself it is a credit.
+    return (
+        not card
+        and Decimal(str(tx.get("amount", 0))) < 0
+        and bool(_BILL_PAYMENT.match(description))
+    )
+
+
+class _Unreadable(Exception):
+    pass
 
 
 def map_transactions(
@@ -171,42 +193,51 @@ def map_transactions(
     rows: list[ParsedRow] = []
     errors: list[RowError] = []
     for n, tx in enumerate(txs, start=1):
-        raw = f"PLUGGY {tx.get('id')}"
-        when = instant(tx.get("date"))
-        if when is None:
-            errors.append(RowError(row=n, message="Data ilegível", raw=raw))
+        try:
+            row = _row(tx, currency, card, since)
+        except _Unreadable as exc:
+            errors.append(RowError(row=n, message=str(exc), raw=f"PLUGGY {tx.get('id')}"))
             continue
-        day = when.astimezone(BRASILIA).date()
-        if day < since:
-            continue
-        tx_currency = str(tx.get("currencyCode") or currency).upper()
-        value: object = tx.get("amount")
-        cur = currency
-        if tx_currency != currency:
-            if tx.get("amountInAccountCurrency") is not None:
-                value = tx["amountInAccountCurrency"]
-            else:
-                cur = tx_currency
-        if cur not in SUPPORTED_CURRENCIES:
-            errors.append(RowError(row=n, message=f"Moeda não suportada: {cur}", raw=raw))
-            continue
-        # JSON numbers become text first, so no arithmetic ever happens in float.
-        amount = Decimal(str(value)).quantize(CENTS)
-        if card:
-            amount = -amount
-        description = re.sub(r"\s+", " ", str(tx.get("description") or "")).strip()
-        if not description:
-            errors.append(RowError(row=n, message="Transação sem descrição", raw=raw))
-            continue
-        rows.append(
-            ParsedRow(
-                date=day,
-                description=description,
-                amount=amount,
-                currency=cur,
-                raw=raw,
-                external_id=f"pluggy:{tx.get('id')}",
-                kind=_kind(tx, card),
-            )
-        )
+        if row is not None:
+            rows.append(row)
     return rows, errors
+
+
+def _row(tx: dict[str, Any], currency: str, card: bool, since: date) -> ParsedRow | None:
+    """One transaction, or None when it is older than the sync window."""
+    when = instant(tx.get("date"))
+    if when is None:
+        raise _Unreadable("Data ilegível")
+    day = when.astimezone(BRASILIA).date()
+    if day < since:
+        return None
+    value, cur = _value_and_currency(tx, currency)
+    # JSON numbers become text first, so no arithmetic ever happens in float.
+    amount = Decimal(str(value)).quantize(CENTS)
+    description = re.sub(r"\s+", " ", _text(tx))
+    if not description:
+        raise _Unreadable("Transação sem descrição")
+    return ParsedRow(
+        date=day,
+        description=description,
+        amount=-amount if card else amount,
+        currency=cur,
+        raw=f"PLUGGY {tx.get('id')}",
+        external_id=f"pluggy:{tx.get('id')}",
+        kind=_kind(tx, card),
+    )
+
+
+def _value_and_currency(tx: dict[str, Any], currency: str) -> tuple[object, str]:
+    """A purchase abroad counts in what the account was charged, when Pluggy knows it."""
+    value: object = tx.get("amount")
+    cur = currency
+    tx_currency = str(tx.get("currencyCode") or currency).upper()
+    if tx_currency != currency:
+        if tx.get("amountInAccountCurrency") is not None:
+            value = tx["amountInAccountCurrency"]
+        else:
+            cur = tx_currency
+    if cur not in SUPPORTED_CURRENCIES:
+        raise _Unreadable(f"Moeda não suportada: {cur}")
+    return value, cur
