@@ -4,7 +4,7 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Accounts } from '@/components/connections/Accounts';
 import { Banks } from '@/components/connections/Banks';
 import { styles } from '@/components/connections/styles';
-import { Loadable, SignedIn } from '@/components/states';
+import { Loadable, signedInPage } from '@/components/states';
 import { SectionTitle } from '@/components/ui';
 import { automaticAccounts } from '@/lib/connections';
 import { WIDE_MIN } from '@/lib/dashboard';
@@ -13,13 +13,7 @@ import { useConnect } from '@/lib/useConnect';
 
 // Conexões: the banks read automatically every morning, the banks that can still be
 // connected, and every account the app follows with how its data arrives.
-export default function ConnectionsScreen() {
-  return (
-    <SignedIn>
-      <Connections />
-    </SignedIn>
-  );
-}
+export default signedInPage(Connections);
 
 function Connections() {
   const wide = useWindowDimensions().width >= WIDE_MIN;

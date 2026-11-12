@@ -12,7 +12,7 @@ import {
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { styles, wide } from '@/components/investments/styles';
 import { MonthNav, Segment } from '@/components/nav';
-import { Loadable, SignedIn } from '@/components/states';
+import { Loadable, signedInPage } from '@/components/states';
 import { SectionTitle } from '@/components/ui';
 import { contentWidth, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
 import { currentMonth, money, monthLabel, shortMonth } from '@/lib/format';
@@ -26,13 +26,7 @@ const EMPTY = 'Nenhuma aplicação ou resgate nos extratos enviados até agora.'
 
 // Investimentos, variant A (by product) with variant B's movements as a second view. On a
 // computer both views sit side by side, under the month's figures.
-export default function InvestmentsScreen() {
-  return (
-    <SignedIn>
-      <Investments />
-    </SignedIn>
-  );
-}
+export default signedInPage(Investments);
 
 function Investments() {
   const { width } = useWindowDimensions();

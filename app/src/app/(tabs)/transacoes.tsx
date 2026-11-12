@@ -1,20 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useWindowDimensions } from 'react-native';
 
-import { SignedIn } from '@/components/states';
+import { signedInPage } from '@/components/states';
 import { PhoneTransactions } from '@/components/transactions/PhoneTransactions';
 import { WideTransactions } from '@/components/transactions/WideTransactions';
 import { WIDE_MIN } from '@/lib/dashboard';
 import { useTransactionsPage } from '@/lib/useTransactionsPage';
 
 // Transações, with transfers between the family's own accounts as a second tab (variant A).
-export default function TransactionsScreen() {
-  return (
-    <SignedIn>
-      <Transactions />
-    </SignedIn>
-  );
-}
+export default signedInPage(Transactions);
 
 function Transactions() {
   const { aba } = useLocalSearchParams<{ aba?: string }>();

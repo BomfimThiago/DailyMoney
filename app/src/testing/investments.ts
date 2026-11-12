@@ -1,7 +1,8 @@
 // Sample investment answers for tests.
+import { builder } from './builder';
 import type { InvestmentOverview, Transaction } from '@/lib/types';
 
-export const movement = (o: Partial<Transaction> = {}): Transaction => ({
+export const movement = builder<Transaction>(() => ({
   id: 'm1',
   date: '2026-11-20',
   description: 'Aplicação RDB',
@@ -13,10 +14,9 @@ export const movement = (o: Partial<Transaction> = {}): Transaction => ({
   category_id: null,
   category_name: 'Aplicação',
   member_id: null,
-  ...o,
-});
+}));
 
-export const overview = (o: Partial<InvestmentOverview> = {}): InvestmentOverview => ({
+export const overview = builder<InvestmentOverview>(() => ({
   month: '2026-11',
   totals: [
     { currency: 'BRL', put_in: '5000.0000', taken_out: '1000.0000', net: '4000.0000' },
@@ -75,5 +75,4 @@ export const overview = (o: Partial<InvestmentOverview> = {}): InvestmentOvervie
     { month: '2026-11', currency: 'EUR', put_in: '0.0000', taken_out: '0.0000', net: '0.0000' },
   ],
   movements: [movement(), movement({ id: 'm2', currency: 'EUR', description: 'Wise jar' })],
-  ...o,
-});
+}));

@@ -126,10 +126,18 @@ server.close();
 async function checkScreens(page, tag) {
   const flag = (text) => problems.push(`[${tag}] ${text}`);
   page.on('pageerror', (e) => flag(`erro na página: ${e.message}`));
-  page.on('console', (m) => m.type() === 'error' && flag(`console: ${m.text()}`));
+  // The browser logs the signed-out 401 below; that one is expected.
+  const expected = (text) => text.includes('status of 401');
+  page.on('console', (m) => {
+    if (m.type() === 'error' && !expected(m.text())) flag(`console: ${m.text()}`);
+  });
   await page.route('**/api/v1/**', async (route) => {
     const req = route.request();
-    const { status, body } = answer(new URL(req.url()), req.method());
+    // Like the real API: without a token nobody is signed in, so the login page shows.
+    const signedOut = !req.headers().authorization;
+    const { status, body } = signedOut
+      ? { status: 401, body: { detail: 'Não autenticado' } }
+      : answer(new URL(req.url()), req.method());
     if (status === 404) flag(`API sem exemplo: ${req.method()} ${new URL(req.url()).pathname}`);
     await new Promise((r) => setTimeout(r, 150)); // a little latency, like the real API
     await route.fulfill({ status, json: body });
@@ -283,7 +291,12 @@ async function checkScreens(page, tag) {
         if (!same) flag(`${name}: a página inteira foi refeita ao abrir (pisca)`);
       }
     } else {
-      await page.goto(`${base}/upload`);
+      // The page before may still be finishing its own navigation, which aborts this
+      // load now and then; one more try is enough.
+      await page.goto(`${base}/upload`).catch((e) => {
+        if (!e.message.includes('ERR_ABORTED')) throw e;
+        return page.goto(`${base}/upload`);
+      });
       await page.waitForLoadState('networkidle');
       await shot('upload');
       await page.goto(`${base}/conexoes`);

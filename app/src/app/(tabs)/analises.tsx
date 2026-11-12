@@ -11,7 +11,7 @@ import {
 } from '@/components/AnalysisCards';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
-import { Loadable, SignedIn } from '@/components/states';
+import { Loadable, signedInPage } from '@/components/states';
 import { Chip } from '@/components/ui';
 import { PERIODS, type Period, shownAnalysis } from '@/lib/analysis';
 import { contentWidth, PAGE_MAX, PAGE_PAD, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
@@ -25,13 +25,7 @@ const EMPTY =
 
 // Análises (validated mock): how this month compares, what changed, habits, weekdays, peaks,
 // and the charges that repeat. One currency at a time, like Início.
-export default function AnalysisScreen() {
-  return (
-    <SignedIn>
-      <Analyses />
-    </SignedIn>
-  );
-}
+export default signedInPage(Analyses);
 
 function Analyses() {
   const { width } = useWindowDimensions();

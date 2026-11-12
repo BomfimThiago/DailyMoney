@@ -1,16 +1,16 @@
 // Builders for upload screen tests: complete API objects with only the relevant fields changed.
+import { builder } from './builder';
 import type { ImportPreview, ImportSummary, PreviewGroup } from '@/lib/types';
 
-export const group = (o: Partial<PreviewGroup> = {}): PreviewGroup => ({
+export const group = builder<PreviewGroup>(() => ({
   currency: 'BRL',
   account: null,
   suggested_name: 'Nubank',
   first_import: true,
   counts: { new: 3, duplicate: 1, skipped: 0 },
-  ...o,
-});
+}));
 
-export const preview = (o: Partial<ImportPreview> = {}): ImportPreview => ({
+export const preview = builder<ImportPreview>(() => ({
   id: 'imp-1',
   filename: 'extrato.csv',
   format: 'csv',
@@ -23,10 +23,9 @@ export const preview = (o: Partial<ImportPreview> = {}): ImportPreview => ({
   groups: [group()],
   rows: [],
   errors: [],
-  ...o,
-});
+}));
 
-export const summary = (o: Partial<ImportSummary> = {}): ImportSummary => ({
+export const summary = builder<ImportSummary>(() => ({
   id: 's1',
   filename: 'extrato.csv',
   format: 'csv',
@@ -39,5 +38,4 @@ export const summary = (o: Partial<ImportSummary> = {}): ImportSummary => ({
   skipped_count: 0,
   created_at: '2026-11-10T10:00:00Z',
   finished_at: null,
-  ...o,
-});
+}));

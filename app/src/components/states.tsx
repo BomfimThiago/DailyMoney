@@ -23,6 +23,17 @@ export function SignedIn({ children }: { children: ReactNode }) {
   return children;
 }
 
+// A route whose page needs the session: `export default signedInPage(Page)`.
+export function signedInPage(Page: () => ReactNode) {
+  return function SignedInPage() {
+    return (
+      <SignedIn>
+        <Page />
+      </SignedIn>
+    );
+  };
+}
+
 export function Loadable<T>({
   isError,
   loading,
