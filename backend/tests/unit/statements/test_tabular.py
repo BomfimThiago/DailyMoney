@@ -101,13 +101,29 @@ def test_generic_spanish_csv_with_comma_decimals_and_preamble() -> None:
     ]
 
 
-def test_description_falls_back_to_most_textual_column() -> None:
+def test_movimiento_is_the_description_column() -> None:
     grid: list[list[object]] = [
         ["Fecha", "Fecha valor", "Movimiento", "Más datos", "Importe", "Saldo"],
         ["03/10/2026", "03/10/2026", "BIZUM ENVIADO", "Pago cena", "-20,00", "100,00"],
     ]
     st = read_grid(grid, default_currency="EUR")
     assert st.rows[0].description == "BIZUM ENVIADO"
+
+
+def test_without_a_description_header_the_most_textual_column_is_used() -> None:
+    grid: list[list[object]] = [
+        ["Fecha", "Ref", "Notas", "Texto", "Importe"],
+        ["03/10/2026", "88120", "ok", "MERCADONA VALENCIA", "-20,00"],
+        ["04/10/2026", "88121", "", "FARMACIA SOL", "-7,50"],
+    ]
+    st = read_grid(grid, default_currency="EUR")
+    assert [r.description for r in st.rows] == ["MERCADONA VALENCIA", "FARMACIA SOL"]
+
+
+def test_without_any_text_column_the_file_is_refused() -> None:
+    grid: list[list[object]] = [["Fecha", "Importe", "Ref"], ["03/10/2026", "-20,00", "88120"]]
+    with pytest.raises(StatementError, match="coluna de descrição"):
+        read_grid(grid, default_currency="EUR")
 
 
 def test_file_without_currency_and_unknown_bank_needs_default() -> None:

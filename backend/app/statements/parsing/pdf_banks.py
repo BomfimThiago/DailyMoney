@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Protocol
 
 from app.statements.parsing.errors import StatementError
-from app.statements.parsing.pdf import Line
+from app.statements.parsing.pdf import Line, Segment
 from app.statements.parsing.tabular import parse_amount, parse_date
 from app.statements.parsing.types import ParsedRow, ParsedStatement, RowError
 
@@ -33,7 +33,30 @@ def _br(text: str) -> Decimal:
     return parse_amount(text.replace(" ", ""), ",")
 
 
+def _add_checked(
+    statement: ParsedStatement, index: int, ok: bool, row: ParsedRow, why: str
+) -> None:
+    """A row the bank's own totals confirm is imported; otherwise it becomes an error."""
+    if ok:
+        statement.rows.append(row)
+    else:
+        statement.errors.append(RowError(index, why, row.raw))
+
+
+def _not_empty(statement: ParsedStatement) -> ParsedStatement:
+    if not statement.rows and not statement.errors:
+        raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
+    return statement
+
+
 # ── Nubank (conta) ───────────────────────────────────────────────────────────
+
+
+_NU_DAY = re.compile(r"^(\d{2}) ([A-Z]{3}) (\d{4})$")
+_NU_TOTAL = re.compile(r"^Total de (entradas|saídas)$")
+# Item titles start at the left of the column; descriptions continue further right.
+_NU_CONTINUATION_X = 200.0
+_NU_AMOUNT_X = 470.0
 
 
 @dataclass
@@ -45,6 +68,9 @@ class _Item:
     amount: Decimal
     raw: str
 
+    def description(self) -> str:
+        return f"{self.title} - {' '.join(self.detail)}" if self.detail else self.title
+
 
 @dataclass
 class _Section:
@@ -53,17 +79,72 @@ class _Section:
     total: Decimal
     items: list[_Item] = field(default_factory=list)
 
+    def adds_up(self) -> bool:
+        return sum((i.amount for i in self.items), Decimal(0)) == self.total
+
+
+@dataclass
+class _NubankBody:
+    """Reads the "Movimentações" pages line by line into sections of a day."""
+
+    sections: list[_Section] = field(default_factory=list)
+    in_body: bool = False
+    seen_body: bool = False
+    day: date | None = None
+
+    def feed(self, line: Line) -> None:
+        if self._boundary(line.text) or not self.in_body:
+            return
+        segments = self._after_day(list(line.segments))
+        if segments and self.day is not None:
+            self._content(segments, line.text, self.day)
+
+    def _boundary(self, text: str) -> bool:
+        if text.startswith(("Tem alguma dúvida", "O saldo líquido")):
+            self.in_body = False
+            return True
+        if text == "Movimentações":
+            self.in_body = self.seen_body = True
+            return True
+        if self.seen_body and "VALORES EM R$" in text:
+            self.in_body = True
+            return True
+        return False
+
+    def _after_day(self, segments: list[Segment]) -> list[Segment]:
+        """A line can start with the day ("03 OUT 2026"); it holds for the lines below."""
+        m = _NU_DAY.match(segments[0].text)
+        if not m or m[2] not in _MONTHS:
+            return segments
+        self.day = date(int(m[3]), _MONTHS[m[2]], int(m[1]))
+        return segments[1:]
+
+    def _content(self, segments: list[Segment], text: str, day: date) -> None:
+        last = segments[-1].text if segments[-1].x1 > _NU_AMOUNT_X else ""
+        amount = _br(last) if _BR_AMOUNT.match(last) else None
+        if m := _NU_TOTAL.match(segments[0].text):
+            if amount is None:
+                raise StatementError("Não consegui ler os totais do extrato do Nubank.")
+            sign = 1 if m[1] == "entradas" else -1
+            self.sections.append(_Section(day, sign, abs(amount)))
+        elif self.sections:
+            self._item(self.sections[-1], segments, amount, text, day)
+
+    @staticmethod
+    def _item(
+        section: _Section, segments: list[Segment], amount: Decimal | None, text: str, day: date
+    ) -> None:
+        if amount is not None:
+            middle = [s.text for s in segments[1:-1]]
+            section.items.append(_Item(day, section.sign, segments[0].text, middle, amount, text))
+        elif segments[0].x0 >= _NU_CONTINUATION_X and section.items:
+            section.items[-1].detail.append(" ".join(s.text for s in segments))
+
 
 class NubankPdf:
     """Days hold 'Total de entradas' / 'Total de saídas' sections; items show the amount
     without a sign, so the sign comes from the section, and each section must add up to
     the total the bank printed."""
-
-    _DAY = re.compile(r"^(\d{2}) ([A-Z]{3}) (\d{4})$")
-    _TOTAL = re.compile(r"^Total de (entradas|saídas)$")
-    # Item titles start at the left of the column; descriptions continue further right.
-    _CONTINUATION_X = 200.0
-    _AMOUNT_X = 470.0
 
     def matches(self, text: str) -> bool:
         return (
@@ -73,137 +154,88 @@ class NubankPdf:
         )
 
     def read(self, lines: list[Line]) -> ParsedStatement:
-        sections: list[_Section] = []
-        in_body = False
-        seen_body = False
-        day: date | None = None
+        body = _NubankBody()
         for line in lines:
-            text = line.text
-            if text.startswith(("Tem alguma dúvida", "O saldo líquido")):
-                in_body = False
-                continue
-            if text == "Movimentações":
-                in_body = seen_body = True
-                continue
-            if seen_body and "VALORES EM R$" in text:
-                in_body = True
-                continue
-            if not in_body:
-                continue
-            segments = list(line.segments)
-            if (m := self._DAY.match(segments[0].text)) and m[2] in _MONTHS:
-                day = date(int(m[3]), _MONTHS[m[2]], int(m[1]))
-                segments = segments[1:]
-            if not segments or day is None:
-                continue
-            amount_text = segments[-1].text if segments[-1].x1 > self._AMOUNT_X else None
-            if m := self._TOTAL.match(segments[0].text):
-                if not amount_text or not _BR_AMOUNT.match(amount_text):
-                    raise StatementError("Não consegui ler os totais do extrato do Nubank.")
-                sign = 1 if m[1] == "entradas" else -1
-                sections.append(_Section(day, sign, abs(_br(amount_text))))
-                continue
-            if not sections:
-                continue
-            section = sections[-1]
-            if amount_text and _BR_AMOUNT.match(amount_text):
-                middle = [s.text for s in segments[1:-1]]
-                section.items.append(
-                    _Item(day, section.sign, segments[0].text, middle, _br(amount_text), text)
-                )
-            elif segments[0].x0 >= self._CONTINUATION_X and section.items:
-                section.items[-1].detail.append(" ".join(s.text for s in segments))
-
+            body.feed(line)
         statement = ParsedStatement(format="pdf", bank="Nubank")
-        index = 0
-        for section in sections:
-            total = sum((i.amount for i in section.items), Decimal(0))
-            for item in section.items:
-                index += 1
-                description = item.title
-                if item.detail:
-                    description += " - " + " ".join(item.detail)
-                raw = f"{item.date.isoformat()} {item.sign * item.amount} {description}"
-                if total != section.total:
-                    statement.errors.append(
-                        RowError(
-                            index,
-                            f"A soma do dia {item.date:%d/%m} não confere com o total do "
-                            "extrato; estas linhas ficaram de fora",
-                            raw,
-                        )
-                    )
-                    continue
-                statement.rows.append(
-                    ParsedRow(
-                        date=item.date,
-                        description=description,
-                        amount=item.sign * item.amount,
-                        currency="BRL",
-                        raw=raw,
-                    )
-                )
-        if not statement.rows and not statement.errors:
-            raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-        return statement
+        items = [(item, section.adds_up()) for section in body.sections for item in section.items]
+        for index, (item, ok) in enumerate(items, start=1):
+            amount = item.sign * item.amount
+            description = item.description()
+            raw = f"{item.date.isoformat()} {amount} {description}"
+            row = ParsedRow(
+                date=item.date, description=description, amount=amount, currency="BRL", raw=raw
+            )
+            why = (
+                f"A soma do dia {item.date:%d/%m} não confere com o total do "
+                "extrato; estas linhas ficaram de fora"
+            )
+            _add_checked(statement, index, ok, row, why)
+        return _not_empty(statement)
 
 
 # ── Itaú (conta) ─────────────────────────────────────────────────────────────
+
+
+_ITAU_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+
+
+def _itau_columns(line: Line) -> tuple[float, float] | None:
+    """Right edges of the "valor" and "saldo" columns, from their header line."""
+    texts = [s.text for s in line.segments]
+    if "valor (R$)" not in texts or "saldo (R$)" not in texts:
+        return None
+    return line.segments[texts.index("valor (R$)")].x1, line.segments[texts.index("saldo (R$)")].x1
 
 
 class ItauPdf:
     """One line per entry: date, description, value, sometimes the day's balance.
     'SALDO ...' lines are balances, not transactions."""
 
-    _DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
-
     def matches(self, text: str) -> bool:
         return "itau" in text.lower().replace("ú", "u") and "lançamentos" in text
 
     def read(self, lines: list[Line]) -> ParsedStatement:
-        value_x: float | None = None
-        balance_x: float | None = None
+        columns: tuple[float, float] | None = None
         statement = ParsedStatement(format="pdf", bank="Itaú")
-        index = 0
         for line in lines:
-            texts = [s.text for s in line.segments]
-            if "valor (R$)" in texts and "saldo (R$)" in texts:
-                value_x = line.segments[texts.index("valor (R$)")].x1
-                balance_x = line.segments[texts.index("saldo (R$)")].x1
-                continue
-            if value_x is None or balance_x is None:
-                continue
-            first = line.segments[0]
-            if not self._DATE.match(first.text) or len(line.segments) < 3:
-                continue
-            description = line.segments[1].text
-            if description.upper().startswith("SALDO"):
-                continue
-            index += 1
-            # The value column is the right-aligned segment nearest the "valor" header.
-            amounts = [
-                s
-                for s in line.segments[2:]
-                if abs(s.x1 - value_x) < abs(s.x1 - balance_x)
-                and _BR_AMOUNT.match(s.text.replace(" ", ""))
-            ]
-            if not amounts:
-                statement.errors.append(RowError(index, "Linha sem valor", line.text))
-                continue
-            statement.rows.append(
-                ParsedRow(
-                    date=parse_date(first.text),
-                    description=description,
-                    amount=_br(amounts[-1].text),
-                    currency="BRL",
-                    raw=line.text,
-                )
-            )
-        if value_x is None:
+            if found := _itau_columns(line):
+                columns = found
+            elif columns:
+                self._entry(statement, line, columns)
+        if columns is None:
             raise StatementError("Não reconheci as colunas do extrato do Itaú.")
-        if not statement.rows and not statement.errors:
-            raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-        return statement
+        return _not_empty(statement)
+
+    @staticmethod
+    def _entry(statement: ParsedStatement, line: Line, columns: tuple[float, float]) -> None:
+        segments = line.segments
+        if len(segments) < 3 or not _ITAU_DATE.match(segments[0].text):
+            return
+        description = segments[1].text
+        if description.upper().startswith("SALDO"):
+            return
+        index = len(statement.rows) + len(statement.errors) + 1
+        value_x, balance_x = columns
+        # The value column is the right-aligned segment nearest the "valor" header.
+        amounts = [
+            s
+            for s in segments[2:]
+            if abs(s.x1 - value_x) < abs(s.x1 - balance_x)
+            and _BR_AMOUNT.match(s.text.replace(" ", ""))
+        ]
+        if not amounts:
+            statement.errors.append(RowError(index, "Linha sem valor", line.text))
+            return
+        statement.rows.append(
+            ParsedRow(
+                date=parse_date(segments[0].text),
+                description=description,
+                amount=_br(amounts[-1].text),
+                currency="BRL",
+                raw=line.text,
+            )
+        )
 
 
 # ── Inter (conta) ────────────────────────────────────────────────────────────
@@ -213,6 +245,9 @@ _PT_MONTHS = {
     "julho": 7, "agosto": 8, "setembro": 9, "outubro": 10, "novembro": 11, "dezembro": 12,
 }  # fmt: skip
 _BRL = re.compile(r"^(-?)R\$\s?(\d{1,3}(?:\.\d{3})*,\d{2})$")
+_INTER_DAY = re.compile(
+    r"^(\d{1,2}) de (\w+) de (\d{4}) Saldo do dia: (-?R\$\s?[\d.]+,\d{2})$", re.I
+)
 
 
 def _brl(text: str) -> Decimal | None:
@@ -229,12 +264,30 @@ class _InterDay:
     balance: Decimal
     rows: list[tuple[str, Decimal, str]] = field(default_factory=list)
 
+    def add_entry(self, line: Line) -> None:
+        """An entry line ends with its amount and the balance after it."""
+        segments = line.segments
+        if len(segments) < 3:
+            return
+        amount = _brl(segments[-2].text)
+        if amount is None or _brl(segments[-1].text) is None:
+            return
+        self.rows.append((" ".join(s.text for s in segments[:-2]), amount, line.text))
+
+
+def _inter_day(text: str) -> _InterDay | None:
+    m = _INTER_DAY.match(text)
+    if not m or m[2].lower() not in _PT_MONTHS:
+        return None
+    balance = _brl(m[4])
+    if balance is None:  # pragma: no cover - the regex already checked it
+        return None
+    return _InterDay(date(int(m[3]), _PT_MONTHS[m[2].lower()], int(m[1])), balance)
+
 
 class InterPdf:
     """Entries grouped by day under '15 de Agosto de 2026 Saldo do dia: R$ 10,00'. Each
     day must take the previous day's balance to the one the bank printed for it."""
-
-    _DAY = re.compile(r"^(\d{1,2}) de (\w+) de (\d{4}) Saldo do dia: (-?R\$\s?[\d.]+,\d{2})$", re.I)
 
     def matches(self, text: str) -> bool:
         return "Banco Inter" in text and "Saldo do dia" in text
@@ -242,55 +295,37 @@ class InterPdf:
     def read(self, lines: list[Line]) -> ParsedStatement:
         days: list[_InterDay] = []
         for line in lines:
-            first = line.segments[0].text
-            if (m := self._DAY.match(first)) and m[2].lower() in _PT_MONTHS:
-                balance = _brl(m[4])
-                if balance is None:  # pragma: no cover - the regex already checked it
-                    continue
-                days.append(
-                    _InterDay(date(int(m[3]), _PT_MONTHS[m[2].lower()], int(m[1])), balance)
-                )
-                continue
-            if not days or len(line.segments) < 3:
-                continue
-            amount = _brl(line.segments[-2].text)
-            if amount is None or _brl(line.segments[-1].text) is None:
-                continue
-            description = " ".join(s.text for s in line.segments[:-2])
-            days[-1].rows.append((description, amount, line.text))
-
+            if day := _inter_day(line.segments[0].text):
+                days.append(day)
+            elif days:
+                days[-1].add_entry(line)
         statement = ParsedStatement(format="pdf", bank="Inter")
-        index = 0
-        previous: Decimal | None = None
-        for day in days:
-            # The first day has no earlier balance to check against.
-            ok = previous is None or previous + sum(a for _, a, _ in day.rows) == day.balance
-            previous = day.balance
-            for description, amount, text in day.rows:
-                index += 1
-                raw = f"{day.date.isoformat()} {text}"
-                if not ok:
-                    statement.errors.append(
-                        RowError(
-                            index,
-                            f"O dia {day.date:%d/%m} não confere com o saldo do extrato; "
-                            "estas linhas ficaram de fora",
-                            raw,
-                        )
-                    )
-                    continue
-                statement.rows.append(
-                    ParsedRow(
-                        date=day.date,
-                        description=description,
-                        amount=amount,
-                        currency="BRL",
-                        raw=raw,
-                    )
-                )
-        if not statement.rows and not statement.errors:
-            raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-        return statement
+        for index, (day, (description, amount, text), ok) in enumerate(_checked(days), start=1):
+            raw = f"{day.date.isoformat()} {text}"
+            row = ParsedRow(
+                date=day.date, description=description, amount=amount, currency="BRL", raw=raw
+            )
+            why = (
+                f"O dia {day.date:%d/%m} não confere com o saldo do extrato; "
+                "estas linhas ficaram de fora"
+            )
+            _add_checked(statement, index, ok, row, why)
+        return _not_empty(statement)
+
+
+_InterEntry = tuple[_InterDay, tuple[str, Decimal, str], bool]
+
+
+def _checked(days: list[_InterDay]) -> list[_InterEntry]:
+    """Each entry with whether its day takes the previous balance to the printed one."""
+    out: list[_InterEntry] = []
+    previous: Decimal | None = None
+    for day in days:
+        # The first day has no earlier balance to check against.
+        ok = previous is None or previous + sum(a for _, a, _ in day.rows) == day.balance
+        previous = day.balance
+        out.extend((day, row, ok) for row in day.rows)
+    return out
 
 
 # ── Revolut (conta) ──────────────────────────────────────────────────────────
@@ -313,6 +348,17 @@ def _money(text: str) -> Decimal | None:
     return -value if m[1] else value
 
 
+_REVOLUT_DATE = re.compile(r"^([A-Z][a-z]{2}) (\d{1,2}), (\d{4})$")
+_REVOLUT_LABEL = re.compile(r"^(Reference|To|From|Card):\s?(.*)$")
+_REVOLUT_CURRENCY = re.compile(r"\b([A-Z]{3}) Statement\b")
+# Where the description column starts and where the amount columns start.
+_REVOLUT_DESCRIPTION_X = (150.0, 330.0)
+
+
+def _in_revolut_description(x: float) -> bool:
+    return _REVOLUT_DESCRIPTION_X[0] <= x < _REVOLUT_DESCRIPTION_X[1]
+
+
 @dataclass
 class _RevolutRow:
     date: date
@@ -321,120 +367,132 @@ class _RevolutRow:
     reference: list[str] = field(default_factory=list)
     label: str | None = None
 
+    def description(self) -> str:
+        text = " ".join(self.title)
+        return f"{text} - {' '.join(self.reference)}" if self.reference else text
+
+    def add_line(self, text: str) -> None:
+        """A line under the row: more title, a label such as "Reference:", or its value."""
+        if label := _REVOLUT_LABEL.match(text):
+            self.label = label[1]
+            if label[1] == "Reference":
+                self.reference.append(label[2])
+        elif self.label is None:
+            self.title.append(text)
+        elif self.label == "Reference":
+            self.reference.append(text)
+
+
+@dataclass
+class _RevolutTable:
+    """Reads the current account's table line by line."""
+
+    totals: tuple[Decimal, Decimal] | None = None
+    rows: list[_RevolutRow] = field(default_factory=list)
+    in_table: bool = False
+    columns: tuple[float, float] | None = None  # x of "Money out" and "Money in"
+    current: _RevolutRow | None = None
+
+    def feed(self, line: Line) -> None:
+        if self._summary(line) or self._section(line.segments[0].text) or self._columns(line):
+            return
+        if not self.in_table or self.columns is None:
+            return
+        if not self._new_row(line, self.columns):
+            self._continuation(line)
+
+    def _summary(self, line: Line) -> bool:
+        if self.totals is not None or not line.segments[0].text.startswith("Account ("):
+            return False
+        money = [v for s in line.segments[1:] if (v := _money(s.text)) is not None]
+        if len(money) >= 3:
+            self.totals = (money[1], money[2])
+        return True
+
+    def _section(self, text: str) -> bool:
+        if text.startswith("Account transactions from"):
+            self.in_table = True
+            return True
+        if " transactions from " in text:
+            self.in_table = False
+            self.current = None
+            return True
+        return False
+
+    def _columns(self, line: Line) -> bool:
+        texts = [s.text for s in line.segments]
+        if "Money out" not in texts or "Money in" not in texts:
+            return False
+        segments = line.segments
+        self.columns = (segments[texts.index("Money out")].x0, segments[texts.index("Money in")].x0)
+        self.current = None
+        return True
+
+    def _new_row(self, line: Line, columns: tuple[float, float]) -> bool:
+        m = _REVOLUT_DATE.match(line.segments[0].text)
+        if not m or m[1] not in _EN_MONTHS:
+            return False
+        self.current = None
+        amounts = [
+            (s.x0, v)
+            for s in line.segments
+            if s.x0 >= _REVOLUT_DESCRIPTION_X[1] and (v := _money(s.text)) is not None
+        ]
+        # A row prints its amount and the balance after it.
+        if len(amounts) >= 2:
+            x, value = amounts[0]
+            out_x, in_x = columns
+            sign = -1 if abs(x - out_x) < abs(x - in_x) else 1
+            title = [s.text for s in line.segments if _in_revolut_description(s.x0)]
+            day = date(int(m[3]), _EN_MONTHS[m[1]], int(m[2]))
+            self.current = _RevolutRow(day, sign * value, title)
+            self.rows.append(self.current)
+        return True
+
+    def _continuation(self, line: Line) -> None:
+        if self.current is None or not _in_revolut_description(line.segments[0].x0):
+            self.current = None
+            return
+        self.current.add_line(line.text)
+
 
 class RevolutPdf:
     """Only the current account's table is read; savings pockets show up there as
     'To/From EUR <pocket>' moves. Within a day the printed balances are not in row order,
     so the check is the money in and money out totals of the balance summary."""
 
-    _DATE = re.compile(r"^([A-Z][a-z]{2}) (\d{1,2}), (\d{4})$")
-    _LABEL = re.compile(r"^(Reference|To|From|Card):\s?(.*)$")
-    _CURRENCY = re.compile(r"\b([A-Z]{3}) Statement\b")
-    _DESCRIPTION_X = (150.0, 330.0)
-
     def matches(self, text: str) -> bool:
         return "Revolut Bank" in text and "Account transactions from" in text
 
     def read(self, lines: list[Line]) -> ParsedStatement:
-        full_text = "\n".join(line.text for line in lines)
-        currency_match = self._CURRENCY.search(full_text)
+        currency_match = _REVOLUT_CURRENCY.search("\n".join(line.text for line in lines))
         currency = currency_match[1] if currency_match else ""
         if currency not in ("BRL", "USD", "EUR"):
             raise StatementError("Moeda do extrato da Revolut não suportada (só BRL, USD e EUR).")
-
-        totals: tuple[Decimal, Decimal] | None = None
-        out_x = in_x = None
-        rows: list[_RevolutRow] = []
-        in_table = False
-        current: _RevolutRow | None = None
+        table = _RevolutTable()
         for line in lines:
-            first = line.segments[0]
-            texts = [s.text for s in line.segments]
-            if first.text.startswith("Account (") and totals is None:
-                money = [v for s in line.segments[1:] if (v := _money(s.text)) is not None]
-                if len(money) >= 3:
-                    totals = (money[1], money[2])
-                continue
-            if first.text.startswith("Account transactions from"):
-                in_table = True
-                continue
-            if " transactions from " in first.text:
-                in_table = False
-                current = None
-                continue
-            if "Money out" in texts and "Money in" in texts:
-                out_x = line.segments[texts.index("Money out")].x0
-                in_x = line.segments[texts.index("Money in")].x0
-                current = None
-                continue
-            if not in_table or out_x is None or in_x is None:
-                continue
-            if (m := self._DATE.match(first.text)) and m[1] in _EN_MONTHS:
-                current = None
-                day = date(int(m[3]), _EN_MONTHS[m[1]], int(m[2]))
-                title = [
-                    s.text
-                    for s in line.segments
-                    if self._DESCRIPTION_X[0] <= s.x0 < self._DESCRIPTION_X[1]
-                ]
-                amounts = [
-                    (s, v)
-                    for s in line.segments
-                    if s.x0 >= self._DESCRIPTION_X[1] and (v := _money(s.text)) is not None
-                ]
-                if len(amounts) < 2:
-                    continue
-                segment, value = amounts[0]
-                sign = -1 if abs(segment.x0 - out_x) < abs(segment.x0 - in_x) else 1
-                current = _RevolutRow(day, sign * value, title)
-                rows.append(current)
-                continue
-            if current is None or not (self._DESCRIPTION_X[0] <= first.x0 < self._DESCRIPTION_X[1]):
-                current = None
-                continue
-            text = line.text
-            if label := self._LABEL.match(text):
-                current.label = label[1]
-                if label[1] == "Reference":
-                    current.reference.append(label[2])
-            elif current.label is None:
-                current.title.append(text)
-            elif current.label == "Reference":
-                current.reference.append(text)
-
-        if totals is None:
+            table.feed(line)
+        if table.totals is None:
             raise StatementError("Não encontrei o resumo de saldos do extrato da Revolut.")
-        money_out = sum((-r.amount for r in rows if r.amount < 0), Decimal(0))
-        money_in = sum((r.amount for r in rows if r.amount > 0), Decimal(0))
-        ok = (money_out, money_in) == totals
+        return _revolut_statement(table.rows, table.totals, currency)
 
-        statement = ParsedStatement(format="pdf", bank="Revolut")
-        for index, row in enumerate(rows, start=1):
-            description = " ".join(row.title)
-            if row.reference:
-                description += " - " + " ".join(row.reference)
-            raw = f"{row.date.isoformat()} {row.amount} {description}"
-            if not ok:
-                statement.errors.append(
-                    RowError(
-                        index,
-                        "Os valores não conferem com o resumo do extrato; nada foi importado",
-                        raw,
-                    )
-                )
-                continue
-            statement.rows.append(
-                ParsedRow(
-                    date=row.date,
-                    description=description,
-                    amount=row.amount,
-                    currency=currency,
-                    raw=raw,
-                )
-            )
-        if not statement.rows and not statement.errors:
-            raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-        return statement
+
+def _revolut_statement(
+    rows: list[_RevolutRow], totals: tuple[Decimal, Decimal], currency: str
+) -> ParsedStatement:
+    money_out = sum((-r.amount for r in rows if r.amount < 0), Decimal(0))
+    money_in = sum((r.amount for r in rows if r.amount > 0), Decimal(0))
+    ok = (money_out, money_in) == totals
+    statement = ParsedStatement(format="pdf", bank="Revolut")
+    why = "Os valores não conferem com o resumo do extrato; nada foi importado"
+    for index, row in enumerate(rows, start=1):
+        description = row.description()
+        raw = f"{row.date.isoformat()} {row.amount} {description}"
+        parsed = ParsedRow(
+            date=row.date, description=description, amount=row.amount, currency=currency, raw=raw
+        )
+        _add_checked(statement, index, ok, parsed, why)
+    return _not_empty(statement)
 
 
 # ── CaixaBank (PDF de imagem, via OCR) ───────────────────────────────────────
@@ -447,6 +505,9 @@ class _OcrRead:
     amount: Decimal  # magnitude only: OCR drops minus signs, the balances give the sign
     negative: bool
     balance: Decimal
+
+    def signed(self) -> Decimal:
+        return -self.amount if self.negative else self.amount
 
 
 class CaixaBankOcr:
@@ -483,35 +544,12 @@ class CaixaBankOcr:
 
         statement = ParsedStatement(format="pdf", bank="CaixaBank")
         for i, candidates in enumerate(reads):
-            index = i + 1
-            if not candidates:
-                statement.errors.append(RowError(index, "Não consegui ler esta linha", primary[i]))
-                continue
             older = reads[i + 1] if i + 1 < len(reads) else None
-            if older is None:
-                # The oldest row has no older balance to check against; it keeps the sign
-                # as read.
-                chosen = candidates[0]
-                signed = -chosen.amount if chosen.negative else chosen.amount
-            else:
-                match = next(
-                    (
-                        (c, c.balance - o.balance)
-                        for c in candidates
-                        for o in older
-                        if abs(c.balance - o.balance) == c.amount
-                    ),
-                    None,
-                )
-                if match is None:
-                    message = (
-                        "O valor lido não confere com o saldo"
-                        if older
-                        else "Não consegui conferir o valor pelo saldo"
-                    )
-                    statement.errors.append(RowError(index, message, primary[i]))
-                    continue
-                chosen, signed = match
+            confirmed = self._confirm(candidates, older)
+            if isinstance(confirmed, str):
+                statement.errors.append(RowError(i + 1, confirmed, primary[i]))
+                continue
+            chosen, signed = confirmed
             statement.rows.append(
                 ParsedRow(
                     date=chosen.day,
@@ -521,9 +559,32 @@ class CaixaBankOcr:
                     raw=f"{chosen.day.isoformat()} {signed} {chosen.balance} {chosen.description}",
                 )
             )
-        if not statement.rows and not statement.errors:
-            raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-        return statement
+        return _not_empty(statement)
+
+    @staticmethod
+    def _confirm(
+        candidates: list[_OcrRead], older: list[_OcrRead] | None
+    ) -> tuple[_OcrRead, Decimal] | str:
+        """The reading of a row its balance confirms, with its sign; or why there is none."""
+        if not candidates:
+            return "Não consegui ler esta linha"
+        if older is None:
+            # The oldest row has no older balance to check against; it keeps the sign as read.
+            return candidates[0], candidates[0].signed()
+        match = next(
+            (
+                (c, c.balance - o.balance)
+                for c in candidates
+                for o in older
+                if abs(c.balance - o.balance) == c.amount
+            ),
+            None,
+        )
+        if match is not None:
+            return match
+        if older:
+            return "O valor lido não confere com o saldo"
+        return "Não consegui conferir o valor pelo saldo"
 
     def _lines(self, text: str) -> list[str] | None:
         out: list[str] | None = None

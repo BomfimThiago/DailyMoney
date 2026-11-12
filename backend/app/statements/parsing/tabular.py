@@ -212,20 +212,22 @@ def _infer_columns(headers: list[str], data_rows: list[list[Cell]]) -> _Columns:
 
 
 def _most_textual_column(headers: list[str], data_rows: list[list[Cell]], used: set[int]) -> int:
-    """The unused column whose values look most like free text (not dates or numbers)."""
-    best, best_score = -1, -1.0
+    """The unused column whose values look most like free text (not dates or numbers).
+
+    A column with no text at all never qualifies: a reference number is no description.
+    """
     sample = data_rows[:20]
-    for i in range(len(headers)):
-        if i in used:
-            continue
-        texts = [_text(_cell(r, i)) for r in sample]
-        textual = [t for t in texts if t and not _looks_numeric_or_date(t)]
-        score = len(textual) + sum(len(t) for t in textual) / 1000
-        if score > best_score:
-            best, best_score = i, score
-    if best < 0:
+    scores = {i: _textual_score([_text(_cell(r, i)) for r in sample]) for i in range(len(headers))}
+    candidates = {i: score for i, score in scores.items() if i not in used and score > 0}
+    if not candidates:
         raise StatementError("Não encontrei a coluna de descrição no arquivo.")
-    return best
+    # Ties go to the leftmost column.
+    return max(candidates, key=lambda i: (candidates[i], -i))
+
+
+def _textual_score(texts: list[str]) -> float:
+    textual = [t for t in texts if t and not _looks_numeric_or_date(t)]
+    return len(textual) + sum(len(t) for t in textual) / 1000
 
 
 def _looks_numeric_or_date(text: str) -> bool:
