@@ -5,6 +5,7 @@ import { SectionTitle } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { dayMonth, isIncome, money, monthLabel } from '@/lib/format';
 import { setKind } from '@/lib/imports';
+import { transferLine } from '@/lib/transactions';
 import type { Transaction, Transfer, TransferOverview, TxKind } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -135,29 +136,20 @@ function ActionButton({
 }
 
 function TransferRow({ t, first }: { t: Transfer; first: boolean }) {
-  const from = t.from_account ?? 'outra conta';
-  const to = t.to_account ?? 'outra conta';
-  const sub =
-    t.kind === 'exchange'
-      ? `Câmbio · ${dayMonth(t.date)}`
-      : t.kind === 'pair'
-        ? `${dayMonth(t.date)} · as duas pontas encontradas`
-        : `${dayMonth(t.date)} · ${t.description}`;
+  const line = transferLine(t);
   return (
     <View style={[styles.row, first && styles.first]}>
       <View style={styles.main}>
         <Text style={styles.rowTitle} numberOfLines={1}>
-          {from} → {to}
+          {line.title}
         </Text>
         <Text style={styles.rowSub} numberOfLines={1}>
-          {sub}
+          {line.sub}
         </Text>
       </View>
       <View style={styles.right}>
         <Text style={styles.rowValue}>{money(t.amount, t.currency)}</Text>
-        {t.to_amount && t.to_currency ? (
-          <Text style={styles.rowSub}>{money(t.to_amount, t.to_currency)}</Text>
-        ) : null}
+        {line.arrived ? <Text style={styles.rowSub}>{line.arrived}</Text> : null}
       </View>
     </View>
   );

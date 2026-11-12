@@ -11,14 +11,10 @@ import { colors, fonts } from '@/theme';
 // One line of spending or income: what the statement says and its category, which the
 // person can change (spec: Trocar a categoria). Side panel on a computer, sheet on a phone.
 export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => void }) {
-  const categories = useCategories(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forMerchant, setForMerchant] = useState(true);
   const incoming = isIncome(t.amount);
-  const choices = (categories.data ?? []).filter(
-    (c) => c.kind === (incoming ? 'income' : 'expense'),
-  );
 
   const choose = async (categoryId: string) => {
     if (categoryId === t.category_id) return;
@@ -46,44 +42,85 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       </View>
 
       <Text style={styles.section}>CATEGORIA</Text>
-      {categories.isError ? (
-        <Text style={styles.note}>Não consegui carregar as categorias.</Text>
-      ) : !categories.data ? (
-        <ActivityIndicator color={colors.muted} />
-      ) : (
-        <View style={styles.chips} accessibilityRole="radiogroup">
-          {choices.map((c) => {
-            const on = c.id === t.category_id;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => choose(c.id)}
-                disabled={busy !== null}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on, busy: busy === c.id }}
-                style={[styles.chip, on && styles.chipOn]}
-              >
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>
-                  {busy === c.id ? 'Salvando…' : c.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-      <Pressable
-        onPress={() => setForMerchant(!forMerchant)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: forMerchant }}
-        style={styles.check}
-      >
-        <View style={[styles.box16, forMerchant && styles.box16On]}>
-          {forMerchant ? <Text style={styles.tick}>✓</Text> : null}
-        </View>
-        <Text style={styles.checkText}>Valer também para as próximas deste estabelecimento</Text>
-      </Pressable>
+      <CategoryChips t={t} busy={busy} onChoose={choose} />
+      <MerchantCheck on={forMerchant} onToggle={() => setForMerchant(!forMerchant)} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
+  );
+}
+
+function CategoryChips({
+  t,
+  busy,
+  onChoose,
+}: {
+  t: Transaction;
+  busy: string | null;
+  onChoose: (id: string) => void;
+}) {
+  const categories = useCategories(true);
+  if (categories.isError) {
+    return <Text style={styles.note}>Não consegui carregar as categorias.</Text>;
+  }
+  if (!categories.data) return <ActivityIndicator color={colors.muted} />;
+  const kind = isIncome(t.amount) ? 'income' : 'expense';
+  return (
+    <View style={styles.chips} accessibilityRole="radiogroup">
+      {categories.data
+        .filter((c) => c.kind === kind)
+        .map((c) => (
+          <CategoryChip
+            key={c.id}
+            name={c.name}
+            on={c.id === t.category_id}
+            saving={busy === c.id}
+            disabled={busy !== null}
+            onPress={() => onChoose(c.id)}
+          />
+        ))}
+    </View>
+  );
+}
+
+function CategoryChip({
+  name,
+  on,
+  saving,
+  disabled,
+  onPress,
+}: {
+  name: string;
+  on: boolean;
+  saving: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: on, busy: saving }}
+      style={[styles.chip, on && styles.chipOn]}
+    >
+      <Text style={[styles.chipText, on && styles.chipTextOn]}>{saving ? 'Salvando…' : name}</Text>
+    </Pressable>
+  );
+}
+
+function MerchantCheck({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      style={styles.check}
+    >
+      <View style={[styles.box16, on && styles.box16On]}>
+        {on ? <Text style={styles.tick}>✓</Text> : null}
+      </View>
+      <Text style={styles.checkText}>Valer também para as próximas deste estabelecimento</Text>
+    </Pressable>
   );
 }
 

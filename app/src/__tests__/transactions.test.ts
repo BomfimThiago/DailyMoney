@@ -8,8 +8,9 @@ import {
   isFiltered,
   pagedItems,
   remaining,
+  transferLine,
 } from '@/lib/transactions';
-import type { Account, Category, Transaction } from '@/lib/types';
+import type { Account, Category, Transaction, Transfer } from '@/lib/types';
 import { useDebounced, useTabFromLink } from '@/lib/useTransactionsPage';
 
 const tx = (id: string) => ({ id }) as Transaction;
@@ -78,5 +79,37 @@ describe('transaction page hooks', () => {
     expect(result.current[0]).toBe('transferencias');
     const opened = await renderHook(() => useTabFromLink('transferencias'));
     expect(opened.result.current[0]).toBe('transferencias');
+  });
+});
+
+describe('transferLine', () => {
+  const t: Transfer = {
+    id: 't1',
+    date: '2026-11-08',
+    description: 'Pix',
+    from_account: 'Nubank',
+    to_account: null,
+    amount: '100.0000',
+    currency: 'BRL',
+    to_amount: null,
+    to_currency: null,
+    kind: 'single',
+  };
+
+  it('names both ends and says how it was found', () => {
+    expect(transferLine(t)).toEqual({
+      title: 'Nubank → outra conta',
+      sub: '8 nov · Pix',
+      arrived: null,
+    });
+    expect(transferLine({ ...t, from_account: null, kind: 'pair' }).sub).toBe(
+      '8 nov · as duas pontas encontradas',
+    );
+  });
+
+  it('shows what arrived after an exchange', () => {
+    const line = transferLine({ ...t, kind: 'exchange', to_amount: '18.0000', to_currency: 'EUR' });
+    expect(line.sub).toBe('Câmbio · 8 nov');
+    expect(line.arrived).toMatch(/18,00/);
   });
 });

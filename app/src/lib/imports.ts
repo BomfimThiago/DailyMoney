@@ -84,11 +84,14 @@ export function listTransactions(
   opts: { limit?: number; offset?: number; month?: string; kinds?: TxKind[] } & TxFilters = {},
 ) {
   const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
-  if (opts.offset) q.set('offset', String(opts.offset));
-  if (opts.month) q.set('month', opts.month);
-  if (opts.q?.trim()) q.set('q', opts.q.trim());
-  if (opts.categoryId) q.set('category_id', opts.categoryId);
-  if (opts.accountId) q.set('account_id', opts.accountId);
+  const optional = {
+    offset: opts.offset ? String(opts.offset) : undefined,
+    month: opts.month,
+    q: opts.q?.trim(),
+    category_id: opts.categoryId,
+    account_id: opts.accountId,
+  };
+  for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
   for (const k of opts.kinds ?? []) q.append('kind', k);
   return api<TransactionPage>(`/transactions?${q.toString()}`);
 }

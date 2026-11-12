@@ -1,5 +1,6 @@
 // What the transactions page derives from its answers, kept apart from the page for tests.
-import type { Account, Category, Transaction, TransactionPage } from './types';
+import { dayMonth, money } from './format';
+import type { Account, Category, Transaction, TransactionPage, Transfer } from './types';
 
 export type Option = { id: string; name: string };
 
@@ -31,4 +32,20 @@ export function accountOptions(accounts: Account[] | undefined): Option[] {
 
 export function emptyListText(filtered: boolean): string {
   return filtered ? 'Nada encontrado com esses filtros.' : 'Nenhum gasto ou entrada neste mês.';
+}
+
+const TRANSFER_SUB: Record<Transfer['kind'], (t: Transfer) => string> = {
+  exchange: (t) => `Câmbio · ${dayMonth(t.date)}`,
+  pair: (t) => `${dayMonth(t.date)} · as duas pontas encontradas`,
+  single: (t) => `${dayMonth(t.date)} · ${t.description}`,
+};
+
+// A matched transfer: "Wise → Nubank", when and how it was found, and what arrived in the
+// other currency after an exchange.
+export function transferLine(t: Transfer): { title: string; sub: string; arrived: string | null } {
+  return {
+    title: `${t.from_account ?? 'outra conta'} → ${t.to_account ?? 'outra conta'}`,
+    sub: TRANSFER_SUB[t.kind](t),
+    arrived: t.to_amount && t.to_currency ? money(t.to_amount, t.to_currency) : null,
+  };
 }
