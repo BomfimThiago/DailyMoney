@@ -12,6 +12,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from io import BytesIO
+from typing import Any
 
 from app.statements.parsing.errors import StatementError
 from app.statements.parsing.types import ParsedStatement
@@ -77,24 +78,33 @@ def _text_lines(data: bytes) -> list[Line]:
     try:
         pdf = pdfplumber.open(BytesIO(data))
     except Exception as exc:
-        if "password" in str(exc).lower():
-            raise StatementError("O PDF tem senha. Abra, salve sem senha e envie de novo.") from exc
-        raise StatementError("Não consegui abrir o PDF. Ele pode estar corrompido.") from exc
-    lines: list[Line] = []
+        raise _unreadable(exc, "Não consegui abrir o PDF. Ele pode estar corrompido.") from exc
     try:
-        if not pdf.pages:
-            raise StatementError("O PDF não tem páginas.")
-        for number, page in enumerate(pdf.pages, start=1):
-            lines.extend(_page_lines(number, page.extract_words(x_tolerance=1.5)))
+        return _all_pages(pdf)
+    except StatementError:
+        raise
     except Exception as exc:
-        if isinstance(exc, StatementError):
-            raise
-        if "password" in str(exc).lower() or "encrypt" in str(exc).lower():
-            raise StatementError("O PDF tem senha. Abra, salve sem senha e envie de novo.") from exc
-        raise StatementError("Não consegui ler o PDF.") from exc
+        raise _unreadable(exc, "Não consegui ler o PDF.") from exc
     finally:
         pdf.close()
-    return lines
+
+
+def _all_pages(pdf: Any) -> list[Line]:
+    if not pdf.pages:
+        raise StatementError("O PDF não tem páginas.")
+    return [
+        line
+        for number, page in enumerate(pdf.pages, start=1)
+        for line in _page_lines(number, page.extract_words(x_tolerance=1.5))
+    ]
+
+
+def _unreadable(exc: Exception, message: str) -> StatementError:
+    """pdfplumber reports a locked file only in its error text."""
+    text = str(exc).lower()
+    if "password" in text or "encrypt" in text:
+        return StatementError("O PDF tem senha. Abra, salve sem senha e envie de novo.")
+    return StatementError(message)
 
 
 def _page_lines(page: int, words: list[dict[str, object]]) -> list[Line]:

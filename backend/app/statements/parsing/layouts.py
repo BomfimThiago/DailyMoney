@@ -7,6 +7,7 @@ distinctive headers go here. Matching is exact, after normalising case and space
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 
 
 @dataclass(frozen=True)
@@ -95,23 +96,33 @@ class LayoutMatch:
 
 
 def match_layout(headers: list[str]) -> LayoutMatch | None:
-    got = tuple(normalise_header(h) for h in headers)
-    while got and got[-1] == "":
-        got = got[:-1]
+    got = _trimmed(headers)
     layout = next((lay for lay in LAYOUTS if lay.headers == got), None)
     if layout is None:
         return None
     col = got.index(layout.transfer_column) if layout.transfer_column else -1
+    parts = tuple(got.index(c) for c in layout.description_columns)
+    return LayoutMatch(
+        layout,
+        partial(_is_transfer, col, layout.transfer_values),
+        partial(_describe, parts) if parts else None,
+    )
 
-    def is_transfer(cells: list[str]) -> bool:
-        if col < 0 or col >= len(cells):
-            return False
-        return cells[col].strip().upper() in layout.transfer_values
 
-    parts = [got.index(c) for c in layout.description_columns]
+def _trimmed(headers: list[str]) -> tuple[str, ...]:
+    """Normalised headers without the empty trailing columns spreadsheets leave behind."""
+    got = [normalise_header(h) for h in headers]
+    while got and got[-1] == "":
+        got.pop()
+    return tuple(got)
 
-    def describe(cells: list[str]) -> str:
-        texts = [cells[i].strip() for i in parts if i < len(cells) and cells[i].strip()]
-        return ": ".join(texts)
 
-    return LayoutMatch(layout, is_transfer, describe if parts else None)
+def _is_transfer(col: int, values: frozenset[str], cells: list[str]) -> bool:
+    if col < 0 or col >= len(cells):
+        return False
+    return cells[col].strip().upper() in values
+
+
+def _describe(parts: tuple[int, ...], cells: list[str]) -> str:
+    texts = [cells[i].strip() for i in parts if i < len(cells) and cells[i].strip()]
+    return ": ".join(texts)

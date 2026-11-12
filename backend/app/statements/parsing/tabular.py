@@ -70,17 +70,7 @@ def read_grid(
     fmt: str = "csv",
     delimiter: str = ";",
 ) -> ParsedStatement:
-    rows = [r for r in grid if any(_text(c) for c in r)]
-    header_at = _find_header(rows)
-    if header_at is None:
-        raise StatementError(
-            "Não reconheci as colunas do arquivo. Ele precisa ter data, valor e descrição."
-        )
-    headers = [_text(c) for c in rows[header_at]]
-    data_rows = rows[header_at + 1 :]
-    if not data_rows:
-        raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
-
+    headers, data_rows = _split_header(grid)
     layout = match_layout(headers)
     columns = _infer_columns(headers, data_rows)
     decimal_sep = detect_decimal_separator(
@@ -101,6 +91,20 @@ def read_grid(
         except ValueError as exc:
             statement.errors.append(RowError(row=index, message=str(exc), raw=raw))
     return statement
+
+
+def _split_header(grid: list[list[Cell]]) -> tuple[list[str], list[list[Cell]]]:
+    """The header line and the lines below it, blank lines dropped."""
+    rows = [r for r in grid if any(_text(c) for c in r)]
+    header_at = _find_header(rows)
+    if header_at is None:
+        raise StatementError(
+            "Não reconheci as colunas do arquivo. Ele precisa ter data, valor e descrição."
+        )
+    data_rows = rows[header_at + 1 :]
+    if not data_rows:
+        raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
+    return [_text(c) for c in rows[header_at]], data_rows
 
 
 def _read_row(

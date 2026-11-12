@@ -49,32 +49,38 @@ def _amount(raw: str) -> Decimal:
 
 def read_ofx(data: bytes) -> ParsedStatement:
     text = decode_text(data)
-    currency = _field(text, "CURDEF").upper()
-    if currency not in SUPPORTED_CURRENCIES:
-        raise StatementError(
-            f"Moeda do OFX não suportada: {currency or 'não informada'} (só BRL, USD e EUR)"
-        )
+    currency = _currency(text)
     statement = ParsedStatement(format="ofx", bank=canonical_bank(_field(text, "ORG")))
     for index, match in enumerate(_BLOCK.finditer(text), start=1):
-        block = match[1]
-        raw = re.sub(r"\s+", " ", block).strip()
+        raw = re.sub(r"\s+", " ", match[1]).strip()
         try:
-            description = re.sub(r"\s+", " ", _field(block, "MEMO") or _field(block, "NAME"))
-            if not description:
-                raise ValueError("Transação sem descrição no OFX")
-            fitid = _field(block, "FITID") or None
-            statement.rows.append(
-                ParsedRow(
-                    date=_date(_field(block, "DTPOSTED")),
-                    description=description,
-                    amount=_amount(_field(block, "TRNAMT")),
-                    currency=currency,
-                    raw=f"OFX FITID {fitid}" if fitid else raw,
-                    external_id=fitid,
-                )
-            )
+            statement.rows.append(_row(match[1], currency, raw))
         except ValueError as exc:
             statement.errors.append(RowError(row=index, message=str(exc), raw=raw))
     if not statement.rows and not statement.errors:
         raise StatementError("Este extrato não tem nenhuma transação. Nada para importar.")
     return statement
+
+
+def _currency(text: str) -> str:
+    currency = _field(text, "CURDEF").upper()
+    if currency not in SUPPORTED_CURRENCIES:
+        raise StatementError(
+            f"Moeda do OFX não suportada: {currency or 'não informada'} (só BRL, USD e EUR)"
+        )
+    return currency
+
+
+def _row(block: str, currency: str, raw: str) -> ParsedRow:
+    description = re.sub(r"\s+", " ", _field(block, "MEMO") or _field(block, "NAME"))
+    if not description:
+        raise ValueError("Transação sem descrição no OFX")
+    fitid = _field(block, "FITID") or None
+    return ParsedRow(
+        date=_date(_field(block, "DTPOSTED")),
+        description=description,
+        amount=_amount(_field(block, "TRNAMT")),
+        currency=currency,
+        raw=f"OFX FITID {fitid}" if fitid else raw,
+        external_id=fitid,
+    )

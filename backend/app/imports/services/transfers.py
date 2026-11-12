@@ -22,18 +22,12 @@ class Candidate:
 
 def pair_transfers(incoming: list[Candidate], existing: list[Candidate]) -> dict[str, str]:
     """Incoming id → existing id it mirrors. Each side pairs at most once, closest date first."""
-    options: list[tuple[int, str, str]] = []
-    for inc in incoming:
-        for ex in existing:
-            if (
-                ex.account_id != inc.account_id
-                and ex.currency == inc.currency
-                and ex.amount == -inc.amount
-                and inc.amount != 0
-            ):
-                gap = abs((ex.date - inc.date).days)
-                if gap <= MAX_DAYS:
-                    options.append((gap, inc.id, ex.id))
+    options = [
+        (abs((ex.date - inc.date).days), inc.id, ex.id)
+        for inc in incoming
+        for ex in existing
+        if _mirrors(inc, ex)
+    ]
     pairs: dict[str, str] = {}
     taken: set[str] = set()
     for _, inc_id, ex_id in sorted(options):
@@ -41,3 +35,14 @@ def pair_transfers(incoming: list[Candidate], existing: list[Candidate]) -> dict
             pairs[inc_id] = ex_id
             taken.add(ex_id)
     return pairs
+
+
+def _mirrors(inc: Candidate, ex: Candidate) -> bool:
+    """The same money leaving one account and arriving in another, a few days apart."""
+    return (
+        inc.amount != 0
+        and ex.amount == -inc.amount
+        and ex.currency == inc.currency
+        and ex.account_id != inc.account_id
+        and abs((ex.date - inc.date).days) <= MAX_DAYS
+    )

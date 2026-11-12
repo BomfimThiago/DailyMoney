@@ -142,6 +142,75 @@ def test_corrupt_pdf() -> None:
         read_statement("x.pdf", b"%PDF-1.7 ...")
 
 
+class _FakePdf:
+    def __init__(self, pages: list[object]) -> None:
+        self.pages = pages
+        self.closed = False
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class _BrokenPage:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def extract_words(self, **_: object) -> list[dict[str, object]]:
+        raise self.error
+
+
+def _open_with(monkeypatch: pytest.MonkeyPatch, opened: object) -> None:
+    import pdfplumber
+
+    def fake_open(_: object) -> object:
+        if isinstance(opened, Exception):
+            raise opened
+        return opened
+
+    monkeypatch.setattr(pdfplumber, "open", fake_open)
+
+
+@pytest.mark.parametrize(
+    ("opened", "message"),
+    [
+        (Exception("Password is incorrect"), "O PDF tem senha"),
+        (Exception("No /Root object"), "Ele pode estar corrompido"),
+    ],
+)
+def test_pdf_that_does_not_open(
+    monkeypatch: pytest.MonkeyPatch, opened: Exception, message: str
+) -> None:
+    _open_with(monkeypatch, opened)
+    with pytest.raises(StatementError, match=message):
+        pdf._text_lines(b"%PDF")
+
+
+def test_pdf_without_pages(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = _FakePdf([])
+    _open_with(monkeypatch, fake)
+    with pytest.raises(StatementError, match="não tem páginas"):
+        pdf._text_lines(b"%PDF")
+    assert fake.closed
+
+
+@pytest.mark.parametrize(
+    ("error", "message"),
+    [
+        (Exception("Unexpected EOF"), "Não consegui ler o PDF"),
+        (Exception("Encrypted stream"), "O PDF tem senha"),
+        (Exception("password required"), "O PDF tem senha"),
+    ],
+)
+def test_pdf_page_that_cannot_be_read(
+    monkeypatch: pytest.MonkeyPatch, error: Exception, message: str
+) -> None:
+    fake = _FakePdf([_BrokenPage(error)])
+    _open_with(monkeypatch, fake)
+    with pytest.raises(StatementError, match=message):
+        pdf._text_lines(b"%PDF")
+    assert fake.closed
+
+
 def test_page_lines_group_words_into_lines_and_segments() -> None:
     words: list[dict[str, object]] = [
         {"text": "Total", "x0": 120.0, "x1": 140.0, "top": 100.0},
