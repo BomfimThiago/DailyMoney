@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import Any
 
 import httpx
+import jwt
 import pytest
 
 from app.connections.services import enablebanking, pluggy
@@ -192,3 +193,53 @@ def test_redirect_url_can_be_the_one_registered_in_enable_banking(
     assert redirect_url() == "https://dm.example.org/conexoes/retorno"
     monkeypatch.setattr(settings, "ENABLE_BANKING_REDIRECT_URL", "https://old.example.org/cb")
     assert redirect_url() == "https://old.example.org/cb"
+
+
+def test_enable_banking_token_is_reused_until_it_expires(monkeypatch: pytest.MonkeyPatch) -> None:
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    pem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    ).decode()
+    monkeypatch.setattr(settings, "ENABLE_BANKING_APP_ID", "app-1")
+    monkeypatch.setattr(settings, "ENABLE_BANKING_PRIVATE_KEY", pem)
+    monkeypatch.setattr(enablebanking, "_token", None)
+    clock = [1_000_000.0]
+    monkeypatch.setattr("app.connections.services.enablebanking.time.time", lambda: clock[0])
+
+    first = enablebanking._bearer()
+    claims = jwt.decode(
+        first,
+        key.public_key(),
+        algorithms=["RS256"],
+        audience="api.enablebanking.com",
+        options={"verify_exp": False},
+    )
+    assert claims["exp"] - claims["iat"] == 3600
+    clock[0] += 49 * 60
+    assert enablebanking._bearer() == first
+    clock[0] += 2 * 60
+    assert enablebanking._bearer() != first
+
+
+def test_pluggy_transfer_categories_and_card_bill_on_the_card() -> None:
+    rows, errors = pluggy.map_transactions(
+        "BRL",
+        False,
+        [
+            pl(category="Same person transfer", description="Pix"),
+            pl(category="Credit card payment"),
+        ],
+        SINCE,
+    )
+    assert errors == []
+    assert [r.kind for r in rows] == ["transfer", "transfer"]
+    # On the card itself the bill payment is money coming in, not a transfer out.
+    rows, _ = pluggy.map_transactions(
+        "BRL", True, [pl(description="Pagamento de fatura", amount=-300)], SINCE
+    )
+    assert [r.kind for r in rows] == ["regular"]
