@@ -13,6 +13,7 @@ in the new file, of which one was already saved, still bring in the second one.
 """
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -65,49 +66,50 @@ def similar(a: str, b: str) -> bool:
 
 
 def find_duplicates(rows: list[Incoming], existing: list[Existing]) -> list[bool]:
-    by_key = {e.source_key: e for e in existing if e.source_key}
-    by_ext = {e.external_id: e for e in existing if e.external_id}
-    used: set[str] = set()
-    result: list[bool | None] = [None] * len(rows)
-
-    def take(candidate: Existing | None) -> bool:
-        if candidate is None or candidate.id in used:
-            return False
-        used.add(candidate.id)
-        return True
-
+    matcher = _Matcher(existing)
     # Exact matches first: a saved line must not be taken by a look-alike row that comes
     # earlier in the file (a second coffee the same day), leaving its own line "new".
-    for i, row in enumerate(rows):
-        if take(by_key.get(row.source_key)) or (
-            row.external_id and take(by_ext.get(row.external_id))
-        ):
-            result[i] = True
-    for i, row in enumerate(rows):
-        if result[i]:
-            continue
-        same_day = next(
-            (
-                e
-                for e in existing
-                if e.id not in used and e.amount == row.amount and e.date == row.date
-            ),
-            None,
-        )
-        if take(same_day):
-            result[i] = True
-            continue
-        near = next(
-            (
-                e
-                for e in existing
-                if e.id not in used
-                and e.amount == row.amount
-                and e.source_format != row.source_format
-                and abs((e.date - row.date).days) <= NEAR_DAYS
-                and similar(e.description, row.description)
-            ),
-            None,
-        )
-        result[i] = take(near)
-    return [bool(r) for r in result]
+    exact = [matcher.exact(row) for row in rows]
+    return [hit or matcher.fuzzy(row) for row, hit in zip(rows, exact, strict=True)]
+
+
+class _Matcher:
+    """Saved transactions, each taken by at most one incoming row."""
+
+    def __init__(self, existing: list[Existing]) -> None:
+        self.existing = existing
+        self.by_key = {e.source_key: e for e in existing if e.source_key}
+        self.by_ext = {e.external_id: e for e in existing if e.external_id}
+        self.used: set[str] = set()
+
+    def exact(self, row: Incoming) -> bool:
+        """Rules 1 and 2: the same statement line, or the same bank id."""
+        if self._take(self.by_key.get(row.source_key)):
+            return True
+        return bool(row.external_id) and self._take(self.by_ext.get(row.external_id or ""))
+
+    def fuzzy(self, row: Incoming) -> bool:
+        """Rule 3, then rule 4."""
+        return self._take(self._first(row, _same_day)) or self._take(self._first(row, _near))
+
+    def _first(self, row: Incoming, rule: Callable[[Existing, Incoming], bool]) -> Existing | None:
+        return next((e for e in self.existing if e.id not in self.used and rule(e, row)), None)
+
+    def _take(self, candidate: Existing | None) -> bool:
+        if candidate is None or candidate.id in self.used:
+            return False
+        self.used.add(candidate.id)
+        return True
+
+
+def _same_day(saved: Existing, row: Incoming) -> bool:
+    return saved.amount == row.amount and saved.date == row.date
+
+
+def _near(saved: Existing, row: Incoming) -> bool:
+    return (
+        saved.amount == row.amount
+        and saved.source_format != row.source_format
+        and abs((saved.date - row.date).days) <= NEAR_DAYS
+        and similar(saved.description, row.description)
+    )

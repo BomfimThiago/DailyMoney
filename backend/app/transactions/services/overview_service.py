@@ -226,102 +226,124 @@ async def transfers(db: AsyncSession, family_id: uuid.UUID, month: str) -> Trans
         to_out(tx, a, c)
         for tx, a, c in await _with_names(db, family_id, Transaction.kind == TxKind.PENDING)
     ]
-    rows = await _with_names(
-        db, family_id, Transaction.kind == TxKind.TRANSFER, Transaction.date.between(lo, hi)
-    )
-    banks: dict[uuid.UUID, str] = {
-        account_id: bank
-        for account_id, bank in await db.execute(
-            select(Account.id, Account.bank).where(Account.family_id == family_id)
+    rows = [
+        (tx, account_name)
+        for tx, account_name, _ in await _with_names(
+            db, family_id, Transaction.kind == TxKind.TRANSFER, Transaction.date.between(lo, hi)
         )
-    }
-    pair_ids = [tx.transfer_pair_id for tx, _, _ in rows if tx.transfer_pair_id]
-    pair_accounts: dict[uuid.UUID, str] = {}
-    if pair_ids:
-        pair_accounts = {
-            tx_id: name
-            for tx_id, name in await db.execute(
-                select(Transaction.id, Account.name)
-                .join(Account, Account.id == Transaction.account_id)
-                .where(Transaction.id.in_(pair_ids))
-            )
-        }
+    ]
+    pairs, singles = _pairs(rows, await _pair_account_names(db, rows))
+    exchanges, singles = _exchanges(singles, await _bank_by_account(db, family_id))
+    confirmed = [*pairs, *exchanges, *(_single(tx, name) for tx, name in singles)]
+    confirmed.sort(key=lambda t: (t.date, str(t.id)), reverse=True)
+    return TransferOverview(month=month, pending=pending, confirmed=confirmed)
 
-    confirmed: list[TransferOut] = []
+
+_Named = tuple[Transaction, str]
+
+
+async def _bank_by_account(db: AsyncSession, family_id: uuid.UUID) -> dict[uuid.UUID, str]:
+    rows = await db.execute(select(Account.id, Account.bank).where(Account.family_id == family_id))
+    return {account_id: bank for account_id, bank in rows}
+
+
+async def _pair_account_names(db: AsyncSession, rows: list[_Named]) -> dict[uuid.UUID, str]:
+    """For each paired transaction's other side: the name of its account."""
+    pair_ids = [tx.transfer_pair_id for tx, _ in rows if tx.transfer_pair_id]
+    if not pair_ids:
+        return {}
+    found = await db.execute(
+        select(Transaction.id, Account.name)
+        .join(Account, Account.id == Transaction.account_id)
+        .where(Transaction.id.in_(pair_ids))
+    )
+    return {tx_id: name for tx_id, name in found}
+
+
+def _pairs(
+    rows: list[_Named], pair_accounts: dict[uuid.UUID, str]
+) -> tuple[list[TransferOut], list[_Named]]:
+    """Paired transfers shown once (from the side seen first); the rest are singles."""
+    pairs: list[TransferOut] = []
+    singles: list[_Named] = []
     done: set[uuid.UUID] = set()
-    singles: list[tuple[Transaction, str]] = []
-    for tx, account_name, _ in rows:
+    for tx, account_name in rows:
+        other = pair_accounts.get(tx.transfer_pair_id) if tx.transfer_pair_id else None
         if tx.id in done:
             continue
-        if tx.transfer_pair_id and tx.transfer_pair_id in pair_accounts:
-            done.update({tx.id, tx.transfer_pair_id})
-            other = pair_accounts[tx.transfer_pair_id]
-            leaving = tx.amount < 0
-            confirmed.append(
-                TransferOut(
-                    id=tx.id,
-                    date=tx.date,
-                    description=tx.description,
-                    from_account=account_name if leaving else other,
-                    to_account=other if leaving else account_name,
-                    amount=abs(tx.amount),
-                    currency=tx.currency,
-                    kind="pair",
-                )
-            )
-        else:
+        if other is None:
             singles.append((tx, account_name))
+            continue
+        done.update({tx.id, tx.transfer_pair_id} if tx.transfer_pair_id else {tx.id})
+        leaving = tx.amount < 0
+        pairs.append(
+            TransferOut(
+                id=tx.id,
+                date=tx.date,
+                description=tx.description,
+                from_account=account_name if leaving else other,
+                to_account=other if leaving else account_name,
+                amount=abs(tx.amount),
+                currency=tx.currency,
+                kind="pair",
+            )
+        )
+    return pairs, singles
 
-    # A conversion shows as money leaving one currency and arriving in another, same day,
-    # same bank (Wise, Revolut).
+
+def _exchanges(
+    singles: list[_Named], banks: dict[uuid.UUID, str]
+) -> tuple[list[TransferOut], list[_Named]]:
+    """A conversion shows as money leaving one currency and arriving in another, same day,
+    same bank (Wise, Revolut). Returns the conversions and the singles left over."""
+    exchanges: list[TransferOut] = []
     used: set[uuid.UUID] = set()
     for tx, account_name in singles:
         if tx.id in used or tx.amount >= 0:
             continue
         match = next(
-            (
-                (o, name)
-                for o, name in singles
-                if o.id not in used
-                and o.amount > 0
-                and o.date == tx.date
-                and o.currency != tx.currency
-                and banks.get(o.account_id) == banks.get(tx.account_id)
-            ),
+            ((o, name) for o, name in singles if o.id not in used and _converts(tx, o, banks)),
             None,
         )
-        if match:
-            o, other_name = match
-            used.update({tx.id, o.id})
-            confirmed.append(
-                TransferOut(
-                    id=tx.id,
-                    date=tx.date,
-                    description=tx.description,
-                    from_account=account_name,
-                    to_account=other_name,
-                    amount=-tx.amount,
-                    currency=tx.currency,
-                    to_amount=o.amount,
-                    to_currency=o.currency,
-                    kind="exchange",
-                )
-            )
-    for tx, account_name in singles:
-        if tx.id in used:
+        if match is None:
             continue
-        leaving = tx.amount < 0
-        confirmed.append(
+        o, other_name = match
+        used.update({tx.id, o.id})
+        exchanges.append(
             TransferOut(
                 id=tx.id,
                 date=tx.date,
                 description=tx.description,
-                from_account=account_name if leaving else None,
-                to_account=None if leaving else account_name,
-                amount=abs(tx.amount),
+                from_account=account_name,
+                to_account=other_name,
+                amount=-tx.amount,
                 currency=tx.currency,
-                kind="single",
+                to_amount=o.amount,
+                to_currency=o.currency,
+                kind="exchange",
             )
         )
-    confirmed.sort(key=lambda t: (t.date, str(t.id)), reverse=True)
-    return TransferOverview(month=month, pending=pending, confirmed=confirmed)
+    return exchanges, [(tx, name) for tx, name in singles if tx.id not in used]
+
+
+def _converts(out: Transaction, arrival: Transaction, banks: dict[uuid.UUID, str]) -> bool:
+    return (
+        arrival.amount > 0
+        and arrival.date == out.date
+        and arrival.currency != out.currency
+        and banks.get(arrival.account_id) == banks.get(out.account_id)
+    )
+
+
+def _single(tx: Transaction, account_name: str) -> TransferOut:
+    leaving = tx.amount < 0
+    return TransferOut(
+        id=tx.id,
+        date=tx.date,
+        description=tx.description,
+        from_account=account_name if leaving else None,
+        to_account=None if leaving else account_name,
+        amount=abs(tx.amount),
+        currency=tx.currency,
+        kind="single",
+    )
