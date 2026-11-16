@@ -20,6 +20,10 @@ AUTH_PAGE = "https://meu.pluggy.ai/authorize?state=abc"
 NUBANK = [
     {"id": "nu-acc", "type": "BANK", "currencyCode": "BRL", "name": "Nu Pagamentos S.A."},
 ]
+# The same Nubank account seen through a later authorization: Pluggy gives it new ids.
+NUBANK_AGAIN = [
+    {"id": "nu-acc-2", "type": "BANK", "currencyCode": "BRL", "name": "Nu Pagamentos S.A."},
+]
 INTER = [{"id": "in-acc", "type": "BANK", "currencyCode": "BRL", "name": "BANCO INTER"}]
 
 
@@ -115,7 +119,6 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakePluggy]:
 
     monkeypatch.setattr(settings, "PLUGGY_CLIENT_ID", "id")
     monkeypatch.setattr(settings, "PLUGGY_CLIENT_SECRET", "secret")
-    monkeypatch.setattr(settings, "PLUGGY_ITEM_IDS", [])
     monkeypatch.setattr(settings, "APP_URL", "https://dm.example/")
     monkeypatch.setattr(pluggy, "transport", httpx.MockTransport(fake))
     monkeypatch.setattr(pluggy, "_key", None)
@@ -311,3 +314,28 @@ async def test_deleting_a_dead_attempt_may_fail_quietly(
     fake.deletes_fail = True
     assert await _finish(client, h) == {"status": "refused", "results": []}
     assert await _finish(client, h) == {"status": "nothing", "results": []}
+
+
+async def test_connecting_a_bank_again_after_removing_it_duplicates_nothing(
+    client: AsyncClient, fake: FakePluggy
+) -> None:
+    h = auth(await login(client))
+    await _start(client, h)
+    fake.authorize("item-1", NUBANK)
+    first = (await _finish(client, h))["results"][0]
+    assert first["accounts"][0]["new"] == 1
+    conn_id = first["connection"]["id"]
+    assert (await client.delete(f"/api/v1/connections/{conn_id}", headers=h)).status_code == 204
+    assert await _banks(client, h) == []
+
+    await _start(client, h)
+    fake.authorize("item-2", NUBANK_AGAIN)
+    again = (await _finish(client, h))["results"][0]
+    # Same day and amount as a line already saved: it is the same purchase, new id or not.
+    assert [(a["name"], a["new"], a["duplicate"]) for a in again["accounts"]] == [
+        ("Nubank BRL", 0, 1)
+    ]
+    accounts = (await client.get("/api/v1/accounts", headers=h)).json()
+    assert [a["name"] for a in accounts] == ["Nubank BRL"]
+    txs = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()["items"]
+    assert len(txs) == 1

@@ -1,8 +1,7 @@
 """Meu Pluggy: Open Finance in Brazil (Nubank, Inter), read-only and free for personal use.
 
 The person keeps their banks in Pluggy's own app (meu.pluggy.ai) and authorizes this app
-to read one of them at a time; each authorization is an "item" (see pluggy_link). Items
-made by hand in Pluggy's dashboard can still be listed in PLUGGY_ITEM_IDS.
+to read one of them at a time; each authorization is an "item" (see pluggy_link).
 Rules checked against real Meu Pluggy data in the old app:
   - Checking account amounts already have the app's sign (money out is negative); a
     credit card is the other way round (purchase positive, payment negative), so flip it.

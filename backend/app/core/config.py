@@ -54,12 +54,9 @@ class Settings(BaseSettings):
     # connected in Pluggy's own app; their ids go here, comma separated.
     PLUGGY_CLIENT_ID: str = ""
     PLUGGY_CLIENT_SECRET: str = ""
-    PLUGGY_ITEM_IDS: Annotated[list[str], NoDecode] = []
     PLUGGY_API_URL: str = "https://api.pluggy.ai"
 
-    @field_validator(
-        "GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", "PLUGGY_ITEM_IDS", mode="before"
-    )
+    @field_validator("GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", mode="before")
     @classmethod
     def _csv(cls, value: object) -> object:
         return _split_csv(value)

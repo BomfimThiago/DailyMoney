@@ -257,16 +257,20 @@ def fake_pluggy(request: httpx.Request) -> httpx.Response:
     if path == "/auth":
         return httpx.Response(200, json={"apiKey": "k"})
     assert request.headers["X-API-KEY"] == "k"
+    if path == "/items" and request.method == "POST":
+        link = {"type": "oauth", "data": "https://meu.pluggy.ai/authorize"}
+        return httpx.Response(200, json={"id": "item-nu", "status": "UPDATING", "parameter": link})
     if path == "/items/item-nu":
+        # Already authorized by the person in Meu Pluggy.
         return httpx.Response(
-            200, json={"id": "item-nu", "status": "UPDATED", "connector": {"name": "Nubank"}}
+            200, json={"id": "item-nu", "status": "UPDATED", "connector": {"name": "MeuPluggy"}}
         )
     if path == "/accounts":
         return httpx.Response(
             200,
             json={
                 "results": [
-                    {"id": "nu-acc", "type": "BANK", "currencyCode": "BRL"},
+                    {"id": "nu-acc", "type": "BANK", "currencyCode": "BRL", "name": "Nubank"},
                     {"id": "nu-card", "type": "CREDIT", "currencyCode": "BRL"},
                 ]
             },
@@ -329,19 +333,21 @@ def fake_pluggy(request: httpx.Request) -> httpx.Response:
     return httpx.Response(404, json={"message": "not found"})
 
 
-async def test_meu_pluggy_items_show_up_and_sync(
+async def test_a_bank_authorized_in_meu_pluggy_shows_up_and_syncs(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(settings, "PLUGGY_CLIENT_ID", "id")
     monkeypatch.setattr(settings, "PLUGGY_CLIENT_SECRET", "secret")
-    monkeypatch.setattr(settings, "PLUGGY_ITEM_IDS", ["item-nu", "item-gone"])
     monkeypatch.setattr(pluggy, "transport", httpx.MockTransport(fake_pluggy))
     monkeypatch.setattr(pluggy, "_key", None)
     h = auth(await login(client))
 
     overview = (await client.get("/api/v1/connections", headers=h)).json()
     assert overview["brazil_ready"] is True
-    [conn] = overview["connections"]
+    assert overview["connections"] == []
+    r = await client.post("/api/v1/connections/brazil", headers=h)
+    assert r.json() == {"url": "https://meu.pluggy.ai/authorize"}
+    [conn] = (await client.get("/api/v1/connections", headers=h)).json()["connections"]
     assert (conn["bank"], conn["provider"], conn["accounts"]) == ("Nubank", "pluggy", [])
 
     result = (await client.post(f"/api/v1/connections/{conn['id']}/sync", headers=h)).json()
@@ -362,48 +368,6 @@ async def test_meu_pluggy_items_show_up_and_sync(
     assert [a["new"] for a in again["accounts"]] == [0, 0]
     # Listing again doesn't add the same item twice.
     assert len((await client.get("/api/v1/connections", headers=h)).json()["connections"]) == 1
-
-
-MEU_PLUGGY_ACCOUNTS = {
-    "item-a": [{"id": "a1", "type": "BANK", "name": "Nu Pagamentos S.A. - Instituição"}],
-    "item-b": [{"id": "b1", "type": "BANK", "name": "BANCO INTER"}],
-    "item-c": [{"id": "c1", "type": "BANK", "name": "BANCO INTER"}],
-}
-
-
-def fake_meu_pluggy(request: httpx.Request) -> httpx.Response:
-    path = request.url.path
-    if path == "/auth":
-        return httpx.Response(200, json={"apiKey": "k"})
-    if path.startswith("/items/"):
-        item = path.removeprefix("/items/")
-        return httpx.Response(
-            200, json={"id": item, "status": "UPDATED", "connector": {"name": "MeuPluggy"}}
-        )
-    assert path == "/accounts"
-    return httpx.Response(200, json={"results": MEU_PLUGGY_ACCOUNTS[request.url.params["itemId"]]})
-
-
-async def test_meu_pluggy_items_are_named_by_their_bank_and_never_break_the_list(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(settings, "PLUGGY_CLIENT_ID", "id")
-    monkeypatch.setattr(settings, "PLUGGY_CLIENT_SECRET", "secret")
-    # item-c is a second Inter: one connection per bank, so it is left out instead of
-    # failing the whole page.
-    monkeypatch.setattr(settings, "PLUGGY_ITEM_IDS", ["item-a", "item-b", "item-c"])
-    monkeypatch.setattr(pluggy, "transport", httpx.MockTransport(fake_meu_pluggy))
-    monkeypatch.setattr(pluggy, "_key", None)
-    h = auth(await login(client))
-
-    for _ in range(2):
-        r = await client.get("/api/v1/connections", headers=h)
-        assert r.status_code == 200
-        conns = r.json()["connections"]
-        assert [(c["bank"], c["provider"]) for c in conns] == [
-            ("Nubank", "pluggy"),
-            ("Inter", "pluggy"),
-        ]
 
 
 async def test_sync_all_reads_every_connection(

@@ -54,7 +54,6 @@ def canonical_bank(name: str) -> str:
 
 
 async def list_connections(db: AsyncSession, user: User) -> list[BankConnection]:
-    await _ensure_pluggy_items(db, user)
     if pluggy.enabled():
         # A bank authorized in Meu Pluggy whose return page never opened shows up here.
         await pluggy_link.settle(db, user.family_id)
@@ -64,48 +63,6 @@ async def list_connections(db: AsyncSession, user: User) -> list[BankConnection]
         .order_by(BankConnection.created_at)
     )
     return list(rows)
-
-
-async def _ensure_pluggy_items(db: AsyncSession, user: User) -> None:
-    """Items made by hand in Pluggy's dashboard show up once their ids are on the server."""
-    if not pluggy.enabled() or not settings.PLUGGY_ITEM_IDS:
-        return
-    existing = (
-        await db.execute(
-            select(BankConnection.external_id, BankConnection.bank).where(
-                BankConnection.family_id == user.family_id,
-                BankConnection.provider == pluggy.PROVIDER,
-            )
-        )
-    ).all()
-    known = {external_id for external_id, _ in existing}
-    banks = {bank for _, bank in existing}
-    for item_id in settings.PLUGGY_ITEM_IDS:
-        if item_id in known:
-            continue
-        try:
-            item = await pluggy.get_item(item_id)
-            bank = pluggy.bank_name(item, await pluggy.list_accounts(item_id))
-        except AppError as exc:
-            log.warning("pluggy item unreadable: %s", exc.detail)
-            continue
-        if bank in banks:
-            # One connection per bank: a second item for the same bank must not break the list.
-            log.warning("pluggy item %s left out: %s is already connected", item_id, bank)
-            continue
-        banks.add(bank)
-        db.add(
-            BankConnection(
-                family_id=user.family_id,
-                user_id=user.id,
-                provider=pluggy.PROVIDER,
-                external_id=item_id,
-                bank=bank,
-                accounts=[],
-                sync_from=sync_service.first_read_day(date.today()),
-            )
-        )
-    await db.flush()
 
 
 async def get_connection(
