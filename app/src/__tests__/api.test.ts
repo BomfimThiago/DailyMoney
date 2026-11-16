@@ -117,6 +117,46 @@ describe('api', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('shares one refresh between requests that expire together', async () => {
+    // A screen loads many things at once; each refresh token works only once, so
+    // parallel refreshes made all but one fail and signed the person out.
+    store.set('dm.access', 'old');
+    store.set('dm.refresh', 'r-1');
+    fetchMock.mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.endsWith('/auth/refresh')) {
+        return Promise.resolve(reply(200, { access_token: 'new', refresh_token: 'r-2' }));
+      }
+      const auth = new Headers(init?.headers).get('Authorization');
+      return Promise.resolve(auth === 'Bearer new' ? reply(200, { url }) : reply(401, {}));
+    });
+
+    const results = await Promise.all(['/a', '/b', '/c'].map((p) => api<{ url: string }>(p)));
+
+    expect(results.map((r) => r.url.slice(-2))).toEqual(['/a', '/b', '/c']);
+    const refreshes = fetchMock.mock.calls.filter(([u]) => String(u).endsWith('/auth/refresh'));
+    expect(refreshes).toHaveLength(1);
+    expect(store.get('dm.refresh')).toBe('r-2');
+  });
+
+  it('keeps the session when another tab already refreshed it', async () => {
+    store.set('dm.access', 'old');
+    store.set('dm.refresh', 'r-1');
+    fetchMock
+      .mockResolvedValueOnce(reply(401, {}))
+      .mockImplementationOnce(() => {
+        // The other tab used r-1 first and saved its new pair.
+        store.set('dm.access', 'other');
+        store.set('dm.refresh', 'r-other');
+        return Promise.resolve(reply(401, { detail: 'Sessão expirada' }));
+      })
+      .mockResolvedValueOnce(reply(200, { ok: 3 }));
+
+    await expect(api('/accounts')).resolves.toEqual({ ok: 3 });
+    expect(sent(2).headers.get('Authorization')).toBe('Bearer other');
+    expect(store.get('dm.refresh')).toBe('r-other');
+  });
+
   it('does not try to refresh without a refresh token', async () => {
     fetchMock.mockResolvedValueOnce(reply(401, { detail: 'Faça login' }));
     await expect(api('/accounts')).rejects.toMatchObject({ status: 401 });

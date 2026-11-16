@@ -46,7 +46,7 @@ async function raw(path: string, init: RequestInit, token: string | null): Promi
   }
 }
 
-async function refreshSession(): Promise<string | null> {
+async function exchangeRefreshToken(): Promise<string | null> {
   const refreshToken = await getItem(REFRESH);
   if (!refreshToken) return null;
   const response = await raw(
@@ -55,12 +55,24 @@ async function refreshSession(): Promise<string | null> {
     null,
   );
   if (!response.ok) {
+    // Another tab may have used this refresh token first and saved a new pair.
+    if ((await getItem(REFRESH)) !== refreshToken) return getItem(ACCESS);
     await clearTokens();
     return null;
   }
   const tokens = (await response.json()) as TokenPair;
   await saveTokens(tokens);
   return tokens.access_token;
+}
+
+// Each refresh token works once, so requests that expire together share one refresh.
+let refreshing: Promise<string | null> | null = null;
+
+function refreshSession(): Promise<string | null> {
+  refreshing ??= exchangeRefreshToken().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
