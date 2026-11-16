@@ -273,12 +273,3 @@ def test_pluggy_transfer_categories_and_card_bill_on_the_card() -> None:
 )
 def test_pluggy_link_state(status: str | None, state: str) -> None:
     assert pluggy.link_state({"status": status}) == state
-
-
-def test_pluggy_authorization_url_only_comes_from_the_oauth_parameter() -> None:
-    link = {"type": "oauth", "data": "https://meu.pluggy.ai/authorize"}
-    assert pluggy.authorization_url({"parameter": link}) == "https://meu.pluggy.ai/authorize"
-    assert pluggy.authorization_url({"parameter": {"type": "text", "data": "x"}}) is None
-    assert pluggy.authorization_url({"parameter": {"type": "oauth", "data": None}}) is None
-    assert pluggy.authorization_url({"parameter": None}) is None
-    assert pluggy.authorization_url({}) is None

@@ -16,6 +16,7 @@ export type Connection = S['ConnectionOut'];
 export type ConnectionsOverview = S['ConnectionsOverview'];
 export type SyncResult = S['SyncOut'];
 export type BrazilFinish = S['BrazilFinishOut'];
+export type BrazilStart = S['BrazilStartOut'];
 
 // regular: spending (negative) or income. pending: looks like money to an account of the
 // family, waiting for the person to confirm. Only regular counts as spending or income.

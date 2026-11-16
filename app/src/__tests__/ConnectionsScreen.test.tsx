@@ -7,15 +7,18 @@ import { Linking, Platform } from 'react-native';
 import ConnectionsScreen from '@/app/(tabs)/conexoes';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import type { WindowEnds } from '@/lib/brazilWindow';
 import {
   disconnectBank,
+  registerBrazilItem,
   startBrazilConnection,
   startConnection,
   syncConnection,
 } from '@/lib/imports';
-import { useAccounts, useConnections } from '@/lib/queries';
+import { openPluggyWindow } from '@/lib/pluggyWindow';
+import { useAccounts, useConnections, useRefreshMoney } from '@/lib/queries';
 import type { Account, Connection, ConnectionsOverview } from '@/lib/types';
-import { useConnect } from '@/lib/useConnect';
+import { BRAZIL_FAILED, useConnect } from '@/lib/useConnect';
 
 jest.mock('expo-router', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -26,10 +29,17 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
-jest.mock('@/lib/queries', () => ({ useConnections: jest.fn(), useAccounts: jest.fn() }));
+jest.mock('@/lib/queries', () => ({
+  useConnections: jest.fn(),
+  useAccounts: jest.fn(),
+  useRefreshMoney: jest.fn(),
+}));
+// As in a browser, where Pluggy's window can open.
+jest.mock('@/lib/pluggyWindow', () => ({ canOpenPluggy: true, openPluggyWindow: jest.fn() }));
 jest.mock('@/lib/imports', () => ({
   startConnection: jest.fn(),
   startBrazilConnection: jest.fn(),
+  registerBrazilItem: jest.fn(),
   syncConnection: jest.fn(),
   disconnectBank: jest.fn(),
 }));
@@ -38,6 +48,9 @@ const mockConnections = jest.mocked(useConnections);
 const mockAccounts = jest.mocked(useAccounts);
 const mockStart = jest.mocked(startConnection);
 const mockStartBrazil = jest.mocked(startBrazilConnection);
+const mockRegister = jest.mocked(registerBrazilItem);
+const mockOpen = jest.mocked(openPluggyWindow);
+const mockRefresh = jest.fn(() => Promise.resolve());
 const mockSync = jest.mocked(syncConnection);
 const mockDisconnect = jest.mocked(disconnectBank);
 
@@ -84,6 +97,7 @@ beforeEach(() => {
     .mocked(useAuth)
     .mockReturnValue({ state: { status: 'signedIn', me: {} } } as ReturnType<typeof useAuth>);
   overview();
+  jest.mocked(useRefreshMoney).mockReturnValue(mockRefresh);
   mockAccounts.mockReturnValue({ data: accounts, isError: false } as ReturnType<
     typeof useAccounts
   >);
@@ -104,14 +118,42 @@ describe('ConnectionsScreen', () => {
     expect(screen.getByText('Nubank · BRL · Cartão')).toBeTruthy();
   });
 
-  it('opens Meu Pluggy to authorize a Brazilian bank', async () => {
+  // Presses the Brazil line's Conectar and answers what Pluggy's window was given.
+  async function openBrazilWindow() {
+    const close = jest.fn();
     mockStart.mockClear();
-    mockStartBrazil.mockResolvedValue({ url: 'https://meu.pluggy.ai/authorize' });
-    const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    mockRegister.mockClear();
+    mockRegister.mockResolvedValue(undefined);
+    mockStartBrazil.mockResolvedValue({ connect_token: 'key', connector_id: 200 });
+    mockOpen.mockClear();
+    mockOpen.mockResolvedValue(close);
     await show();
     await fireEvent.press(screen.getAllByText('Conectar')[1]);
-    await waitFor(() => expect(open).toHaveBeenCalledWith('https://meu.pluggy.ai/authorize'));
+    await waitFor(() => expect(mockOpen).toHaveBeenCalledWith('key', 200, expect.anything()));
+    return { close, ends: mockOpen.mock.calls[0][2] as WindowEnds };
+  }
+
+  it("opens Pluggy's window to authorize a Brazilian bank", async () => {
+    const { close, ends } = await openBrazilWindow();
     expect(mockStart).not.toHaveBeenCalled();
+    // The window says the same authorization more than once.
+    await act(async () => {
+      ends.item('item-1');
+      ends.done('item-1');
+    });
+    await waitFor(() => expect(router.navigate).toHaveBeenCalledWith('/conexoes/retorno-brasil'));
+    expect(mockRegister.mock.calls).toEqual([['item-1']]);
+    expect(close).toHaveBeenCalled();
+    mockRefresh.mockClear();
+    await act(async () => ends.closed());
+    expect(mockRefresh).toHaveBeenCalled();
+  });
+
+  it("says when Pluggy's window couldn't connect the bank", async () => {
+    const { ends } = await openBrazilWindow();
+    await act(async () => ends.failed());
+    expect(screen.getByText(BRAZIL_FAILED)).toBeTruthy();
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 
   it('authorizes a Brazilian bank again through Meu Pluggy', async () => {

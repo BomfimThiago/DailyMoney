@@ -58,9 +58,20 @@ class SyncOut(BaseModel):
     accounts: list[AccountSyncOut]
 
 
+class BrazilStartOut(BaseModel):
+    # Opens Pluggy's window (Pluggy Connect) in the app; valid for 30 minutes.
+    connect_token: str
+    # The only bank source the window offers: Meu Pluggy.
+    connector_id: int
+
+
+class BrazilItemIn(BaseModel):
+    item_id: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+
+
 class BrazilFinishOut(BaseModel):
-    """Back from Meu Pluggy. "waiting": not authorized yet, or Pluggy is still reading the
-    bank. "nothing": no authorization was under way."""
+    """After authorizing in Meu Pluggy. "waiting": not authorized yet, or Pluggy is still
+    reading the bank. "nothing": no authorization was under way."""
 
     status: Literal["connected", "waiting", "refused", "nothing"]
     results: list[SyncOut]

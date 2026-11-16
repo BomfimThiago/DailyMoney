@@ -4,13 +4,15 @@ from fastapi import APIRouter, Response, status
 
 from app.connections.schemas import (
     BrazilFinishOut,
+    BrazilItemIn,
+    BrazilStartOut,
     ConnectionsOverview,
     FinishIn,
     StartIn,
     StartOut,
     SyncOut,
 )
-from app.connections.services import connection_service, pluggy_link, sync_service
+from app.connections.services import connection_service, pluggy, pluggy_link, sync_service
 from app.core.deps import CurrentUser, DbSession
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -37,11 +39,18 @@ async def finish(user: CurrentUser, db: DbSession, data: FinishIn) -> SyncOut:
     return await connection_service.sync_out(db, result)
 
 
-@router.post("/brazil", response_model=StartOut)
-async def start_brazil(user: CurrentUser, db: DbSession) -> StartOut:
-    url = await pluggy_link.start(db, user)
+@router.post("/brazil", response_model=BrazilStartOut)
+async def start_brazil(user: CurrentUser, db: DbSession) -> BrazilStartOut:
+    token = await pluggy_link.start(db, user)
     await db.commit()
-    return StartOut(url=url)
+    return BrazilStartOut(connect_token=token, connector_id=pluggy.MEU_PLUGGY_CONNECTOR_ID)
+
+
+@router.post("/brazil/items", status_code=status.HTTP_204_NO_CONTENT)
+async def register_brazil_item(user: CurrentUser, db: DbSession, data: BrazilItemIn) -> Response:
+    await pluggy_link.register(db, user, data.item_id)
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/brazil/finish", response_model=BrazilFinishOut)

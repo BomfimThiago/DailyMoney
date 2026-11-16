@@ -252,19 +252,22 @@ async def test_disconnect_keeps_transactions_and_hides_from_other_families(
 # ── Pluggy ───────────────────────────────────────────────────────────────────
 
 
+# Who the last connect token was made for.
+fake_pluggy_owner: list[str] = []
+
+
 def fake_pluggy(request: httpx.Request) -> httpx.Response:
     path = request.url.path
     if path == "/auth":
         return httpx.Response(200, json={"apiKey": "k"})
     assert request.headers["X-API-KEY"] == "k"
-    if path == "/items" and request.method == "POST":
-        link = {"type": "oauth", "data": "https://meu.pluggy.ai/authorize"}
-        return httpx.Response(200, json={"id": "item-nu", "status": "UPDATING", "parameter": link})
+    if path == "/connect_token":
+        fake_pluggy_owner.append(json.loads(request.content)["options"]["clientUserId"])
+        return httpx.Response(200, json={"accessToken": "token"})
     if path == "/items/item-nu":
-        # Already authorized by the person in Meu Pluggy.
-        return httpx.Response(
-            200, json={"id": "item-nu", "status": "UPDATED", "connector": {"name": "MeuPluggy"}}
-        )
+        # Made by Pluggy's window and already authorized by the person in Meu Pluggy.
+        item = {"id": "item-nu", "status": "UPDATED", "clientUserId": fake_pluggy_owner[-1]}
+        return httpx.Response(200, json=item)
     if path == "/accounts":
         return httpx.Response(
             200,
@@ -346,7 +349,11 @@ async def test_a_bank_authorized_in_meu_pluggy_shows_up_and_syncs(
     assert overview["brazil_ready"] is True
     assert overview["connections"] == []
     r = await client.post("/api/v1/connections/brazil", headers=h)
-    assert r.json() == {"url": "https://meu.pluggy.ai/authorize"}
+    assert r.json() == {"connect_token": "token", "connector_id": 200}
+    r = await client.post(
+        "/api/v1/connections/brazil/items", json={"item_id": "item-nu"}, headers=h
+    )
+    assert r.status_code == 204
     [conn] = (await client.get("/api/v1/connections", headers=h)).json()["connections"]
     assert (conn["bank"], conn["provider"], conn["accounts"]) == ("Nubank", "pluggy", [])
 

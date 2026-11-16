@@ -82,6 +82,12 @@ function answer(url, method) {
     const accounts = [{ name: 'Wise EUR', new: 4, duplicate: 2, error: null }];
     return { status: 200, body: { connection, accounts } };
   }
+  if (method === 'POST' && p === '/connections/brazil') {
+    // The key for Pluggy's window; Pluggy's library reads it as a signed token.
+    const part = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const key = `${part({ alg: 'none' })}.${part({ clientId: 'exemplo' })}.x`;
+    return { status: 200, body: { connect_token: key, connector_id: 200 } };
+  }
   if (method === 'POST' && p === '/connections/brazil/finish') {
     // Back from Meu Pluggy with Nubank authorized and read.
     const connection = fixtures['/connections'].connections[1];
@@ -137,6 +143,13 @@ async function checkScreens(page, tag) {
   page.on('console', (m) => {
     if (m.type() === 'error' && !expected(m.text())) flag(`console: ${m.text()}`);
   });
+  // Pluggy's window is served by Pluggy; here a plain page stands in for it.
+  await page.route('https://connect.pluggy.ai/**', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<body style="font-family:sans-serif;background:#fff;padding:24px">Janela da Pluggy (exemplo)</body>',
+    }),
+  );
   await page.route('**/api/v1/**', async (route) => {
     const req = route.request();
     // Like the real API: without a token nobody is signed in, so the login page shows.
@@ -310,6 +323,18 @@ async function checkScreens(page, tag) {
       await page.waitForLoadState('networkidle');
       await shot('conexoes');
     }
+    // Conectar on the Brazil line opens Pluggy's own window over the page.
+    await page.goto(`${base}/conexoes`);
+    await seen('Bancos conectados').waitFor();
+    const pluggyAsked = page.waitForRequest(/connect\.pluggy\.ai/, { timeout: 15000 });
+    await page.getByRole('button', { name: 'Conectar', exact: true }).last().click();
+    await pluggyAsked;
+    await page
+      .frameLocator('iframe[name^="__zoid__"]')
+      .last()
+      .getByText('Janela da Pluggy')
+      .waitFor();
+    await shot('conexoes-janela-pluggy');
     // Where Meu Pluggy sends the person back after authorizing a Brazilian bank.
     await page.goto(`${base}/conexoes/retorno-brasil`);
     await seen('Nubank conectado').waitFor({ timeout: 5000 });

@@ -5,6 +5,7 @@ import type {
   AccountChoice,
   BankRequest,
   BrazilFinish,
+  BrazilStart,
   ConnectionsOverview,
   SyncResult,
   Category,
@@ -169,10 +170,17 @@ export function finishConnection(code: string, state: string) {
   });
 }
 
-// Meu Pluggy's page to authorize one Brazilian bank; it comes back to
-// /conexoes/retorno-brasil.
+// The key that opens Pluggy's window, where one Brazilian bank is authorized.
 export function startBrazilConnection() {
-  return api<{ url: string }>('/connections/brazil', { method: 'POST' });
+  return api<BrazilStart>('/connections/brazil', { method: 'POST' });
+}
+
+// Pluggy's window made an authorization: the server waits for it to be readable.
+export function registerBrazilItem(itemId: string) {
+  return api<void>('/connections/brazil/items', {
+    method: 'POST',
+    body: JSON.stringify({ item_id: itemId }),
+  });
 }
 
 // Whether the bank authorized in Meu Pluggy is connected yet.

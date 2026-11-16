@@ -348,6 +348,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/connections/brazil/items': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Register Brazil Item */
+    post: operations['register_brazil_item_api_v1_connections_brazil_items_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/connections/brazil/finish': {
     parameters: {
       query?: never;
@@ -642,8 +659,8 @@ export interface components {
     };
     /**
      * BrazilFinishOut
-     * @description Back from Meu Pluggy. "waiting": not authorized yet, or Pluggy is still reading the
-     *     bank. "nothing": no authorization was under way.
+     * @description After authorizing in Meu Pluggy. "waiting": not authorized yet, or Pluggy is still
+     *     reading the bank. "nothing": no authorization was under way.
      */
     BrazilFinishOut: {
       /**
@@ -653,6 +670,18 @@ export interface components {
       status: 'connected' | 'waiting' | 'refused' | 'nothing';
       /** Results */
       results: components['schemas']['SyncOut'][];
+    };
+    /** BrazilItemIn */
+    BrazilItemIn: {
+      /** Item Id */
+      item_id: string;
+    };
+    /** BrazilStartOut */
+    BrazilStartOut: {
+      /** Connect Token */
+      connect_token: string;
+      /** Connector Id */
+      connector_id: number;
     };
     /** CategoryChange */
     CategoryChange: {
@@ -1994,7 +2023,38 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['StartOut'];
+          'application/json': components['schemas']['BrazilStartOut'];
+        };
+      };
+    };
+  };
+  register_brazil_item_api_v1_connections_brazil_items_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['BrazilItemIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };

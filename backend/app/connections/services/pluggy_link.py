@@ -1,13 +1,12 @@
-"""Connecting a Brazilian bank from the app, through Meu Pluggy's own authorization page.
+"""Connecting a Brazilian bank from the app, through Meu Pluggy.
 
-The app asks Pluggy for an item, sends the person to Meu Pluggy to pick a bank and
-authorize it, and they come back to the app. Pluggy may still be reading the bank when
-they return (or they may close the page and never return), so the item waits here as
-pending and becomes a connection the next time anyone looks: the return page, the
-Conexões page or the next attempt to connect.
+The app opens Pluggy's own window (Pluggy Connect) with a key made here. In it the person
+goes to Meu Pluggy, picks a bank and authorizes it; that makes an "item" at Pluggy, and
+the app tells the server its id. Pluggy may still be reading the bank at that point (or
+the person may close the window), so the item waits here as pending and becomes a
+connection the next time anyone looks: the return page or the Conexões page.
 """
 
-import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -21,20 +20,15 @@ from app.connections.models import BankConnection, PendingPluggyItem
 from app.connections.services import pluggy, sync_service
 from app.connections.services.enablebanking import NotConfiguredError
 from app.core.config import settings
-from app.core.exceptions import AppError
+from app.core.exceptions import AppError, NotFoundError
 from app.families.models import User
 
 log = logging.getLogger(__name__)
 
+# Where Meu Pluggy sends the person when its page can't close itself (phone browsers).
 CALLBACK_PATH = "/conexoes/retorno-brasil"
-# Pluggy makes the authorization link a moment after the item.
-LINK_TRIES = 20
-LINK_PAUSE_SECONDS = 1.0
-# An authorization nobody finished stops waiting: its link is long dead by then.
+# An authorization nobody finished stops waiting.
 GIVE_UP_AFTER = timedelta(hours=1)
-
-# Tests swap this to not wait.
-pause = asyncio.sleep
 
 
 @dataclass
@@ -49,33 +43,34 @@ def redirect_url() -> str:
 
 
 async def start(db: AsyncSession, user: User) -> str:
-    """Meu Pluggy's page to authorize one more bank."""
+    """The key that opens Pluggy's window for this family to authorize one more bank."""
     if not pluggy.enabled():
         raise NotConfiguredError("Bancos do Brasil ainda não foram configurados no servidor.")
     # Attempts left behind don't pile up at Pluggy, which allows few connections.
     await settle(db, user.family_id)
-    item = await pluggy.create_item(redirect_url())
-    item_id = str(item["id"])
-    try:
-        url = await _authorization_url(item)
-    except AppError:
-        await _quietly_delete(item_id)
-        raise
-    if url is None:
-        await _quietly_delete(item_id)
-        raise pluggy.PluggyError("A Pluggy não abriu a página de autorização. Tente de novo.")
-    db.add(PendingPluggyItem(family_id=user.family_id, user_id=user.id, item_id=item_id))
-    await db.flush()
-    return url
+    return await pluggy.create_connect_token(redirect_url(), str(user.family_id))
 
 
-async def _authorization_url(item: dict[str, Any]) -> str | None:
-    for _ in range(LINK_TRIES):
-        if url := pluggy.authorization_url(item):
-            return url
-        await pause(LINK_PAUSE_SECONDS)
-        item = await pluggy.get_item(str(item["id"]))
-    return pluggy.authorization_url(item)
+async def register(db: AsyncSession, user: User, item_id: str) -> None:
+    """Pluggy's window made an item for this family: it waits here until it can be read."""
+    item = await pluggy.get_item(item_id)
+    if item.get("clientUserId") != str(user.family_id):
+        # Made for another family, or by hand outside the app.
+        raise NotFoundError("Conexão não encontrada")
+    known = await db.scalar(
+        select(PendingPluggyItem.id).where(
+            PendingPluggyItem.family_id == user.family_id, PendingPluggyItem.item_id == item_id
+        )
+    ) or await db.scalar(
+        select(BankConnection.id).where(
+            BankConnection.family_id == user.family_id,
+            BankConnection.provider == pluggy.PROVIDER,
+            BankConnection.external_id == item_id,
+        )
+    )
+    if known is None:
+        db.add(PendingPluggyItem(family_id=user.family_id, user_id=user.id, item_id=item_id))
+        await db.flush()
 
 
 async def settle(db: AsyncSession, family_id: uuid.UUID) -> Settled:

@@ -109,30 +109,20 @@ async def get_item(item_id: str) -> dict[str, Any]:
     return item
 
 
-async def create_item(redirect_url: str) -> dict[str, Any]:
-    """Starts an authorization in Meu Pluggy; the person ends up back at `redirect_url`."""
-    item: dict[str, Any] = await _call(
+async def create_connect_token(redirect_url: str, client_user_id: str) -> str:
+    """The key that opens Pluggy's own window (Pluggy Connect) in the app. A free Pluggy
+    account can only make items through that window, never straight from a server.
+    Items made with it carry `client_user_id`, which tells whose they are."""
+    body = await _call(
         "POST",
-        "/items",
-        {
-            "connectorId": MEU_PLUGGY_CONNECTOR_ID,
-            "parameters": {},
-            "oauthRedirectUri": redirect_url,
-        },
+        "/connect_token",
+        {"options": {"clientUserId": client_user_id, "oauthRedirectUri": redirect_url}},
     )
-    return item
+    return str(body["accessToken"])
 
 
 async def delete_item(item_id: str) -> None:
     await _call("DELETE", f"/items/{item_id}")
-
-
-def authorization_url(item: dict[str, Any]) -> str | None:
-    """Meu Pluggy's page where the person authorizes the item, once Pluggy has made it."""
-    parameter = item.get("parameter") or {}
-    if parameter.get("type") != "oauth":
-        return None
-    return str(parameter.get("data") or "") or None
 
 
 def check_item(item: dict[str, Any], now: datetime) -> datetime | None:

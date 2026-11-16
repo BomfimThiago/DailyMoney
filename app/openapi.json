@@ -901,7 +901,44 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StartOut"
+                  "$ref": "#/components/schemas/BrazilStartOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/brazil/items": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Register Brazil Item",
+        "operationId": "register_brazil_item_api_v1_connections_brazil_items_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrazilItemIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1783,7 +1820,35 @@
         "type": "object",
         "required": ["status", "results"],
         "title": "BrazilFinishOut",
-        "description": "Back from Meu Pluggy. \"waiting\": not authorized yet, or Pluggy is still reading the\nbank. \"nothing\": no authorization was under way."
+        "description": "After authorizing in Meu Pluggy. \"waiting\": not authorized yet, or Pluggy is still\nreading the bank. \"nothing\": no authorization was under way."
+      },
+      "BrazilItemIn": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Item Id"
+          }
+        },
+        "type": "object",
+        "required": ["item_id"],
+        "title": "BrazilItemIn"
+      },
+      "BrazilStartOut": {
+        "properties": {
+          "connect_token": {
+            "type": "string",
+            "title": "Connect Token"
+          },
+          "connector_id": {
+            "type": "integer",
+            "title": "Connector Id"
+          }
+        },
+        "type": "object",
+        "required": ["connect_token", "connector_id"],
+        "title": "BrazilStartOut"
       },
       "CategoryChange": {
         "properties": {
