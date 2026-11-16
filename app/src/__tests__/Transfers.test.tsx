@@ -21,6 +21,7 @@ const pix: Transaction = {
   category_id: null,
   category_name: null,
   member_id: null,
+  review: 'approved',
 };
 
 const overview = (o: Partial<TransferOverview> = {}): TransferOverview => ({

@@ -15,6 +15,7 @@ const tx = (o: Partial<Transaction> = {}): Transaction => ({
   category_id: 'c',
   category_name: 'Mercado',
   member_id: null,
+  review: 'approved',
   ...o,
 });
 

@@ -164,6 +164,15 @@ describe('upload texts', () => {
     );
   });
 
+  it('says when the imported lines wait for review', () => {
+    const waiting = summary({ imported_count: 4, to_review: 4 });
+    expect(doneTitle(waiting)).toBe('4 transações para revisar');
+    expect(doneNote(waiting)).toBe(
+      'extrato.csv. Elas só entram nas contas depois que você aprovar.',
+    );
+    expect(doneTitle(summary({ to_review: 1 }))).toBe('1 transação para revisar');
+  });
+
   it('lists earlier uploads by day, imported and duplicates', () => {
     expect(historyLine(summary())).toBe('10 nov · 1 importada');
     expect(

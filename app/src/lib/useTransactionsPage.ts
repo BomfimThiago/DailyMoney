@@ -2,10 +2,24 @@
 import { useEffect, useState } from 'react';
 
 import { useMonthState } from './monthStart';
-import { useAccounts, useCategories, useRefreshMoney, useRegular, useTransfers } from './queries';
+import {
+  useAccounts,
+  useCategories,
+  useRefreshMoney,
+  useRegular,
+  useReviewQueue,
+  useTransfers,
+} from './queries';
+import { reviewItems } from './review';
 import { accountOptions, categoryOptions, isFiltered, pagedItems } from './transactions';
 
-export type Tab = 'lista' | 'transferencias';
+export type Tab = 'lista' | 'transferencias' | 'revisar';
+
+const LINKED: Tab[] = ['transferencias', 'revisar'];
+
+function linkedTab(aba: string | undefined): Tab | null {
+  return LINKED.find((t) => t === aba) ?? null;
+}
 
 // The value once it has stayed the same for a while: search as the person types,
 // without a request per key.
@@ -21,11 +35,12 @@ export function useDebounced<T>(value: T, ms: number): T {
 // The screen stays mounted between tabs, so a link from Início with ?aba= must switch
 // here; adjusting state while rendering is React's pattern for following a prop.
 export function useTabFromLink(aba: string | undefined) {
-  const [tab, setTab] = useState<Tab>(aba === 'transferencias' ? 'transferencias' : 'lista');
+  const [tab, setTab] = useState<Tab>(linkedTab(aba) ?? 'lista');
   const [seenAba, setSeenAba] = useState(aba);
   if (aba !== seenAba) {
     setSeenAba(aba);
-    if (aba === 'transferencias') setTab('transferencias');
+    const linked = linkedTab(aba);
+    if (linked) setTab(linked);
   }
   return [tab, setTab] as const;
 }
@@ -42,6 +57,7 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
   const filters = { q, categoryId, accountId };
   const regular = useRegular(month, true, wide ? filters : {});
   const transfers = useTransfers(month, true);
+  const review = useReviewQueue(true);
   const categories = useCategories(wide);
   const accounts = useAccounts(wide);
   const items = pagedItems(regular.data?.pages);
@@ -58,10 +74,13 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
     setAccountId,
     selectedId,
     setSelectedId,
-    selected: items?.find((t) => t.id === selectedId) ?? null,
+    // The line open in the detail, from the list or from the lines waiting for review.
+    selected:
+      [...(items ?? []), ...reviewItems(review.data)].find((t) => t.id === selectedId) ?? null,
     items,
     regular,
     transfers,
+    review,
     categories: categoryOptions(categories.data),
     accounts: accountOptions(accounts.data),
     filtered: wide && isFiltered(filters),

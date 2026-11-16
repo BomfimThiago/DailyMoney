@@ -12,6 +12,7 @@ import {
   getConnections,
   getDashboard,
   getInvestments,
+  getReviewQueue,
   getSummary,
   getTransfers,
   listBankRequests,
@@ -111,6 +112,16 @@ export function useTransfers(month: string, enabled: boolean) {
   return useQuery({
     queryKey: ['money', 'transfers', month],
     queryFn: () => getTransfers(month),
+    enabled,
+  });
+}
+
+// Imported lines waiting for approval; under "money" so every change refreshes it.
+export function useReviewQueue(enabled: boolean) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'review', currency],
+    queryFn: () => getReviewQueue(currency),
     enabled,
   });
 }

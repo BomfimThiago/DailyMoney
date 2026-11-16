@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Small } from '@/components/transactions/Review';
 import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
 import { fullDate, isIncome } from '@/lib/format';
-import { deleteTransaction, updateCategory } from '@/lib/imports';
+import { decideReview, deleteTransaction, updateCategory } from '@/lib/imports';
 import { useCategories } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
@@ -76,6 +77,7 @@ function TxView({
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
       </View>
+      {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
       {mode === 'delete' ? (
         <Deleting t={t} onDone={onChanged} onCancel={() => setMode('view')} />
       ) : (
@@ -88,6 +90,44 @@ function TxView({
       <Text style={styles.section}>CATEGORIA</Text>
       <CategoryChips t={t} busy={busy} onChoose={choose} />
       <MerchantCheck on={forMerchant} onToggle={() => setForMerchant(!forMerchant)} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+    </View>
+  );
+}
+
+// Just imported: it counts only once the person approves it.
+function Waiting({ t, onDone }: { t: Transaction; onDone: () => void }) {
+  const [busy, setBusy] = useState<'approve' | 'reject' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const decide = async (decision: 'approve' | 'reject') => {
+    setBusy(decision);
+    setError(null);
+    try {
+      await decideReview([t.id], decision);
+      onDone();
+    } catch (e) {
+      setError(errorText(e));
+      setBusy(null);
+    }
+  };
+  return (
+    <View style={styles.waiting}>
+      <Text style={styles.waitingText}>Importada, esperando sua aprovação para contar.</Text>
+      <View style={styles.waitingActions}>
+        <Small
+          label="Rejeitar"
+          busy={busy === 'reject'}
+          disabled={busy !== null}
+          onPress={() => decide('reject')}
+        />
+        <Small
+          label="Aprovar"
+          primary
+          busy={busy === 'approve'}
+          disabled={busy !== null}
+          onPress={() => decide('approve')}
+        />
+      </View>
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
   );
@@ -229,6 +269,17 @@ const styles = StyleSheet.create({
   factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   factValue: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
   links: { flexDirection: 'row', gap: 18, marginTop: 2 },
+  waiting: {
+    borderWidth: 1,
+    borderColor: colors.pendingLine,
+    backgroundColor: colors.pendingSoft,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+    marginTop: 4,
+  },
+  waitingText: { fontFamily: fonts.regular, fontSize: 13, color: colors.pendingText },
+  waitingActions: { flexDirection: 'row', gap: 8 },
   link: {
     fontFamily: fonts.medium,
     fontSize: 13,

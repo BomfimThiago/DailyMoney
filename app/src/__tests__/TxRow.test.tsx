@@ -16,6 +16,7 @@ const base: Transaction = {
   category_id: 'c',
   category_name: 'Mercado',
   member_id: null,
+  review: 'approved',
 };
 
 const shown = async (t: Partial<Transaction>) => {

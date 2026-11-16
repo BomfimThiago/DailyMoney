@@ -62,6 +62,7 @@ const nubank: Account = {
   currency: 'BRL',
   is_card: false,
   member_id: null,
+  review: 'approved',
 } as Account;
 
 const row = (o: Partial<PreviewRow> = {}): PreviewRow => ({
@@ -164,6 +165,18 @@ describe('UploadScreen', () => {
     expect(router.navigate).toHaveBeenCalledWith('/');
     await fireEvent.press(screen.getByText('Enviar outro'));
     expect(screen.getByLabelText('Escolher arquivo do extrato')).toBeTruthy();
+  });
+
+  it('sends to the review when the lines wait for approval', async () => {
+    await openFile(preview());
+    mockConfirm.mockResolvedValueOnce(summary({ imported_count: 3, to_review: 3 }));
+    await fireEvent.press(screen.getByText('Importar 3 transações'));
+    await screen.findByText('3 transações para revisar');
+    await fireEvent.press(screen.getByText('Revisar agora'));
+    expect(router.navigate).toHaveBeenCalledWith({
+      pathname: '/transacoes',
+      params: { aba: 'revisar' },
+    });
   });
 
   it('starts fresh on the next visit once a statement is in', async () => {

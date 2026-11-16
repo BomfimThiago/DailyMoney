@@ -16,6 +16,7 @@ export const monthSummary = builder<MonthSummary>(() => ({
   month: '2026-10',
   currencies: [currencySummary(), currencySummary({ currency: 'EUR', income: '1200.0000' })],
   pending_transfers: 2,
+  to_review: 0,
 }));
 
 export const dashboard = builder<CurrencyDashboard>(() => ({

@@ -23,6 +23,7 @@ class FamilyOut(BaseModel):
     name: str
     display_currency: Currency
     month_start_day: int
+    review_imports: bool
     members: list[MemberOut]
 
 
@@ -30,6 +31,7 @@ class FamilyUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     display_currency: Currency | None = None
     month_start_day: int | None = Field(default=None, ge=1, le=28)
+    review_imports: bool | None = None
 
 
 class MemberCreate(BaseModel):

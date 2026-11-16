@@ -19,7 +19,7 @@ from app.categories.services.categorize import merchant_key, merchant_part
 from app.families.models import Currency
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
-from app.transactions.models import Transaction, TxKind
+from app.transactions.models import APPROVED, Transaction, TxKind
 from app.transactions.schemas import (
     Analysis,
     CategoryChange,
@@ -276,6 +276,7 @@ async def analysis(
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(
             Transaction.family_id == family_id,
+            APPROVED,
             Transaction.kind == TxKind.REGULAR,
             Transaction.amount < 0,
             Transaction.date.between(lo, hi),
