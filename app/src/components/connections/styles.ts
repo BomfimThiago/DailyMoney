@@ -58,7 +58,6 @@ export const styles = StyleSheet.create({
   },
   ask: { fontFamily: fonts.regular, fontSize: 13, color: colors.ink, flexBasis: '100%' },
   quiet: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted, paddingHorizontal: 4 },
-  link: { fontFamily: fonts.medium, fontSize: 13, color: colors.invest },
   via: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   auto: { fontFamily: fonts.medium, fontSize: 13, color: colors.positive },
   done: { fontFamily: fonts.medium, fontSize: 13, color: colors.positive },

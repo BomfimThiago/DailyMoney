@@ -1,6 +1,8 @@
 """Meu Pluggy: Open Finance in Brazil (Nubank, Inter), read-only and free for personal use.
 
-The person connects their banks in Pluggy's own app; the item ids go in PLUGGY_ITEM_IDS.
+The person keeps their banks in Pluggy's own app (meu.pluggy.ai) and authorizes this app
+to read one of them at a time; each authorization is an "item" (see pluggy_link). Items
+made by hand in Pluggy's dashboard can still be listed in PLUGGY_ITEM_IDS.
 Rules checked against real Meu Pluggy data in the old app:
   - Checking account amounts already have the app's sign (money out is negative); a
     credit card is the other way round (purchase positive, payment negative), so flip it.
@@ -17,7 +19,7 @@ import time
 from collections.abc import Iterable
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -30,6 +32,7 @@ from app.statements.parsing.types import SUPPORTED_CURRENCIES, ParsedRow, RowErr
 PROVIDER = "pluggy"
 # The connector of every item made in Meu Pluggy, whatever the bank.
 MEU_PLUGGY = "MeuPluggy"
+MEU_PLUGGY_CONNECTOR_ID = 200
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 CENTS = Decimal("0.01")
 _TRANSFER_CATEGORIES = {"Same person transfer", "Transfer - Internal", "Credit card payment"}
@@ -42,6 +45,11 @@ _BILL_PAYMENT = re.compile(r"^pagamento d[ae] fatura( do cart[aã]o)?$", re.IGNO
 _GLOBAL_ACCOUNT = re.compile(r"^(dep[óo]sito|resgate) - global account$", re.IGNORECASE)
 # Buying or selling shares settles under the dividends category ("Débito B3 ... Compra").
 _B3_TRADE = re.compile(r"\bB3\b.*\b(compra|venda)\b", re.IGNORECASE)
+
+# "waiting": the person hasn't authorized yet, or Pluggy is still reading the bank.
+LinkState = Literal["waiting", "ready", "failed"]
+# The person refused, the link expired or the bank couldn't be read.
+_FAILED_STATUSES = {"LOGIN_ERROR", "OUTDATED"}
 
 # Tests swap this for an httpx.MockTransport.
 transport: httpx.AsyncBaseTransport | None = None
@@ -70,16 +78,16 @@ async def _send(client: httpx.AsyncClient, method: str, path: str, **kwargs: Any
         except ValueError:
             message = res.text[:200]
         raise PluggyError(f"A Pluggy respondeu {res.status_code}: {message}")
-    return res.json()
+    return res.json() if res.content else {}
 
 
-async def _get(path: str) -> Any:
+async def _call(method: str, path: str, body: dict[str, Any] | None = None) -> Any:
     global _key
     async with httpx.AsyncClient(
         base_url=settings.PLUGGY_API_URL, timeout=30, transport=transport
     ) as client:
         if not _key or _key[1] < time.time():
-            body = await _send(
+            auth = await _send(
                 client,
                 "POST",
                 "/auth",
@@ -89,8 +97,12 @@ async def _get(path: str) -> Any:
                 },
             )
             # The key lasts 2 hours.
-            _key = (str(body["apiKey"]), time.time() + 110 * 60)
-        return await _send(client, "GET", path, headers={"X-API-KEY": _key[0]})
+            _key = (str(auth["apiKey"]), time.time() + 110 * 60)
+        return await _send(client, method, path, headers={"X-API-KEY": _key[0]}, json=body)
+
+
+async def _get(path: str) -> Any:
+    return await _call("GET", path)
 
 
 async def get_item(item_id: str) -> dict[str, Any]:
@@ -98,20 +110,52 @@ async def get_item(item_id: str) -> dict[str, Any]:
     return item
 
 
+async def create_item(redirect_url: str) -> dict[str, Any]:
+    """Starts an authorization in Meu Pluggy; the person ends up back at `redirect_url`."""
+    item: dict[str, Any] = await _call(
+        "POST",
+        "/items",
+        {
+            "connectorId": MEU_PLUGGY_CONNECTOR_ID,
+            "parameters": {},
+            "oauthRedirectUri": redirect_url,
+        },
+    )
+    return item
+
+
+async def delete_item(item_id: str) -> None:
+    await _call("DELETE", f"/items/{item_id}")
+
+
+def authorization_url(item: dict[str, Any]) -> str | None:
+    """Meu Pluggy's page where the person authorizes the item, once Pluggy has made it."""
+    parameter = item.get("parameter") or {}
+    if parameter.get("type") != "oauth":
+        return None
+    return str(parameter.get("data") or "") or None
+
+
 def check_item(item: dict[str, Any], now: datetime) -> datetime | None:
     """When the authorization ends; raises when the bank can't be read any more."""
     until = instant(item.get("consentExpiresAt"))
     if until and until < now:
-        raise ConflictError(
-            "A autorização deste banco no Meu Pluggy venceu. Autorize de novo no meu.pluggy.ai."
-        )
+        raise ConflictError("A autorização deste banco no Meu Pluggy venceu. Conecte de novo.")
     error = (item.get("error") or {}).get("code")
     if item.get("status") == "LOGIN_ERROR" or error:
         raise ConflictError(
             f"A Pluggy não consegue ler este banco ({error or item.get('status')}). "
-            "Autorize de novo no meu.pluggy.ai."
+            "Conecte de novo."
         )
     return until
+
+
+def link_state(item: dict[str, Any]) -> LinkState:
+    """How an authorization started from the app is going."""
+    status = item.get("status")
+    if status == "UPDATED":
+        return "ready"
+    return "failed" if status in _FAILED_STATUSES else "waiting"
 
 
 # How each bank shows up in Pluggy's connector or account names.

@@ -73,9 +73,9 @@ export function expiryWarning(c: Connection, now = Date.now()): string | null {
   return `A autorização vence em ${days} ${days === 1 ? 'dia' : 'dias'}.`;
 }
 
-// Only Enable Banking connections are authorized from here, so only they reconnect here.
+// A bank that stopped answering, or whose authorization is ending, can be authorized again.
 export function canReconnect(c: Connection, now = Date.now()): boolean {
-  return c.provider === 'enablebanking' && (!!c.last_error || expiryWarning(c, now) !== null);
+  return !!c.last_error || expiryWarning(c, now) !== null;
 }
 
 // "Nubank · BRL · Conta": the bank only adds something when the name doesn't say it.

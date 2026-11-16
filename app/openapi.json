@@ -890,6 +890,54 @@
         ]
       }
     },
+    "/api/v1/connections/brazil": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Start Brazil",
+        "operationId": "start_brazil_api_v1_connections_brazil_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/connections/brazil/finish": {
+      "post": {
+        "tags": ["connections"],
+        "summary": "Finish Brazil",
+        "operationId": "finish_brazil_api_v1_connections_brazil_finish_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrazilFinishOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/connections/{connection_id}/sync": {
       "post": {
         "tags": ["connections"],
@@ -1716,6 +1764,26 @@
         "type": "object",
         "required": ["file"],
         "title": "Body_upload_api_v1_imports_post"
+      },
+      "BrazilFinishOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["connected", "waiting", "refused", "nothing"],
+            "title": "Status"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SyncOut"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": ["status", "results"],
+        "title": "BrazilFinishOut",
+        "description": "Back from Meu Pluggy. \"waiting\": not authorized yet, or Pluggy is still reading the\nbank. \"nothing\": no authorization was under way."
       },
       "CategoryChange": {
         "properties": {

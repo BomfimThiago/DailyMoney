@@ -39,3 +39,18 @@ class BankConnection(UUIDPk, CreatedAt, Base):
     consent_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_error: Mapped[str | None] = mapped_column(String(1000))
+
+
+class PendingPluggyItem(UUIDPk, CreatedAt, Base):
+    """A Meu Pluggy authorization started from the app and not yet a connection: the
+    person is still authorizing it, or Pluggy is still reading the bank."""
+
+    __tablename__ = "pending_pluggy_item"
+
+    family_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("family.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    item_id: Mapped[str] = mapped_column(String(200))

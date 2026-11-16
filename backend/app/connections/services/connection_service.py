@@ -3,6 +3,7 @@
 import logging
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from typing import Literal
 
 import jwt
 from sqlalchemy import select
@@ -12,12 +13,13 @@ from app.accounts.models import Account
 from app.connections.models import BankConnection
 from app.connections.schemas import (
     AccountSyncOut,
+    BrazilFinishOut,
     ConnectedAccount,
     ConnectionOut,
     ConnectionsOverview,
     SyncOut,
 )
-from app.connections.services import enablebanking, pluggy, sync_service
+from app.connections.services import enablebanking, pluggy, pluggy_link, sync_service
 from app.connections.services.timestamps import instant
 from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError
@@ -53,6 +55,9 @@ def canonical_bank(name: str) -> str:
 
 async def list_connections(db: AsyncSession, user: User) -> list[BankConnection]:
     await _ensure_pluggy_items(db, user)
+    if pluggy.enabled():
+        # A bank authorized in Meu Pluggy whose return page never opened shows up here.
+        await pluggy_link.settle(db, user.family_id)
     rows = await db.scalars(
         select(BankConnection)
         .where(BankConnection.family_id == user.family_id)
@@ -62,7 +67,7 @@ async def list_connections(db: AsyncSession, user: User) -> list[BankConnection]
 
 
 async def _ensure_pluggy_items(db: AsyncSession, user: User) -> None:
-    """Items connected in Meu Pluggy show up here once their ids are on the server."""
+    """Items made by hand in Pluggy's dashboard show up once their ids are on the server."""
     if not pluggy.enabled() or not settings.PLUGGY_ITEM_IDS:
         return
     existing = (
@@ -277,4 +282,23 @@ async def sync_out(db: AsyncSession, result: sync_service.SyncResult) -> SyncOut
             AccountSyncOut(name=a.name, new=a.new, duplicate=a.duplicate, error=a.error)
             for a in result.accounts
         ],
+    )
+
+
+def _finish_status(
+    settled: pluggy_link.Settled,
+) -> Literal["connected", "waiting", "refused", "nothing"]:
+    if settled.connected:
+        return "connected"
+    if settled.waiting:
+        return "waiting"
+    return "refused" if settled.failed else "nothing"
+
+
+async def brazil_finish_out(
+    db: AsyncSession, settled: pluggy_link.Settled, results: list[sync_service.SyncResult]
+) -> BrazilFinishOut:
+    return BrazilFinishOut(
+        status=_finish_status(settled),
+        results=[await sync_out(db, r) for r in results],
     )

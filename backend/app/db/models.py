@@ -3,7 +3,7 @@ from app.accounts.models import Account
 from app.auth.models import MagicLinkToken, RefreshToken
 from app.banks.models import BankRequest
 from app.categories.models import Category, CategoryRule
-from app.connections.models import BankConnection
+from app.connections.models import BankConnection, PendingPluggyItem
 from app.db.base import Base
 from app.families.models import Family, Member, User
 from app.imports.models import StatementImport
@@ -19,6 +19,7 @@ __all__ = [
     "Family",
     "MagicLinkToken",
     "Member",
+    "PendingPluggyItem",
     "RefreshToken",
     "StatementImport",
     "Transaction",

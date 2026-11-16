@@ -29,7 +29,7 @@ class ConnectionsOverview(BaseModel):
     connections: list[ConnectionOut]
     # Banks that can be connected from the app (Enable Banking), when it is set up.
     european_banks: list[str]
-    # Brazilian banks are connected in Meu Pluggy's own app.
+    # Brazilian banks can be connected from the app (Meu Pluggy), when it is set up.
     brazil_ready: bool
 
 
@@ -56,3 +56,11 @@ class AccountSyncOut(BaseModel):
 class SyncOut(BaseModel):
     connection: ConnectionOut
     accounts: list[AccountSyncOut]
+
+
+class BrazilFinishOut(BaseModel):
+    """Back from Meu Pluggy. "waiting": not authorized yet, or Pluggy is still reading the
+    bank. "nothing": no authorization was under way."""
+
+    status: Literal["connected", "waiting", "refused", "nothing"]
+    results: list[SyncOut]

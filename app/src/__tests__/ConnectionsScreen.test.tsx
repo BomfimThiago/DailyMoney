@@ -7,7 +7,12 @@ import { Linking, Platform } from 'react-native';
 import ConnectionsScreen from '@/app/(tabs)/conexoes';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { disconnectBank, startConnection, syncConnection } from '@/lib/imports';
+import {
+  disconnectBank,
+  startBrazilConnection,
+  startConnection,
+  syncConnection,
+} from '@/lib/imports';
 import { useAccounts, useConnections } from '@/lib/queries';
 import type { Account, Connection, ConnectionsOverview } from '@/lib/types';
 import { useConnect } from '@/lib/useConnect';
@@ -24,6 +29,7 @@ jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
 jest.mock('@/lib/queries', () => ({ useConnections: jest.fn(), useAccounts: jest.fn() }));
 jest.mock('@/lib/imports', () => ({
   startConnection: jest.fn(),
+  startBrazilConnection: jest.fn(),
   syncConnection: jest.fn(),
   disconnectBank: jest.fn(),
 }));
@@ -31,6 +37,7 @@ jest.mock('@/lib/imports', () => ({
 const mockConnections = jest.mocked(useConnections);
 const mockAccounts = jest.mocked(useAccounts);
 const mockStart = jest.mocked(startConnection);
+const mockStartBrazil = jest.mocked(startBrazilConnection);
 const mockSync = jest.mocked(syncConnection);
 const mockDisconnect = jest.mocked(disconnectBank);
 
@@ -89,13 +96,36 @@ describe('ConnectionsScreen', () => {
     expect(screen.getByText('Bancos conectados')).toBeTruthy();
     expect(screen.getByText('Enable Banking')).toBeTruthy();
     expect(screen.getByText('Conectado')).toBeTruthy();
-    expect(screen.getByText('Conectar')).toBeTruthy();
+    // Revolut, and the line for Brazilian banks.
+    expect(screen.getAllByText('Conectar')).toHaveLength(2);
+    expect(screen.getByText('Brasil · pelo Meu Pluggy, um banco por vez')).toBeTruthy();
     expect(screen.getByText('Automática')).toBeTruthy();
     expect(screen.getByText('Por extrato')).toBeTruthy();
     expect(screen.getByText('Nubank · BRL · Cartão')).toBeTruthy();
+  });
+
+  it('opens Meu Pluggy to authorize a Brazilian bank', async () => {
+    mockStart.mockClear();
+    mockStartBrazil.mockResolvedValue({ url: 'https://meu.pluggy.ai/authorize' });
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
-    await fireEvent.press(screen.getByText('Abrir Meu Pluggy'));
-    expect(open).toHaveBeenCalledWith('https://meu.pluggy.ai');
+    await show();
+    await fireEvent.press(screen.getAllByText('Conectar')[1]);
+    await waitFor(() => expect(open).toHaveBeenCalledWith('https://meu.pluggy.ai/authorize'));
+    expect(mockStart).not.toHaveBeenCalled();
+  });
+
+  it('authorizes a Brazilian bank again through Meu Pluggy', async () => {
+    overview({
+      connections: [{ ...wise, provider: 'pluggy', bank: 'Nubank', last_error: 'Venceu.' }],
+    });
+    mockStartBrazil.mockClear();
+    mockStart.mockClear();
+    mockStartBrazil.mockRejectedValue(new ApiError(502, 'A Pluggy não respondeu.'));
+    await show();
+    await fireEvent.press(screen.getByText('Conectar de novo'));
+    await screen.findByText('A Pluggy não respondeu.');
+    expect(mockStartBrazil).toHaveBeenCalledTimes(1);
+    expect(mockStart).not.toHaveBeenCalled();
   });
 
   it('reads a bank now and shows what arrived', async () => {
@@ -140,7 +170,7 @@ describe('ConnectionsScreen', () => {
     mockStart.mockResolvedValue({ url: 'https://bank.example/auth' });
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await show();
-    await fireEvent.press(screen.getByText('Conectar'));
+    await fireEvent.press(screen.getAllByText('Conectar')[0]);
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://bank.example/auth'));
     expect(mockStart).toHaveBeenCalledWith('Revolut');
   });

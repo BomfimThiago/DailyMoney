@@ -4,12 +4,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 import { router, useLocalSearchParams } from 'expo-router';
 
 import ConnectionReturnScreen from '@/app/conexoes/retorno';
+import BrazilReturnScreen from '@/app/conexoes/retorno-brasil';
 import EnterScreen from '@/app/entrar';
 import LoginScreen from '@/app/login';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { finishConnection } from '@/lib/imports';
-import type { SyncResult } from '@/lib/types';
+import { finishBrazilConnection, finishConnection } from '@/lib/imports';
+import type { BrazilFinish, SyncResult } from '@/lib/types';
+import { PAUSE_MS, waitForBrazil } from '@/lib/useBrazilReturn';
 
 jest.mock('expo-router', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -21,11 +23,15 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
-jest.mock('@/lib/imports', () => ({ finishConnection: jest.fn() }));
+jest.mock('@/lib/imports', () => ({
+  finishConnection: jest.fn(),
+  finishBrazilConnection: jest.fn(),
+}));
 
 const mockAuth = jest.mocked(useAuth);
 const mockParams = jest.mocked(useLocalSearchParams);
 const mockFinish = jest.mocked(finishConnection);
+const mockFinishBrazil = jest.mocked(finishBrazilConnection);
 const requestLink = jest.fn<(email: string) => Promise<void>>();
 const signInWithLink = jest.fn<(token: string) => Promise<void>>();
 
@@ -175,5 +181,108 @@ describe('ConnectionReturnScreen', () => {
     auth('signedOut');
     await show();
     expect(screen.getByText('redirect /login')).toBeTruthy();
+  });
+});
+
+describe('BrazilReturnScreen', () => {
+  const nubank: SyncResult = {
+    connection: {
+      id: 'c2',
+      provider: 'pluggy',
+      bank: 'Nubank',
+      accounts: [],
+      consent_expires_at: null,
+      last_sync_at: null,
+      last_error: null,
+    },
+    accounts: [{ name: 'Nubank BRL', new: 12, duplicate: 0, error: null }],
+  };
+  const answer = (status: BrazilFinish['status'], results: SyncResult[] = []) =>
+    mockFinishBrazil.mockResolvedValue({ status, results });
+  const show = () =>
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BrazilReturnScreen />
+      </QueryClientProvider>,
+    );
+
+  it('says which bank was connected and what arrived', async () => {
+    auth('signedIn');
+    answer('connected', [nubank]);
+    await show();
+    await screen.findByText('Nubank conectado');
+    expect(screen.getByText('Nubank BRL: 12 novas')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Ver Conexões'));
+    expect(router.replace).toHaveBeenCalledWith('/conexoes');
+  });
+
+  it('waits while the server looks', async () => {
+    auth('signedIn');
+    mockFinishBrazil.mockReturnValue(new Promise(() => {}));
+    await show();
+    expect(screen.getByText('Concluindo a conexão com o banco…')).toBeTruthy();
+  });
+
+  it('says when the authorization was not finished or the server failed', async () => {
+    auth('signedIn');
+    answer('refused');
+    await show();
+    await screen.findByText(/não foi concluída no Meu Pluggy/);
+    mockFinishBrazil.mockRejectedValue(new ApiError(502, 'A Pluggy não respondeu.'));
+    await show();
+    await screen.findByText('A Pluggy não respondeu.');
+    mockFinishBrazil.mockRejectedValue(new Error('offline'));
+    await show();
+    await screen.findByText('Não deu para concluir a conexão.');
+  });
+
+  it('goes to Conexões when nothing was under way, and to login when signed out', async () => {
+    auth('signedIn');
+    answer('nothing');
+    await show();
+    await screen.findByText('redirect /conexoes');
+    auth('signedOut');
+    mockFinishBrazil.mockClear();
+    await show();
+    expect(screen.getAllByText('redirect /login').length).toBeGreaterThan(0);
+    expect(mockFinishBrazil).not.toHaveBeenCalled();
+  });
+});
+
+describe('waitForBrazil', () => {
+  const waiting: BrazilFinish = { status: 'waiting', results: [] };
+  const connected: BrazilFinish = { status: 'connected', results: [] };
+
+  it('asks again until the bank is connected', async () => {
+    const finish = jest
+      .fn<() => Promise<BrazilFinish>>()
+      .mockResolvedValueOnce(waiting)
+      .mockResolvedValueOnce(waiting)
+      .mockResolvedValue(connected);
+    const wait = jest.fn<(ms: number) => Promise<void>>().mockResolvedValue(undefined);
+    expect(await waitForBrazil(finish, wait)).toBe(connected);
+    expect(finish).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls).toEqual([[PAUSE_MS], [PAUSE_MS]]);
+  });
+
+  it('gives up waiting after the last try', async () => {
+    const finish = jest.fn<() => Promise<BrazilFinish>>().mockResolvedValue(waiting);
+    const wait = jest.fn<(ms: number) => Promise<void>>().mockResolvedValue(undefined);
+    expect(await waitForBrazil(finish, wait, 3)).toBe(waiting);
+    expect(finish).toHaveBeenCalledTimes(3);
+    expect(wait).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the bank is still being read once the tries run out', async () => {
+    jest.useFakeTimers();
+    try {
+      mockFinishBrazil.mockResolvedValue(waiting);
+      const pending = waitForBrazil(undefined, undefined, 2);
+      await jest.advanceTimersByTimeAsync(PAUSE_MS);
+      expect(await pending).toBe(waiting);
+      expect(mockFinishBrazil).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

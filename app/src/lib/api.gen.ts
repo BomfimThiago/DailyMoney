@@ -331,6 +331,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/connections/brazil': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Start Brazil */
+    post: operations['start_brazil_api_v1_connections_brazil_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/connections/brazil/finish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Finish Brazil */
+    post: operations['finish_brazil_api_v1_connections_brazil_finish_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/connections/{connection_id}/sync': {
     parameters: {
       query?: never;
@@ -605,6 +639,20 @@ export interface components {
       /** File */
       file: string;
       default_currency?: components['schemas']['Currency'] | null;
+    };
+    /**
+     * BrazilFinishOut
+     * @description Back from Meu Pluggy. "waiting": not authorized yet, or Pluggy is still reading the
+     *     bank. "nothing": no authorization was under way.
+     */
+    BrazilFinishOut: {
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'connected' | 'waiting' | 'refused' | 'nothing';
+      /** Results */
+      results: components['schemas']['SyncOut'][];
     };
     /** CategoryChange */
     CategoryChange: {
@@ -1927,6 +1975,46 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  start_brazil_api_v1_connections_brazil_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StartOut'];
+        };
+      };
+    };
+  };
+  finish_brazil_api_v1_connections_brazil_finish_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BrazilFinishOut'];
         };
       };
     };

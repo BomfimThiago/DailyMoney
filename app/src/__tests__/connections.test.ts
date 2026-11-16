@@ -103,7 +103,8 @@ test('warns before the authorization ends and offers to reconnect', () => {
   expect(canReconnect(base, NOW)).toBe(false);
   expect(canReconnect({ ...base, last_error: 'Falhou' }, NOW)).toBe(true);
   expect(canReconnect({ ...base, consent_expires_at: at(2) }, NOW)).toBe(true);
-  expect(canReconnect({ ...base, provider: 'pluggy', last_error: 'Falhou' }, NOW)).toBe(false);
+  expect(canReconnect({ ...base, provider: 'pluggy', last_error: 'Falhou' }, NOW)).toBe(true);
+  expect(canReconnect({ ...base, provider: 'pluggy' }, NOW)).toBe(false);
 });
 
 test('describes an account and an error', () => {

@@ -3,13 +3,14 @@ import uuid
 from fastapi import APIRouter, Response, status
 
 from app.connections.schemas import (
+    BrazilFinishOut,
     ConnectionsOverview,
     FinishIn,
     StartIn,
     StartOut,
     SyncOut,
 )
-from app.connections.services import connection_service, sync_service
+from app.connections.services import connection_service, pluggy_link, sync_service
 from app.core.deps import CurrentUser, DbSession
 
 router = APIRouter(prefix="/connections", tags=["connections"])
@@ -34,6 +35,24 @@ async def finish(user: CurrentUser, db: DbSession, data: FinishIn) -> SyncOut:
     result = await sync_service.sync_connection(db, conn)
     await db.commit()
     return await connection_service.sync_out(db, result)
+
+
+@router.post("/brazil", response_model=StartOut)
+async def start_brazil(user: CurrentUser, db: DbSession) -> StartOut:
+    url = await pluggy_link.start(db, user)
+    await db.commit()
+    return StartOut(url=url)
+
+
+@router.post("/brazil/finish", response_model=BrazilFinishOut)
+async def finish_brazil(user: CurrentUser, db: DbSession) -> BrazilFinishOut:
+    settled = await pluggy_link.settle(db, user.family_id)
+    await db.commit()
+    results = []
+    for conn in settled.connected:
+        results.append(await sync_service.sync_connection(db, conn))
+        await db.commit()
+    return await connection_service.brazil_finish_out(db, settled, results)
 
 
 @router.post("/{connection_id}/sync", response_model=SyncOut)

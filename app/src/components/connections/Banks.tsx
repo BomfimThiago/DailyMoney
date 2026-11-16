@@ -1,14 +1,14 @@
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { Button, SectionTitle, ui } from '@/components/ui';
-import type { Connect } from '@/lib/useConnect';
+import { BRAZIL, type Connect } from '@/lib/useConnect';
 import type { ConnectionsOverview } from '@/lib/types';
 
 import { ConnectionCard } from './ConnectionCard';
 import { styles } from './styles';
 
-// Brazilian banks are authorized in Meu Pluggy's own app, not from here.
-const BRAZIL_BANKS = 'Nubank, Inter';
+// Brazilian banks are authorized on Meu Pluggy's page, where the person picks the bank.
+const BRAZIL_BANKS = 'Nubank, Inter e outros';
 
 export function Banks({ data, connect }: { data: ConnectionsOverview; connect: Connect }) {
   const connected = new Set(data.connections.map((c) => c.bank));
@@ -22,7 +22,7 @@ export function Banks({ data, connect }: { data: ConnectionsOverview; connect: C
               <ConnectionCard
                 key={c.id}
                 connection={c}
-                onReconnect={() => void connect.connect(c.bank)}
+                onReconnect={() => void connect.reconnect(c)}
               />
             ))}
           </View>
@@ -47,7 +47,7 @@ export function Banks({ data, connect }: { data: ConnectionsOverview; connect: C
             right={<Text style={styles.soon}>Falta configurar</Text>}
           />
         ) : null}
-        <BrazilBanks ready={data.brazil_ready} />
+        <BrazilBanks ready={data.brazil_ready} connect={connect} />
       </View>
       {connect.error ? <Text style={styles.error}>{connect.error}</Text> : null}
     </>
@@ -96,36 +96,35 @@ function EuropeanBank({
         connected ? (
           <Text style={styles.done}>Conectado</Text>
         ) : (
-          <Button
-            label="Conectar"
-            busy={connect.opening === bank}
-            disabled={connect.opening !== null}
-            onPress={() => void connect.connect(bank)}
-          />
+          <ConnectButton line={bank} connect={connect} />
         )
       }
     />
   );
 }
 
-function BrazilBanks({ ready }: { ready: boolean }) {
-  if (!ready) {
-    return (
-      <BankLine
-        title={BRAZIL_BANKS}
-        sub="Brasil, via Meu Pluggy"
-        right={<Text style={styles.soon}>Falta configurar</Text>}
-      />
-    );
-  }
+function ConnectButton({ line, connect }: { line: string; connect: Connect }) {
+  return (
+    <Button
+      label="Conectar"
+      busy={connect.opening === line}
+      disabled={connect.opening !== null}
+      onPress={() => void connect.connect(line)}
+    />
+  );
+}
+
+function BrazilBanks({ ready, connect }: { ready: boolean; connect: Connect }) {
   return (
     <BankLine
       title={BRAZIL_BANKS}
-      sub="Brasil · autorize no app Meu Pluggy; eles aparecem aqui sozinhos"
+      sub={ready ? 'Brasil · pelo Meu Pluggy, um banco por vez' : 'Brasil, via Meu Pluggy'}
       right={
-        <Pressable onPress={() => void Linking.openURL('https://meu.pluggy.ai')}>
-          <Text style={styles.link}>Abrir Meu Pluggy</Text>
-        </Pressable>
+        ready ? (
+          <ConnectButton line={BRAZIL} connect={connect} />
+        ) : (
+          <Text style={styles.soon}>Falta configurar</Text>
+        )
       }
     />
   );

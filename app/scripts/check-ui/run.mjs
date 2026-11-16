@@ -82,6 +82,12 @@ function answer(url, method) {
     const accounts = [{ name: 'Wise EUR', new: 4, duplicate: 2, error: null }];
     return { status: 200, body: { connection, accounts } };
   }
+  if (method === 'POST' && p === '/connections/brazil/finish') {
+    // Back from Meu Pluggy with Nubank authorized and read.
+    const connection = fixtures['/connections'].connections[1];
+    const accounts = [{ name: 'Nubank', new: 37, duplicate: 5, error: null }];
+    return { status: 200, body: { status: 'connected', results: [{ connection, accounts }] } };
+  }
   if (p === '/bank-requests') {
     if (method === 'POST') {
       bankRequests.push({ id: `r-${bankRequests.length}`, bank_name: 'Santander', note: null });
@@ -304,6 +310,10 @@ async function checkScreens(page, tag) {
       await page.waitForLoadState('networkidle');
       await shot('conexoes');
     }
+    // Where Meu Pluggy sends the person back after authorizing a Brazilian bank.
+    await page.goto(`${base}/conexoes/retorno-brasil`);
+    await seen('Nubank conectado').waitFor({ timeout: 5000 });
+    await shot('conexoes-retorno-brasil');
   } catch (e) {
     flag(`roteiro parou: ${e.message.split('\n').slice(0, 12).join(' | ')}`);
     await shot('falha').catch(() => {});

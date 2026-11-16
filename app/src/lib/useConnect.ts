@@ -3,17 +3,24 @@ import { useState } from 'react';
 import { Linking, Platform } from 'react-native';
 
 import { errorText } from './api';
-import { startConnection } from './imports';
+import { startBrazilConnection, startConnection } from './imports';
+import type { Connection } from './types';
+
+// Brazilian banks share one line: the bank is chosen on Meu Pluggy's own page.
+export const BRAZIL = 'brasil';
+
+const start = (line: string) => (line === BRAZIL ? startBrazilConnection() : startConnection(line));
 
 export function useConnect() {
   const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  async function connect(bank: string) {
-    setOpening(bank);
+  // `line` is a European bank's name, or BRAZIL.
+  async function connect(line: string) {
+    setOpening(line);
     setError(null);
     try {
-      const { url } = await startConnection(bank);
-      // The bank's page brings the person back to /conexoes/retorno.
+      const { url } = await start(line);
+      // The bank's page brings the person back to /conexoes/retorno (or retorno-brasil).
       if (Platform.OS === 'web') window.location.assign(url);
       else await Linking.openURL(url);
     } catch (e) {
@@ -21,7 +28,8 @@ export function useConnect() {
       setOpening(null);
     }
   }
-  return { opening, error, connect };
+  const reconnect = (c: Connection) => connect(c.provider === 'pluggy' ? BRAZIL : c.bank);
+  return { opening, error, connect, reconnect };
 }
 
 export type Connect = ReturnType<typeof useConnect>;
