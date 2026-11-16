@@ -117,6 +117,47 @@ describe('api', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('shares one refresh between calls that expire together', async () => {
+    store.set('dm.access', 'old');
+    store.set('dm.refresh', 'r-1');
+    let refreshes = 0;
+    fetchMock.mockImplementation((url, init) => {
+      if (String(url).endsWith('/auth/refresh')) {
+        refreshes += 1;
+        // Each refresh token works once: a second try with r-1 would be refused.
+        return Promise.resolve(
+          refreshes === 1 ? reply(200, { access_token: 'new', refresh_token: 'r-2' }) : reply(401),
+        );
+      }
+      const token = new Headers(init?.headers).get('Authorization');
+      return Promise.resolve(token === 'Bearer new' ? reply(200, { ok: 1 }) : reply(401, {}));
+    });
+
+    await expect(Promise.all([api('/a'), api('/b'), api('/c')])).resolves.toEqual([
+      { ok: 1 },
+      { ok: 1 },
+      { ok: 1 },
+    ]);
+    expect(refreshes).toBe(1);
+    expect(store.get('dm.refresh')).toBe('r-2');
+
+    // The next expiry refreshes again, with the new token.
+    store.set('dm.access', 'old');
+    await api('/a').catch(() => undefined);
+    expect(refreshes).toBe(2);
+  });
+
+  it('keeps the session when the refresh fails for another reason', async () => {
+    store.set('dm.access', 'old');
+    store.set('dm.refresh', 'r-1');
+    fetchMock
+      .mockResolvedValueOnce(reply(401, { detail: 'expirado' }))
+      .mockResolvedValueOnce(reply(502));
+
+    await expect(api('/accounts')).rejects.toMatchObject({ status: 401 });
+    expect(store.get('dm.refresh')).toBe('r-1');
+  });
+
   it('does not try to refresh without a refresh token', async () => {
     fetchMock.mockResolvedValueOnce(reply(401, { detail: 'Faça login' }));
     await expect(api('/accounts')).rejects.toMatchObject({ status: 401 });

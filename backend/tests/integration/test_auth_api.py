@@ -1,5 +1,7 @@
+import pytest
 from httpx import AsyncClient
 
+from app.auth.services import auth_service
 from tests.integration.conftest import auth, login
 
 
@@ -37,7 +39,10 @@ async def test_protected_route_without_token(client: AsyncClient) -> None:
     assert (await client.get("/api/v1/auth/me", headers=bad)).status_code == 401
 
 
-async def test_refresh_rotates_and_old_token_stops_working(client: AsyncClient) -> None:
+async def test_refresh_rotates_and_old_token_stops_working(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(auth_service, "REFRESH_REUSE_SECONDS", 0)
     tokens = await login(client)
     r = await client.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
     assert r.status_code == 200
@@ -48,6 +53,18 @@ async def test_refresh_rotates_and_old_token_stops_working(client: AsyncClient) 
         "/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}
     )
     assert again.status_code == 401
+
+
+async def test_two_refreshes_at_the_same_moment_both_keep_the_session(
+    client: AsyncClient,
+) -> None:
+    # Two tabs, or a reply lost on the way: the token just traded in still works for a moment.
+    body = {"refresh_token": (await login(client))["refresh_token"]}
+    first = await client.post("/api/v1/auth/refresh", json=body)
+    second = await client.post("/api/v1/auth/refresh", json=body)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert (await client.get("/api/v1/auth/me", headers=auth(second.json()))).status_code == 200
 
 
 async def test_logout_revokes_refresh_token(client: AsyncClient) -> None:

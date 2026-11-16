@@ -13,6 +13,9 @@ from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import create_access_token, hash_token, new_refresh_token
 from app.families.models import Family, Member, User
 
+# How long a refresh token already traded in is still accepted.
+REFRESH_REUSE_SECONDS = 60
+
 
 async def login_with_google(db: AsyncSession, identity: GoogleIdentity) -> User:
     if identity.email not in settings.ALLOWED_EMAILS:
@@ -86,15 +89,26 @@ async def refresh_tokens(db: AsyncSession, raw: str) -> TokenPair:
         select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw)).with_for_update()
     )
     now = datetime.now(UTC)
-    if stored is None or stored.revoked_at is not None or stored.expires_at <= now:
+    if stored is None or stored.expires_at <= now or _traded_in_long_ago(stored, now):
         raise UnauthorizedError("Sessão expirada, entre de novo")
     # Rotation: each refresh token works once, so a stolen copy dies on next legitimate use.
-    stored.revoked_at = now
+    stored.revoked_at = stored.revoked_at or now
     return await issue_tokens(db, stored.user_id)
+
+
+def _traded_in_long_ago(stored: RefreshToken, now: datetime) -> bool:
+    """A token just traded in still works for a moment: two tabs refreshing together, or
+    a reply lost on the way, must not sign the person out."""
+    if stored.revoked_at is None:
+        return False
+    return now - stored.revoked_at >= timedelta(seconds=REFRESH_REUSE_SECONDS)
 
 
 async def logout(db: AsyncSession, raw: str) -> None:
     stored = await db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_token(raw)))
-    if stored is not None and stored.revoked_at is None:
-        stored.revoked_at = datetime.now(UTC)
+    if stored is not None:
+        now = datetime.now(UTC)
+        stored.revoked_at = stored.revoked_at or now
+        # Signing out ends the token at once, with no moment of reuse.
+        stored.expires_at = min(stored.expires_at, now)
         await db.flush()

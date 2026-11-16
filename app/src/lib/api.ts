@@ -46,7 +46,18 @@ async function raw(path: string, init: RequestInit, token: string | null): Promi
   }
 }
 
-async function refreshSession(): Promise<string | null> {
+let refreshing: Promise<string | null> | null = null;
+
+// Calls that expire together share one refresh. The server trades each refresh token in
+// once, so a second try with the same one would be refused and sign the person out.
+function refreshSession(): Promise<string | null> {
+  refreshing ??= tradeRefreshToken().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+async function tradeRefreshToken(): Promise<string | null> {
   const refreshToken = await getItem(REFRESH);
   if (!refreshToken) return null;
   const response = await raw(
@@ -54,10 +65,9 @@ async function refreshSession(): Promise<string | null> {
     { method: 'POST', body: JSON.stringify({ refresh_token: refreshToken }) },
     null,
   );
-  if (!response.ok) {
-    await clearTokens();
-    return null;
-  }
+  // Only a refusal ends the session; a server restart or a bad gateway does not.
+  if (response.status === 401) await clearTokens();
+  if (!response.ok) return null;
   const tokens = (await response.json()) as TokenPair;
   await saveTokens(tokens);
   return tokens.access_token;
