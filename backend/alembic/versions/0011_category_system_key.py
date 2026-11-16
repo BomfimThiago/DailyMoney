@@ -1,7 +1,7 @@
 """category system key
 
 Revision ID: 5b7e21c4d9f0
-Revises: 3a12f387dae2
+Revises: 6b8e2f1c9a47
 Create Date: 2026-11-16 16:00:00
 
 """
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "5b7e21c4d9f0"
-down_revision: Union[str, Sequence[str], None] = "3a12f387dae2"
+down_revision: Union[str, Sequence[str], None] = "6b8e2f1c9a47"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
