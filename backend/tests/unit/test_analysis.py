@@ -160,3 +160,10 @@ def test_every_currency_gets_an_analysis_even_without_lines() -> None:
     assert [m.amount for m in eur.months] == [Decimal(0)] * 3
     assert eur.weekdays == [Decimal(0)] * 7
     assert (eur.habits, eur.peaks, eur.recurring) == ([], [], [])
+
+
+def test_renamed_housing_is_still_left_out_of_weekdays() -> None:
+    d = date(2026, 10, 6)
+    rent = Spend(EUR, d, Decimal("900"), "Aluguel", "Casa", month_of(d), key="Moradia")
+    r = run([s("2026-10-05", "20", "Padaria"), rent], months=1)
+    assert r.weekdays[1] == Decimal(0)
