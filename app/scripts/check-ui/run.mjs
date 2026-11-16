@@ -63,6 +63,7 @@ const base = `http://localhost:${server.address().port}`;
 
 // Once the pending Pix is answered, the API stops listing it, like the real one.
 let answered = false;
+let approved = false;
 // Category changes the screens sent (PATCH /transactions/{id}).
 const recategorized = [];
 
@@ -119,6 +120,13 @@ function answer(url, method) {
     const accounts = [{ name: 'Nubank', new: 37, duplicate: 5, error: null }];
     return { status: 200, body: { status: 'connected', results: [{ connection, accounts }] } };
   }
+  if (method === 'POST' && p === '/transactions/review') {
+    approved = true;
+    return { status: 200, body: { count: 3, left: 0 } };
+  }
+  if (approved && p === '/transactions/review') {
+    return { status: 200, body: { total: 0, groups: [] } };
+  }
   if (method === 'PATCH' && p === '/family') {
     monthStartDay = 27;
     return { status: 200, body: { ...fixtures['/auth/me'].family, month_start_day: 27 } };
@@ -140,8 +148,11 @@ function answer(url, method) {
     }
     return { status: 200, body: bankRequests };
   }
-  if (answered && p === '/transactions/summary') {
-    return { status: 200, body: { ...fixtures[p], pending_transfers: 0 } };
+  if ((answered || approved) && p === '/transactions/summary') {
+    const body = { ...fixtures[p] };
+    if (answered) body.pending_transfers = 0;
+    if (approved) body.to_review = 0;
+    return { status: 200, body };
   }
   if (answered && p === '/transactions/transfers') {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
@@ -163,6 +174,7 @@ const sizes = process.env.VIEWPORT ? [process.env.VIEWPORT] : ['390x844', '1440x
 
 for (const size of sizes) {
   answered = false;
+  approved = false;
   recategorized.length = 0;
   const [vw, vh] = size.split('x').map(Number);
   // Below 900 px the app is in phone layout; above, it has the sidebar.
@@ -315,6 +327,28 @@ async function checkScreens(page, tag) {
     await page.getByRole('tab', { name: /Transferências/ }).click();
     await seen('AGUARDANDO CONFIRMAR').waitFor();
     await shot('transacoes-transferencias');
+
+    // Imported lines waiting for approval, by bank read and statement.
+    await page.getByRole('tab', { name: /revisar/i }).click();
+    await seen('Aprovar todas (3)').waitFor();
+    await page.waitForTimeout(400); // the closed sheet fades out
+    await shot('transacoes-revisar');
+    await page
+      .getByRole('button', { name: /^Metro de Madrid/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen('Importada, esperando sua aprovação para contar.').waitFor();
+    await page.waitForTimeout(400); // the sheet fades in
+    await shot('transacoes-revisar-detalhe');
+    if (tag === 'celular') {
+      await page.getByRole('button', { name: 'Fechar', exact: true }).click();
+      await page.waitForTimeout(400);
+    }
+    await page.getByRole('button', { name: 'Aprovar todas (3)' }).filter({ visible: true }).click();
+    await seen(/Nada para revisar/)
+      .waitFor({ timeout: 5000 })
+      .catch(() => flag('aprovar todas não atualizou a revisão'));
 
     // Every tab has loaded once: switching back must never show a blank or loading screen.
     await noBlankWhile('Início', () => tab('Início').click());

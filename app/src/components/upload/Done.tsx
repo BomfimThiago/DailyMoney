@@ -14,12 +14,21 @@ export function Done({ summary, onAgain }: { summary: ImportSummary; onAgain: ()
       <Text style={styles.note}>{doneNote(summary)}</Text>
       <View style={styles.actions}>
         <Button label="Enviar outro" onPress={onAgain} style={styles.flex1} />
-        <Button
-          primary
-          label="Ver no início"
-          onPress={() => router.navigate('/')}
-          style={styles.flex1}
-        />
+        {summary.to_review > 0 ? (
+          <Button
+            primary
+            label="Revisar agora"
+            onPress={() => router.navigate({ pathname: '/transacoes', params: { aba: 'revisar' } })}
+            style={styles.flex1}
+          />
+        ) : (
+          <Button
+            primary
+            label="Ver no início"
+            onPress={() => router.navigate('/')}
+            style={styles.flex1}
+          />
+        )}
       </View>
     </Card>
   );

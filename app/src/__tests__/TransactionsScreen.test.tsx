@@ -4,8 +4,15 @@ import { useLocalSearchParams } from 'expo-router';
 
 import TransactionsScreen from '@/app/(tabs)/transacoes';
 import { useAuth } from '@/lib/auth';
-import { useAccounts, useCategories, useRegular, useTransfers } from '@/lib/queries';
-import type { Transaction, TransferOverview } from '@/lib/types';
+import { decideReview } from '@/lib/imports';
+import {
+  useAccounts,
+  useCategories,
+  useRegular,
+  useReviewQueue,
+  useTransfers,
+} from '@/lib/queries';
+import type { ReviewQueue, Transaction, TransferOverview } from '@/lib/types';
 import { movement } from '@/testing/investments';
 
 jest.mock('expo-router', () => {
@@ -22,8 +29,10 @@ jest.mock('@/lib/queries', () => ({
   useTransfers: jest.fn(),
   useCategories: jest.fn(),
   useAccounts: jest.fn(),
+  useReviewQueue: jest.fn(),
   useRefreshMoney: () => mockRefreshMoney,
 }));
+jest.mock('@/lib/imports', () => ({ decideReview: jest.fn() }));
 jest.mock('@/components/TxDetail', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
   return { TxDetail: ({ t }: { t: Transaction }) => <Text>{`detalhe ${t.description}`}</Text> };
@@ -39,6 +48,8 @@ const mockRegular = jest.mocked(useRegular);
 const mockTransfers = jest.mocked(useTransfers);
 const mockCategories = jest.mocked(useCategories);
 const mockAccounts = jest.mocked(useAccounts);
+const mockReview = jest.mocked(useReviewQueue);
+const mockDecide = jest.mocked(decideReview);
 const fetchNextPage = jest.fn();
 
 const uber = movement({ id: 't1', description: 'Uber', kind: 'regular', amount: '-23.9000' });
@@ -61,6 +72,39 @@ const transfers = (o: Partial<ReturnType<typeof useTransfers>> = {}) =>
     ...o,
   } as ReturnType<typeof useTransfers>);
 
+const taxi = movement({
+  id: 'r1',
+  description: 'Taxi',
+  kind: 'regular',
+  amount: '-12.0000',
+  review: 'pending',
+});
+const bakery = movement({
+  id: 'r2',
+  description: 'Padaria',
+  kind: 'regular',
+  amount: '-8.0000',
+  review: 'pending',
+});
+const queue: ReviewQueue = {
+  total: 2,
+  groups: [
+    {
+      import_id: 'i1',
+      label: 'Revolut · Conta EUR',
+      source: 'bank',
+      imported_at: '2026-11-16T06:00:00Z',
+      items: [taxi, bakery],
+    },
+  ],
+};
+const review = (o: Partial<ReturnType<typeof useReviewQueue>> = {}) =>
+  mockReview.mockReturnValue({
+    data: { total: 0, groups: [] },
+    isError: false,
+    ...o,
+  } as ReturnType<typeof useReviewQueue>);
+
 const wide = () =>
   jest
     .spyOn(jest.requireActual<typeof import('react-native')>('react-native'), 'useWindowDimensions')
@@ -77,6 +121,8 @@ beforeEach(() => {
   mockParams.mockReturnValue({});
   regular();
   transfers();
+  review();
+  mockDecide.mockReset();
   mockCategories.mockReturnValue({
     data: [
       { id: 'c1', name: 'Transporte', kind: 'expense' },
@@ -139,6 +185,53 @@ describe('TransactionsScreen on the phone', () => {
     await render(<TransactionsScreen />);
     expect(screen.queryByText('lista de transferências')).toBeNull();
     expect(screen.queryByText('2')).toBeNull();
+  });
+});
+
+describe('TransactionsScreen: imported lines to review', () => {
+  it('hides the tab when nothing waits', async () => {
+    await render(<TransactionsScreen />);
+    expect(screen.queryByTestId('segment-revisar')).toBeNull();
+  });
+
+  it('opens on the link from Início and approves a whole import', async () => {
+    review({ data: queue });
+    mockParams.mockReturnValue({ aba: 'revisar' });
+    mockDecide.mockResolvedValue({ count: 2, left: 0 });
+    await render(<TransactionsScreen />);
+    expect(screen.getByText('Revolut · Conta EUR')).toBeTruthy();
+    expect(screen.getByText('Sincronizado em 16 nov · 2 transações')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Aprovar todas (2)'));
+    expect(mockDecide).toHaveBeenCalledWith(['r1', 'r2'], 'approve');
+    expect(mockRefreshMoney).toHaveBeenCalled();
+  });
+
+  it('turns down one line and shows when it fails', async () => {
+    review({ data: queue });
+    mockParams.mockReturnValue({ aba: 'revisar' });
+    mockDecide.mockRejectedValue(new Error('caiu'));
+    await render(<TransactionsScreen />);
+    await fireEvent.press(screen.getAllByText('Rejeitar')[1]);
+    expect(mockDecide).toHaveBeenCalledWith(['r2'], 'reject');
+    expect(screen.getByText('Algo deu errado. Tente de novo.')).toBeTruthy();
+  });
+
+  it('opens a line to correct it before approving', async () => {
+    wide();
+    review({ data: queue });
+    await render(<TransactionsScreen />);
+    await fireEvent.press(screen.getByTestId('segment-revisar'));
+    await fireEvent.press(screen.getByText('Taxi'));
+    expect(screen.getByText('detalhe Taxi')).toBeTruthy();
+  });
+
+  it('says when nothing is left and when loading fails', async () => {
+    mockParams.mockReturnValue({ aba: 'revisar' });
+    await render(<TransactionsScreen />);
+    expect(screen.getByText(/Nada para revisar/)).toBeTruthy();
+    review({ isError: true, data: undefined });
+    await render(<TransactionsScreen />);
+    expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
   });
 });
 

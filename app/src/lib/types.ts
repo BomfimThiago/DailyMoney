@@ -26,6 +26,12 @@ export type TxKind = S['TxKind'];
 export type Transaction = S['TransactionOut'];
 export type TransactionPage = S['TransactionPage'];
 
+// Imported lines wait for approval ("pending") before they count anywhere.
+export type ReviewStatus = S['ReviewStatus'];
+export type ReviewGroup = S['ReviewGroup'];
+export type ReviewQueue = S['ReviewQueue'];
+export type ReviewResult = S['ReviewResult'];
+
 export type RowStatus = S['PreviewRow']['status'];
 export type ImportStatus = S['ImportStatus'];
 export type PreviewRow = S['PreviewRow'];

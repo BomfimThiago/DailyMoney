@@ -6,6 +6,7 @@ import { TxRow } from '@/components/TxRow';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
 
 import { ListBody, MoreButton, Sheet, TabSegment, TransfersBody } from './parts';
+import { ReviewBody } from './Review';
 import { styles } from './styles';
 
 // Phone: a list, and the detail opens as a sheet.
@@ -36,6 +37,8 @@ export function PhoneTransactions({ page }: { page: TransactionsPage }) {
                 </View>
               )}
             </ListBody>
+          ) : page.tab === 'revisar' ? (
+            <ReviewBody page={page} wide={false} />
           ) : (
             <TransfersBody page={page} />
           )}

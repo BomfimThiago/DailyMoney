@@ -34,6 +34,7 @@ export const styles = StyleSheet.create({
     zIndex: 10,
   },
   segmentBox: { width: 360 },
+  segmentBoxThree: { width: 500 },
   filters: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   search: {
     width: 220,
