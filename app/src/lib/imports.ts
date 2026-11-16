@@ -10,6 +10,9 @@ import type {
   ConnectionsOverview,
   SyncResult,
   Category,
+  CategoryCreate,
+  CategoryPatch,
+  CategoryRule,
   Currency,
   ImportPreview,
   ImportSummary,
@@ -140,6 +143,27 @@ export function getAnalysis(month: string, months: number, currency: Currency) {
 
 export function listCategories() {
   return api<Category[]>('/categories');
+}
+
+export function createCategory(data: CategoryCreate) {
+  return api<Category>('/categories', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export function editCategory(id: string, patch: CategoryPatch) {
+  return api<Category>(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
+export function deleteCategory(id: string) {
+  return api<void>(`/categories/${id}`, { method: 'DELETE' });
+}
+
+// Merchants the app learned to send to a category.
+export function listCategoryRules(id: string) {
+  return api<CategoryRule[]>(`/categories/${id}/rules`);
+}
+
+export function deleteCategoryRule(ruleId: string) {
+  return api<void>(`/categories/rules/${ruleId}`, { method: 'DELETE' });
 }
 
 // "applyToMerchant": the next lines from the same shop get this category too.

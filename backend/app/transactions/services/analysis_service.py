@@ -59,6 +59,11 @@ class Spend:
     # The period ('AAAA-MM') the day falls in; with the family's start day it is not
     # always the calendar month.
     month: str
+    # The category's default key ("Moradia"), which a rename does not change.
+    key: str | None = None
+
+    def is_(self, key: str) -> bool:
+        return (self.key or self.category) == key
 
 
 def display_name(description: str) -> str:
@@ -181,7 +186,7 @@ def _weekdays(in_window: list[Spend], end: date) -> list[Decimal]:
     start = min(r.date for r in in_window)
     sums = [ZERO] * 7
     for r in in_window:
-        if r.category != HOUSING and r.date <= end:
+        if not r.is_(HOUSING) and r.date <= end:
             sums[r.date.weekday()] += r.amount
     days = [0] * 7
     day = start
@@ -194,7 +199,7 @@ def _weekdays(in_window: list[Spend], end: date) -> list[Decimal]:
 def _peaks(in_month: list[Spend]) -> list[PeakDay]:
     by_day: dict[date, list[Spend]] = defaultdict(list)
     for r in in_month:
-        if r.category != HOUSING:
+        if not r.is_(HOUSING):
             by_day[r.date].append(r)
     peaks = []
     for day, group in by_day.items():
@@ -225,7 +230,7 @@ def _recurring(rows: list[Spend], month: str) -> list[Recurring]:
         if last_month not in recent:
             continue  # stopped: no charge this month or the one before
         category = _main_category(group)
-        if category == SUBSCRIPTIONS:
+        if any(r.is_(SUBSCRIPTIONS) for r in group if r.category == category):
             # Known subscriptions: twice is enough, and one store (Apple) may bill several.
             if len(per_month) < 2:
                 continue
@@ -272,6 +277,7 @@ async def analysis(
             Transaction.amount,
             Transaction.description,
             Category.name,
+            Category.system_key,
         )
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(
@@ -284,8 +290,8 @@ async def analysis(
     )
     conv = await converter(db, currency, lo, hi)
     rows = [
-        Spend(conv.currency(c), d, -conv(a, c, d), desc, cat, month_of(d, start_day))
-        for c, d, a, desc, cat in result
+        Spend(conv.currency(c), d, -conv(a, c, d), desc, cat, month_of(d, start_day), key)
+        for c, d, a, desc, cat, key in result
     ]
     currencies = await _currencies(db, family_id, currency)
     return Analysis(

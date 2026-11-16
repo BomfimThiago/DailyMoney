@@ -27,6 +27,9 @@ class Category(UUIDPk, CreatedAt, Base):
     )
     color: Mapped[str] = mapped_column(String(7))
     sort_order: Mapped[int] = mapped_column(SmallInteger, default=0)
+    # The default name of a seeded category. The app finds it by this key, so the family
+    # can rename it ("Mercado" → "Supermercado") and suggestions still land in it.
+    system_key: Mapped[str | None] = mapped_column(String(30), default=None)
 
 
 class CategoryRule(UUIDPk, CreatedAt, Base):

@@ -138,18 +138,20 @@ export function DeleteConfirm({
   error,
   onConfirm,
   onCancel,
+  title = 'Excluir esta transação?',
+  hint = 'Ela some dos totais e das análises. Só volta se você enviar o extrato de novo.',
 }: {
   busy: boolean;
   error: string | null;
   onConfirm: () => void;
   onCancel: () => void;
+  title?: string;
+  hint?: string;
 }) {
   return (
     <View style={styles.confirm}>
-      <Text style={styles.confirmTitle}>Excluir esta transação?</Text>
-      <Text style={styles.hint}>
-        Ela some dos totais e das análises. Só volta se você enviar o extrato de novo.
-      </Text>
+      <Text style={styles.confirmTitle}>{title}</Text>
+      <Text style={styles.hint}>{hint}</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.actions}>
         <Button label="Cancelar" onPress={onCancel} disabled={busy} style={styles.action} />
@@ -166,7 +168,7 @@ export function DeleteConfirm({
   );
 }
 
-function Field({
+export function Field({
   label,
   error,
   style,
@@ -186,7 +188,7 @@ function Field({
   );
 }
 
-function Input({
+export function Input({
   value,
   onChange,
   label,

@@ -83,6 +83,7 @@ export function SideBar() {
             badge={t.href === '/transacoes' ? pending : 0}
           />
         ))}
+        <SideLink label="Categorias" href="/categorias" on={isOn('/categorias', path)} />
         <Text style={styles.sideGroup}>DADOS</Text>
         {DATA_PAGES.map((t) => (
           <SideLink key={t.href} label={t.label} href={t.href} on={isOn(t.href, path)} />

@@ -42,3 +42,15 @@ appId: com.bomfimthiago.dailymoney
 - tapOn:
     id: tab-Início
 - assertVisible: '(?i)últimos movimentos'
+- scrollUntilVisible:
+    element:
+      id: link-categorias
+    direction: DOWN
+- tapOn:
+    id: link-categorias
+- extendedWaitUntil:
+    visible:
+      id: segment-income
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: 06-categorias

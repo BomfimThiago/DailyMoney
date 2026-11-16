@@ -46,6 +46,14 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
           {noAccounts ? null : <Recent month={home.month} />}
           <View style={styles.footer}>
             <Pressable
+              onPress={() => router.navigate('/categorias')}
+              testID="link-categorias"
+              style={styles.signOut}
+              accessibilityRole="link"
+            >
+              <Text style={styles.signOutText}>Categorias</Text>
+            </Pressable>
+            <Pressable
               onPress={() => router.navigate('/ajustes')}
               testID="link-ajustes"
               style={styles.signOut}
