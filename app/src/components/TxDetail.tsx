@@ -1,17 +1,48 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
 import { fullDate, isIncome } from '@/lib/format';
-import { updateCategory } from '@/lib/imports';
+import { deleteTransaction, updateCategory } from '@/lib/imports';
 import { useCategories } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
+type Mode = 'view' | 'edit' | 'delete';
+
 // One line of spending or income: what the statement says and its category, which the
-// person can change (spec: Trocar a categoria). Side panel on a computer, sheet on a phone.
+// person can change (spec: Trocar a categoria), edit like in the old app, or delete.
+// Side panel on a computer, sheet on a phone.
 export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => void }) {
+  const [mode, setMode] = useState<Mode>('view');
+  if (mode === 'edit') {
+    return (
+      <TxEditForm
+        t={t}
+        onSaved={() => {
+          setMode('view');
+          onChanged();
+        }}
+        onCancel={() => setMode('view')}
+      />
+    );
+  }
+  return <TxView t={t} onChanged={onChanged} mode={mode} setMode={setMode} />;
+}
+
+function TxView({
+  t,
+  onChanged,
+  mode,
+  setMode,
+}: {
+  t: Transaction;
+  onChanged: () => void;
+  mode: Mode;
+  setMode: (m: Mode) => void;
+}) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [forMerchant, setForMerchant] = useState(true);
@@ -45,12 +76,61 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
       </View>
+      {mode === 'delete' ? (
+        <Deleting t={t} onDone={onChanged} onCancel={() => setMode('view')} />
+      ) : (
+        <View style={styles.links}>
+          <Link label="Editar" onPress={() => setMode('edit')} />
+          <Link label="Excluir" onPress={() => setMode('delete')} danger />
+        </View>
+      )}
 
       <Text style={styles.section}>CATEGORIA</Text>
       <CategoryChips t={t} busy={busy} onChoose={choose} />
       <MerchantCheck on={forMerchant} onToggle={() => setForMerchant(!forMerchant)} />
       {error ? <Text style={styles.error}>{error}</Text> : null}
     </View>
+  );
+}
+
+function Deleting({
+  t,
+  onDone,
+  onCancel,
+}: {
+  t: Transaction;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteTransaction(t.id);
+      onDone();
+    } catch (e) {
+      setError(errorText(e));
+      setBusy(false);
+    }
+  };
+  return <DeleteConfirm busy={busy} error={error} onConfirm={confirm} onCancel={onCancel} />;
+}
+
+function Link({
+  label,
+  onPress,
+  danger,
+}: {
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={6}>
+      <Text style={[styles.link, danger && styles.linkDanger]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -148,6 +228,15 @@ const styles = StyleSheet.create({
   fact: { flexDirection: 'row', gap: 12 },
   factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   factValue: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
+  links: { flexDirection: 'row', gap: 18, marginTop: 2 },
+  link: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.ink,
+    textDecorationLine: 'underline',
+    textDecorationColor: colors.dashed,
+  },
+  linkDanger: { color: colors.danger },
   section: {
     fontFamily: fonts.semibold,
     fontSize: 11,

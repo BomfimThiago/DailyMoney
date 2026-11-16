@@ -1,5 +1,6 @@
 import uuid
 from datetime import timedelta
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -81,8 +82,42 @@ async def _get(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> Tran
 async def update_transaction(
     db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID, data: TransactionUpdate
 ) -> TransactionOut:
+    """The person corrects a line: description, date, amount and/or category."""
     tx = await _get(db, family_id, tx_id)
-    category = await db.get(Category, data.category_id)
+    if data.description is not None:
+        tx.description = data.description
+    if data.date is not None:
+        tx.date = data.date
+    if data.amount is not None:
+        await _change_amount(db, tx, data.amount)
+    if data.category_id is not None:
+        await _change_category(db, family_id, tx, data.category_id, data.apply_to_merchant)
+    await db.flush()
+    return await _out_of(db, tx)
+
+
+async def _change_amount(db: AsyncSession, tx: Transaction, amount: Decimal) -> None:
+    if tx.transfer_pair_id is not None:
+        other = await db.get(Transaction, tx.transfer_pair_id)
+        # Once the two sides no longer mirror each other they are not one transfer.
+        if other is None or other.amount != -amount:
+            await _unpair(db, tx)
+    if (tx.amount < 0) != (amount < 0) and tx.category_id is not None:
+        # Spending turned into income (or back): its category no longer fits.
+        category = await db.get(Category, tx.category_id)
+        if category is not None and category.kind != CategoryKind.TRANSFER:
+            tx.category_id = None
+    tx.amount = amount.quantize(Decimal("0.0001"))
+
+
+async def _change_category(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    tx: Transaction,
+    category_id: uuid.UUID,
+    apply_to_merchant: bool,
+) -> None:
+    category = await db.get(Category, category_id)
     if category is None or category.family_id != family_id:
         raise NotFoundError("Categoria não encontrada")
     kind = TxKind.TRANSFER if category.kind == CategoryKind.TRANSFER else TxKind.REGULAR
@@ -90,7 +125,7 @@ async def update_transaction(
         await _unpair(db, tx)
     tx.kind = kind
     tx.category_id = category.id
-    if data.apply_to_merchant and (key := merchant_key(tx.description)):
+    if apply_to_merchant and (key := merchant_key(tx.description)):
         await db.execute(
             insert(CategoryRule)
             .values(id=uuid.uuid4(), family_id=family_id, merchant_key=key, category_id=category.id)
@@ -98,8 +133,14 @@ async def update_transaction(
                 constraint="uq_rule_family_merchant", set_={"category_id": category.id}
             )
         )
+
+
+async def delete_transaction(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> None:
+    """Removes a line for good; the other side of a transfer goes back to waiting."""
+    tx = await _get(db, family_id, tx_id)
+    await _unpair(db, tx)
+    await db.delete(tx)
     await db.flush()
-    return await _out_of(db, tx)
 
 
 async def set_kind(

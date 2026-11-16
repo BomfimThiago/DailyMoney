@@ -528,7 +528,8 @@ export interface paths {
     get?: never;
     put?: never;
     post?: never;
-    delete?: never;
+    /** Delete Transaction */
+    delete: operations['delete_transaction_api_v1_transactions__tx_id__delete'];
     options?: never;
     head?: never;
     /** Update Transaction */
@@ -1276,16 +1277,19 @@ export interface components {
     };
     /** TransactionUpdate */
     TransactionUpdate: {
-      /**
-       * Category Id
-       * Format: uuid
-       */
-      category_id: string;
+      /** Category Id */
+      category_id?: string | null;
       /**
        * Apply To Merchant
        * @default false
        */
       apply_to_merchant: boolean;
+      /** Description */
+      description?: string | null;
+      /** Date */
+      date?: string | null;
+      /** Amount */
+      amount?: number | string | null;
     };
     /** TransferOut */
     TransferOut: {
@@ -2338,6 +2342,35 @@ export interface operations {
         content: {
           'application/json': components['schemas']['TransferOverview'];
         };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_transaction_api_v1_transactions__tx_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tx_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       /** @description Validation Error */
       422: {

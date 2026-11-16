@@ -3,10 +3,15 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 import { TxDetail } from '@/components/TxDetail';
 import { ApiError } from '@/lib/api';
-import { updateCategory } from '@/lib/imports';
+import { deleteTransaction, setKind, updateCategory, updateTransaction } from '@/lib/imports';
 import type { Category, Transaction } from '@/lib/types';
 
-jest.mock('@/lib/imports', () => ({ updateCategory: jest.fn() }));
+jest.mock('@/lib/imports', () => ({
+  updateCategory: jest.fn(),
+  updateTransaction: jest.fn(),
+  setKind: jest.fn(),
+  deleteTransaction: jest.fn(),
+}));
 const categories: Category[] = [
   { id: 'c-mercado', name: 'Mercado', kind: 'expense', color: '#000000' },
   { id: 'c-rest', name: 'Restaurantes', kind: 'expense', color: '#000000' },
@@ -17,6 +22,9 @@ jest.mock('@/lib/queries', () => ({
   useCategories: () => ({ data: categories, isError: false }),
 }));
 const mockUpdate = jest.mocked(updateCategory);
+const mockEdit = jest.mocked(updateTransaction);
+const mockKind = jest.mocked(setKind);
+const mockDelete = jest.mocked(deleteTransaction);
 
 const tx = (o: Partial<Transaction> = {}): Transaction => ({
   id: 'tx-1',
@@ -34,7 +42,7 @@ const tx = (o: Partial<Transaction> = {}): Transaction => ({
 });
 
 beforeEach(() => {
-  mockUpdate.mockReset();
+  for (const m of [mockUpdate, mockEdit, mockKind, mockDelete]) m.mockReset();
 });
 
 describe('TxDetail', () => {
@@ -73,5 +81,82 @@ describe('TxDetail', () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
     await fireEvent.press(screen.getByText('Restaurantes'));
     expect(await screen.findByText('Categoria não encontrada')).toBeTruthy();
+  });
+
+  it('edits description, date, amount and direction, sending only what changed', async () => {
+    mockEdit.mockResolvedValue(tx());
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Editar'));
+    expect(screen.getByLabelText('Valor').props.value).toBe('312,40');
+    await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Mercado do bairro');
+    await fireEvent.changeText(screen.getByLabelText('Data'), '27/11/2026');
+    await fireEvent.changeText(screen.getByLabelText('Valor'), '1.050,5');
+    await fireEvent.press(screen.getByText('Entrou dinheiro'));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(mockEdit).toHaveBeenCalledWith('tx-1', {
+      description: 'Mercado do bairro',
+      date: '2026-11-27',
+      amount: '1050.5',
+    });
+    expect(mockKind).not.toHaveBeenCalled();
+    expect(screen.getByText('Editar')).toBeTruthy();
+  });
+
+  it('says what is wrong and does not save', async () => {
+    await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
+    await fireEvent.press(screen.getByText('Editar'));
+    await fireEvent.changeText(screen.getByLabelText('Data'), '31/02/2026');
+    await fireEvent.changeText(screen.getByLabelText('Valor'), 'abc');
+    await fireEvent.press(screen.getByText('Salvar'));
+    expect(screen.getByText('Data inválida (ex.: 28/11/2026).')).toBeTruthy();
+    expect(screen.getByText('Valor inválido (ex.: 312,40).')).toBeTruthy();
+    expect(mockEdit).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Cancelar'));
+    expect(screen.getByText('Pão de Açúcar')).toBeTruthy();
+  });
+
+  it('can say the line was an investment', async () => {
+    mockKind.mockResolvedValue(tx({ kind: 'investment' }));
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Editar'));
+    await fireEvent.press(screen.getByText('Investimento'));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(mockEdit).not.toHaveBeenCalled();
+    expect(mockKind).toHaveBeenCalledWith('tx-1', 'investment');
+  });
+
+  it('shows the error when saving the edit fails', async () => {
+    mockEdit.mockRejectedValue(new ApiError(404, 'Transação não encontrada'));
+    await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
+    await fireEvent.press(screen.getByText('Editar'));
+    await fireEvent.changeText(screen.getByLabelText('Descrição'), 'Outro');
+    await fireEvent.press(screen.getByText('Salvar'));
+    expect(await screen.findByText('Transação não encontrada')).toBeTruthy();
+  });
+
+  it('deletes only after confirming', async () => {
+    mockDelete.mockResolvedValue(undefined);
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Excluir'));
+    expect(screen.getByText('Excluir esta transação?')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Cancelar'));
+    expect(mockDelete).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Excluir'));
+    await fireEvent.press(screen.getAllByText('Excluir').at(-1)!);
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(mockDelete).toHaveBeenCalledWith('tx-1');
+  });
+
+  it('shows the error when deleting fails', async () => {
+    mockDelete.mockRejectedValue(new ApiError(404, 'Transação não encontrada'));
+    await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
+    await fireEvent.press(screen.getByText('Excluir'));
+    await fireEvent.press(screen.getAllByText('Excluir').at(-1)!);
+    expect(await screen.findByText('Transação não encontrada')).toBeTruthy();
   });
 });

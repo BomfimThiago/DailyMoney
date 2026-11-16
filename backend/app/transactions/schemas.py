@@ -1,9 +1,10 @@
 import uuid
 from datetime import date
+from datetime import date as date_
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.families.models import Currency
 from app.transactions.models import TxKind
@@ -32,9 +33,17 @@ class TransactionPage(BaseModel):
 
 
 class TransactionUpdate(BaseModel):
-    category_id: uuid.UUID
+    # Only the fields sent change. The currency follows the account, so it is not here.
+    category_id: uuid.UUID | None = None
     # "Valer para as próximas deste estabelecimento" (spec: Trocar a categoria).
     apply_to_merchant: bool = False
+    description: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+        | None
+    ) = None
+    date: date_ | None = None
+    # Signed like the statement: negative is money leaving.
+    amount: Annotated[Decimal, Field(max_digits=18, decimal_places=4)] | None = None
 
 
 class KindUpdate(BaseModel):

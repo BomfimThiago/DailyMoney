@@ -95,7 +95,7 @@ function DetailPanel({ page }: { page: TransactionsPage }) {
       {page.selected ? (
         <TxDetail key={page.selected.id} t={page.selected} onChanged={page.refreshMoney} />
       ) : (
-        <Text style={styles.empty}>Clique numa linha para ver o detalhe e trocar a categoria.</Text>
+        <Text style={styles.empty}>Clique numa linha para ver o detalhe, editar ou trocar a categoria.</Text>
       )}
     </View>
   );

@@ -1,5 +1,15 @@
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 
 import { Segment } from '@/components/nav';
 import { Loadable } from '@/components/states';
@@ -85,7 +95,8 @@ export function TransfersBody({ page }: { page: TransactionsPage }) {
   );
 }
 
-// Phone: the detail slides up from the bottom; tapping outside closes it.
+// Phone: the detail slides up from the bottom; tapping outside closes it. The edit form
+// can be taller than the screen with the keyboard open, so the sheet scrolls.
 export function Sheet({
   t,
   onClose,
@@ -95,16 +106,24 @@ export function Sheet({
   onClose: () => void;
   onChanged: () => void;
 }) {
+  const { height } = useWindowDimensions();
   return (
     <Modal visible={t !== null} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.dim} onPress={onClose} accessibilityLabel="Fechar" />
-      <View style={styles.sheet}>
-        <View style={styles.grip} />
-        {t ? <TxDetail key={t.id} t={t} onChanged={onChanged} /> : null}
-        <Pressable onPress={onClose} accessibilityRole="button" style={styles.close}>
-          <Text style={styles.moreText}>Fechar</Text>
-        </Pressable>
-      </View>
+      <KeyboardAvoidingView
+        style={styles.dim}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <Pressable style={styles.dimTap} onPress={onClose} accessibilityLabel="Fechar" />
+        <View style={[styles.sheet, { maxHeight: height * 0.9 }]}>
+          <View style={styles.grip} />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetBody}>
+            {t ? <TxDetail key={t.id} t={t} onChanged={onChanged} /> : null}
+          </ScrollView>
+          <Pressable onPress={onClose} accessibilityRole="button" style={styles.close}>
+            <Text style={styles.moreText}>Fechar</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

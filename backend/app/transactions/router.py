@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, status
 
 from app.core.deps import CurrentUser, DbSession
 from app.families.models import Currency
@@ -98,6 +98,12 @@ async def update_transaction(
     result = await transaction_service.update_transaction(db, user.family_id, tx_id, data)
     await db.commit()
     return result
+
+
+@router.delete("/{tx_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_transaction(tx_id: uuid.UUID, user: CurrentUser, db: DbSession) -> None:
+    await transaction_service.delete_transaction(db, user.family_id, tx_id)
+    await db.commit()
 
 
 @router.put("/{tx_id}/kind", response_model=TransactionOut)

@@ -1,4 +1,5 @@
 import { api } from './api';
+import type { TxPatch } from './txEdit';
 import type {
   Analysis,
   Account,
@@ -204,4 +205,16 @@ export function syncConnection(id: string) {
 
 export function disconnectBank(id: string) {
   return api<void>(`/connections/${id}`, { method: 'DELETE' });
+}
+
+// Corrects a line: description, date and/or signed amount (only what changed).
+export function updateTransaction(id: string, patch: TxPatch) {
+  return api<Transaction>(`/transactions/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteTransaction(id: string) {
+  return api<void>(`/transactions/${id}`, { method: 'DELETE' });
 }

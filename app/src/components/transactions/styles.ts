@@ -94,6 +94,8 @@ export const styles = StyleSheet.create({
   transfersBox: { maxWidth: 640 },
 
   dim: { flex: 1, backgroundColor: colors.dim },
+  dimTap: { flex: 1 },
+  sheetBody: { paddingBottom: 4 },
   sheet: {
     backgroundColor: colors.page,
     borderTopLeftRadius: 18,

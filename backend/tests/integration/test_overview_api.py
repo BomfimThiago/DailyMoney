@@ -350,3 +350,91 @@ async def test_every_month_follows_the_family_start_day(client: AsyncClient) -> 
         ("2026-10", "330.0000"),
         ("2026-11", "150.0000"),
     ]
+
+
+async def _find(client: AsyncClient, h: dict[str, str], account: str, text: str) -> dict[str, Any]:
+    page = await _get(client, h, "/api/v1/transactions?limit=200")
+    return next(
+        t for t in page["items"] if t["account_name"] == account and text in t["description"]
+    )
+
+
+async def test_edit_description_date_and_amount(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    tx = await _find(client, h, "Nubank", "MERCADONA")
+    r = await client.patch(
+        f"/api/v1/transactions/{tx['id']}",
+        json={"description": "  Mercadona (feira)  ", "date": "2026-10-04", "amount": "-210.55"},
+        headers=h,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["description"] == "Mercadona (feira)"
+    assert body["date"] == "2026-10-04"
+    assert body["amount"] == "-210.5500"
+    # The category stays: still spending.
+    assert body["category_id"] == tx["category_id"]
+    summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
+    assert summary["currencies"][0]["spending"] == "360.5500"
+
+
+async def test_spending_turned_into_income_drops_its_category(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    tx = await _find(client, h, "Nubank", "MERCADONA")
+    assert tx["category_id"] is not None
+    r = await client.patch(f"/api/v1/transactions/{tx['id']}", json={"amount": "200"}, headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["category_id"] is None
+    assert r.json()["amount"] == "200.0000"
+
+
+async def test_edit_rejects_empty_description_and_other_family(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    tx = await _find(client, h, "Nubank", "MERCADONA")
+    url = f"/api/v1/transactions/{tx['id']}"
+    assert (await client.patch(url, json={"description": "   "}, headers=h)).status_code == 422
+    assert (await client.patch(url, json={"amount": "1.00001"}, headers=h)).status_code == 422
+    other = auth(await login(client, "token-partner-padded"))
+    assert (await client.patch(url, json={"description": "x"}, headers=other)).status_code == 404
+    assert (await client.delete(url, headers=other)).status_code == 404
+
+
+async def test_delete_a_line(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    tx = await _find(client, h, "Nubank", "MERCADONA")
+    r = await client.delete(f"/api/v1/transactions/{tx['id']}", headers=h)
+    assert r.status_code == 204
+    page = await _get(client, h, "/api/v1/transactions?limit=200")
+    assert tx["id"] not in [t["id"] for t in page["items"]]
+    summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
+    assert summary["currencies"][0]["spending"] == "150.0000"
+
+
+async def test_changing_or_deleting_one_side_breaks_the_transfer(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    await _import(client, h, INTER, "inter.csv", "Inter")
+    sent = await _find(client, h, "Nubank", "THIAGO BOMFIM")
+    received = await _find(client, h, "Inter", "")
+    assert sent["kind"] == received["kind"] == "transfer"
+    # Same value on both sides: still one transfer.
+    r = await client.patch(f"/api/v1/transactions/{sent['id']}", json={"amount": "-800"}, headers=h)
+    assert r.json()["kind"] == "transfer"
+    assert (await _find(client, h, "Inter", ""))["kind"] == "transfer"
+    r = await client.patch(f"/api/v1/transactions/{sent['id']}", json={"amount": "-750"}, headers=h)
+    assert (await _find(client, h, "Inter", ""))["kind"] == "pending"
+    await client.put(
+        f"/api/v1/transactions/{sent['id']}/kind", json={"kind": "transfer"}, headers=h
+    )
+    await client.patch(f"/api/v1/transactions/{sent['id']}", json={"amount": "-800"}, headers=h)
+    await client.put(
+        f"/api/v1/transactions/{sent['id']}/kind", json={"kind": "transfer"}, headers=h
+    )
+    assert (await _find(client, h, "Inter", ""))["kind"] == "transfer"
+    r = await client.delete(f"/api/v1/transactions/{sent['id']}", headers=h)
+    assert r.status_code == 204
+    assert (await _find(client, h, "Inter", ""))["kind"] == "pending"

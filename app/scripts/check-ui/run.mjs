@@ -273,6 +273,28 @@ async function checkScreens(page, tag) {
     await page.getByRole('radio', { name: 'Restaurantes' }).filter({ visible: true }).click();
     await page.waitForTimeout(400);
     if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
+    // Editing like the old app: the form, and the question before deleting.
+    await page
+      .getByRole('button', { name: 'Editar', exact: true })
+      .filter({ visible: true })
+      .click();
+    await page.getByLabel('Descrição', { exact: true }).filter({ visible: true }).waitFor();
+    await shot('transacoes-editar');
+    await page
+      .getByRole('button', { name: 'Cancelar', exact: true })
+      .filter({ visible: true })
+      .click();
+    await page
+      .getByRole('button', { name: 'Excluir', exact: true })
+      .filter({ visible: true })
+      .click();
+    await seen('Excluir esta transação?').waitFor();
+    await shot('transacoes-excluir');
+    await page
+      .getByRole('button', { name: 'Cancelar', exact: true })
+      .filter({ visible: true })
+      .click();
+    await seen('Valer também para as próximas deste estabelecimento').waitFor();
     if (tag === 'celular') {
       await page.getByRole('button', { name: 'Fechar', exact: true }).click();
       await seen('Valer também para as próximas deste estabelecimento')
