@@ -5,6 +5,7 @@ import { TxDetail } from '@/components/TxDetail';
 import { ApiError } from '@/lib/api';
 import { deleteTransaction, setKind, updateCategory, updateTransaction } from '@/lib/imports';
 import type { Category, Transaction } from '@/lib/types';
+import { category } from '@/testing/categories';
 
 jest.mock('@/lib/imports', () => ({
   updateCategory: jest.fn(),
@@ -12,14 +13,14 @@ jest.mock('@/lib/imports', () => ({
   setKind: jest.fn(),
   deleteTransaction: jest.fn(),
 }));
-const categories: Category[] = [
-  { id: 'c-mercado', name: 'Mercado', kind: 'expense', color: '#000000' },
-  { id: 'c-rest', name: 'Restaurantes', kind: 'expense', color: '#000000' },
-  { id: 'c-salario', name: 'Salário', kind: 'income', color: '#000000' },
-  { id: 'c-transf', name: 'Transferência', kind: 'transfer', color: '#000000' },
+const mockCategoryList: Category[] = [
+  category({ id: 'c-mercado', name: 'Mercado' }),
+  category({ id: 'c-rest', name: 'Restaurantes' }),
+  category({ id: 'c-salario', name: 'Salário', kind: 'income' }),
+  category({ id: 'c-transf', name: 'Transferência', kind: 'transfer' }),
 ];
 jest.mock('@/lib/queries', () => ({
-  useCategories: () => ({ data: categories, isError: false }),
+  useCategories: () => ({ data: mockCategoryList, isError: false }),
 }));
 const mockUpdate = jest.mocked(updateCategory);
 const mockEdit = jest.mocked(updateTransaction);

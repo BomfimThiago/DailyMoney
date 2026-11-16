@@ -400,6 +400,22 @@ async function checkScreens(page, tag) {
     await page.goto(`${base}/conexoes/retorno-brasil`);
     await seen('Nubank conectado').waitFor({ timeout: 5000 });
     await shot('conexoes-retorno-brasil');
+    // Categorias: the list, one category with its learned merchants, and a new one.
+    await page.goto(`${base}/categorias`);
+    await seen('Pets').waitFor();
+    await page.waitForLoadState('networkidle');
+    if (tag === 'celular') await shot('categorias');
+    await page.getByTestId('category-Mercado').filter({ visible: true }).click();
+    await seen('Pao de acucar').waitFor({ timeout: 5000 });
+    await shot('categorias-detalhe');
+    if (tag === 'celular') await page.getByRole('button', { name: 'Fechar' }).last().click();
+    await page
+      .getByText('Nova categoria', { exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen('Criar categoria').waitFor();
+    await shot('categorias-nova');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();

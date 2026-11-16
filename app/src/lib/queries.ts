@@ -17,6 +17,7 @@ import {
   listBankRequests,
   listAccounts,
   listCategories,
+  listCategoryRules,
   listImports,
   listTransactions,
   type TxFilters,
@@ -130,6 +131,14 @@ export function useImports(enabled: boolean) {
 
 export function useCategories(enabled: boolean) {
   return useQuery({ queryKey: ['money', 'categories'], queryFn: listCategories, enabled });
+}
+
+export function useCategoryRules(id: string | null) {
+  return useQuery({
+    queryKey: ['money', 'categories', id, 'rules'],
+    queryFn: () => listCategoryRules(id!),
+    enabled: id !== null,
+  });
 }
 
 // Under "money": a sync brings transactions, so it refreshes with the rest.

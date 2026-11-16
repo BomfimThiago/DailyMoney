@@ -186,8 +186,61 @@ export interface paths {
     /** List Categories */
     get: operations['list_categories_api_v1_categories_get'];
     put?: never;
+    /** Create Category */
+    post: operations['create_category_api_v1_categories_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/categories/{category_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Category */
+    delete: operations['delete_category_api_v1_categories__category_id__delete'];
+    options?: never;
+    head?: never;
+    /** Update Category */
+    patch: operations['update_category_api_v1_categories__category_id__patch'];
+    trace?: never;
+  };
+  '/api/v1/categories/{category_id}/rules': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Category Rules */
+    get: operations['category_rules_api_v1_categories__category_id__rules_get'];
+    put?: never;
     post?: never;
     delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/categories/rules/{rule_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete Rule */
+    delete: operations['delete_rule_api_v1_categories_rules__rule_id__delete'];
     options?: never;
     head?: never;
     patch?: never;
@@ -693,6 +746,14 @@ export interface components {
       /** Average */
       average: string;
     };
+    /** CategoryCreate */
+    CategoryCreate: {
+      /** Name */
+      name: string;
+      kind: components['schemas']['CategoryKind'];
+      /** Color */
+      color: string;
+    };
     /**
      * CategoryKind
      * @enum {string}
@@ -710,6 +771,28 @@ export interface components {
       kind: components['schemas']['CategoryKind'];
       /** Color */
       color: string;
+      /**
+       * Is Default
+       * @default false
+       */
+      is_default: boolean;
+      /**
+       * Transaction Count
+       * @default 0
+       */
+      transaction_count: number;
+      /**
+       * Rule Count
+       * @default 0
+       */
+      rule_count: number;
+    };
+    /** CategoryUpdate */
+    CategoryUpdate: {
+      /** Name */
+      name?: string | null;
+      /** Color */
+      color?: string | null;
     };
     /** ConfirmRequest */
     ConfirmRequest: {
@@ -1197,6 +1280,19 @@ export interface components {
       row: number;
       /** Message */
       message: string;
+    };
+    /** RuleOut */
+    RuleOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Merchant
+       * @example grupo ahorramas
+       */
+      merchant: string;
     };
     /** SpendingShare */
     SpendingShare: {
@@ -1728,6 +1824,163 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['CategoryOut'][];
+        };
+      };
+    };
+  };
+  create_category_api_v1_categories_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CategoryCreate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CategoryOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_category_api_v1_categories__category_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        category_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  update_category_api_v1_categories__category_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        category_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CategoryUpdate'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CategoryOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  category_rules_api_v1_categories__category_id__rules_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        category_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RuleOut'][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  delete_rule_api_v1_categories_rules__rule_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        rule_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
