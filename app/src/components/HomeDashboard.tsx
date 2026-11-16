@@ -3,7 +3,7 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { Breakdown } from '@/components/home/Breakdown';
 import { Pace } from '@/components/home/Pace';
-import { type Home, NoAccounts, PendingLink } from '@/components/home/shared';
+import { type Home, NoAccounts, PendingLink, ReviewLink } from '@/components/home/shared';
 import { SpendingCalendar } from '@/components/home/SpendingCalendar';
 import { dash as styles } from '@/components/home/styles';
 import { MonthNav } from '@/components/nav';
@@ -63,6 +63,7 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
   return (
     <>
       <Figures month={home.month} start={start} shown={shown} dash={dash} />
+      <ReviewLink count={summary.to_review} />
       <PendingLink count={summary.pending_transfers} />
       <Loadable
         isError={query.isError}

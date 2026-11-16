@@ -16,7 +16,7 @@ from app.categories.services import category_service
 from app.categories.services.categorize import TRANSFER, Categorizer
 from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
-from app.families.models import Currency, Member, User
+from app.families.models import Currency, Family, Member, User
 from app.imports.models import ImportStatus, StatementImport
 from app.imports.schemas import (
     AccountChoice,
@@ -33,7 +33,7 @@ from app.imports.services.self_transfer import looks_like_self_transfer
 from app.imports.services.transfers import MAX_DAYS, Candidate, pair_transfers
 from app.statements.parsing.reader import read_statement
 from app.statements.parsing.types import ParsedStatement
-from app.transactions.models import Transaction, TxKind
+from app.transactions.models import ReviewStatus, Transaction, TxKind
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
 
@@ -466,6 +466,7 @@ async def _transfer_candidates(
         Transaction.currency == Currency(currency),
         Transaction.kind != TxKind.INVESTMENT,
         Transaction.transfer_pair_id.is_(None),
+        Transaction.review != ReviewStatus.REJECTED,
         Transaction.date.between(lo, hi),
     )
     if account is not None:
@@ -540,6 +541,7 @@ async def _chosen_account(
 
 async def _save(db: AsyncSession, imp: StatementImport, plans: list[_GroupPlan]) -> GroupCounts:
     categories = await category_service.categories_by_name(db, imp.family_id)
+    review = await _review_status(db, imp.family_id)
     rows = _rows(imp)
     counts = GroupCounts()
     for plan in plans:
@@ -547,8 +549,14 @@ async def _save(db: AsyncSession, imp: StatementImport, plans: list[_GroupPlan])
         for p in plan.rows:
             setattr(counts, p.status, getattr(counts, p.status) + 1)
             if p.status == "new":
-                await _save_row(db, imp, plan.account, rows[p.index], p, categories)
+                await _save_row(db, imp, plan.account, rows[p.index], p, categories, review)
     return counts
+
+
+async def _review_status(db: AsyncSession, family_id: uuid.UUID) -> ReviewStatus:
+    """New lines wait for the person's approval while the family asks to review imports."""
+    review_imports = await db.scalar(select(Family.review_imports).where(Family.id == family_id))
+    return ReviewStatus.PENDING if review_imports else ReviewStatus.APPROVED
 
 
 async def _save_row(
@@ -558,6 +566,7 @@ async def _save_row(
     row: _Row,
     p: _Planned,
     categories: dict[str, Category],
+    review: ReviewStatus,
 ) -> None:
     category = categories.get(p.category or "")
     tx = Transaction(
@@ -576,6 +585,7 @@ async def _save_row(
         source_format=imp.format,
         kind=p.kind,
         transfer_pair_id=p.pair_id,
+        review=review,
     )
     db.add(tx)
     if p.pair_id:
@@ -594,6 +604,16 @@ async def _mark_pair(
     other.transfer_pair_id = tx.id
     if transfer_category is not None:
         other.category_id = transfer_category.id
+
+
+async def waiting_review(db: AsyncSession, import_id: uuid.UUID) -> int:
+    """How many lines of an import still wait for the person's approval."""
+    count = await db.scalar(
+        select(func.count())
+        .select_from(Transaction)
+        .where(Transaction.import_id == import_id, Transaction.review == ReviewStatus.PENDING)
+    )
+    return count or 0
 
 
 async def cancel(imp: StatementImport) -> StatementImport:

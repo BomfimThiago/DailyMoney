@@ -11,7 +11,7 @@ import { hasNoAccounts } from '@/lib/home';
 import { useRecent } from '@/lib/queries';
 import type { CurrencySummary, TransactionPage } from '@/lib/types';
 
-import { type Home, NoAccounts, PendingLink } from './shared';
+import { type Home, NoAccounts, PendingLink, ReviewLink } from './shared';
 import { phone as styles } from './styles';
 
 // Início on a phone: variant A from the validated mock (Entradas · Gastos · Investido and
@@ -41,6 +41,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
               )
             }
           </Loadable>
+          <ReviewLink count={home.summary?.to_review ?? 0} style={styles.pending} />
           <PendingLink count={home.summary?.pending_transfers ?? 0} style={styles.pending} />
           {noAccounts ? null : <Recent month={home.month} />}
           <View style={styles.footer}>

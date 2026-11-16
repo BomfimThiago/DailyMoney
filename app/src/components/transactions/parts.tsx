@@ -17,26 +17,36 @@ import { Transfers } from '@/components/Transfers';
 import { TxDetail } from '@/components/TxDetail';
 import { emptyListText, remaining } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
-import type { TransactionsPage } from '@/lib/useTransactionsPage';
+import type { Tab, TransactionsPage } from '@/lib/useTransactionsPage';
 import { colors } from '@/theme';
 
 import { styles } from './styles';
 
-export function TabSegment({ page }: { page: TransactionsPage }) {
-  return (
-    <Segment
-      options={[
-        { value: 'lista', label: 'Gastos e entradas' },
-        {
-          value: 'transferencias',
-          label: 'Transferências',
-          badge: page.transfers.data?.pending.length ?? 0,
-        },
-      ]}
-      value={page.tab}
-      onChange={page.setTab}
-    />
-  );
+// "Para revisar" only shows while imported lines wait for approval (or while open).
+export function showsReview(page: TransactionsPage): boolean {
+  return (page.review.data?.total ?? 0) > 0 || page.tab === 'revisar';
+}
+
+// On a phone three tabs don't fit with the long names, so they get short ones.
+export function TabSegment({ page, wide = false }: { page: TransactionsPage; wide?: boolean }) {
+  const three = showsReview(page);
+  const short = three && !wide;
+  const options: { value: Tab; label: string; badge?: number }[] = [
+    { value: 'lista', label: short ? 'Lista' : 'Gastos e entradas' },
+    {
+      value: 'transferencias',
+      label: 'Transferências',
+      badge: page.transfers.data?.pending.length ?? 0,
+    },
+  ];
+  if (three) {
+    options.push({
+      value: 'revisar',
+      label: short ? 'Revisar' : 'Para revisar',
+      badge: page.review.data?.total ?? 0,
+    });
+  }
+  return <Segment options={options} value={page.tab} onChange={page.setTab} />;
 }
 
 // The month's lines once loaded; a short text when there are none or they failed.

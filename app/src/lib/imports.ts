@@ -19,6 +19,8 @@ import type {
   InvestmentOverview,
   MonthDashboard,
   MonthSummary,
+  ReviewQueue,
+  ReviewResult,
   Transaction,
   TransactionPage,
   TransferOverview,
@@ -241,4 +243,17 @@ export function updateTransaction(id: string, patch: TxPatch) {
 
 export function deleteTransaction(id: string) {
   return api<void>(`/transactions/${id}`, { method: 'DELETE' });
+}
+
+// Imported lines waiting for approval, by upload or bank read (any month).
+export function getReviewQueue(currency: Currency) {
+  return api<ReviewQueue>(`/transactions/review?currency=${currency}`);
+}
+
+// Approve (the lines start counting) or turn down (hidden for good) imported lines.
+export function decideReview(ids: string[], decision: 'approve' | 'reject') {
+  return api<ReviewResult>('/transactions/review', {
+    method: 'POST',
+    body: JSON.stringify({ ids, decision }),
+  });
 }

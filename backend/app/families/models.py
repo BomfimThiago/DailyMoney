@@ -2,7 +2,16 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, SmallInteger, String, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    SmallInteger,
+    String,
+    UniqueConstraint,
+    true,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, CreatedAt, UUIDPk
@@ -22,6 +31,9 @@ class Family(UUIDPk, CreatedAt, Base):
         Enum(Currency, name="currency"), default=Currency.BRL
     )
     month_start_day: Mapped[int] = mapped_column(SmallInteger, default=1)
+    # Imported lines (statements and bank syncs) wait for the person's approval before
+    # they count. On while the imports are new and not yet trusted.
+    review_imports: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
 
     users: Mapped[list["User"]] = relationship(back_populates="family")
     members: Mapped[list["Member"]] = relationship(

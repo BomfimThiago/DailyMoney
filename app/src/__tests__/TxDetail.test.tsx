@@ -3,7 +3,13 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 import { TxDetail } from '@/components/TxDetail';
 import { ApiError } from '@/lib/api';
-import { deleteTransaction, setKind, updateCategory, updateTransaction } from '@/lib/imports';
+import {
+  decideReview,
+  deleteTransaction,
+  setKind,
+  updateCategory,
+  updateTransaction,
+} from '@/lib/imports';
 import type { Category, Transaction } from '@/lib/types';
 import { category } from '@/testing/categories';
 
@@ -12,6 +18,7 @@ jest.mock('@/lib/imports', () => ({
   updateTransaction: jest.fn(),
   setKind: jest.fn(),
   deleteTransaction: jest.fn(),
+  decideReview: jest.fn(),
 }));
 const mockCategoryList: Category[] = [
   category({ id: 'c-mercado', name: 'Mercado' }),
@@ -26,6 +33,7 @@ const mockUpdate = jest.mocked(updateCategory);
 const mockEdit = jest.mocked(updateTransaction);
 const mockKind = jest.mocked(setKind);
 const mockDelete = jest.mocked(deleteTransaction);
+const mockDecide = jest.mocked(decideReview);
 
 const tx = (o: Partial<Transaction> = {}): Transaction => ({
   id: 'tx-1',
@@ -39,11 +47,12 @@ const tx = (o: Partial<Transaction> = {}): Transaction => ({
   category_id: 'c-mercado',
   category_name: 'Mercado',
   member_id: null,
+  review: 'approved',
   ...o,
 });
 
 beforeEach(() => {
-  for (const m of [mockUpdate, mockEdit, mockKind, mockDelete]) m.mockReset();
+  for (const m of [mockUpdate, mockEdit, mockKind, mockDelete, mockDecide]) m.mockReset();
 });
 
 describe('TxDetail', () => {
@@ -159,5 +168,23 @@ describe('TxDetail', () => {
     await fireEvent.press(screen.getByText('Excluir'));
     await fireEvent.press(screen.getAllByText('Excluir').at(-1)!);
     expect(await screen.findByText('Transação não encontrada')).toBeTruthy();
+  });
+
+  it('approves or turns down a line that just came in', async () => {
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    expect(screen.queryByText(/esperando sua aprovação/)).toBeNull();
+    await render(<TxDetail t={tx({ review: 'pending' })} onChanged={onChanged} />);
+    expect(screen.getByText('Importada, esperando sua aprovação para contar.')).toBeTruthy();
+    mockDecide.mockResolvedValue({ count: 1, left: 0 });
+    await fireEvent.press(screen.getByText('Aprovar'));
+    expect(mockDecide).toHaveBeenCalledWith(['tx-1'], 'approve');
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+
+    mockDecide.mockRejectedValue(new ApiError(500, 'Fora do ar'));
+    await render(<TxDetail t={tx({ review: 'pending' })} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Rejeitar'));
+    expect(mockDecide).toHaveBeenLastCalledWith(['tx-1'], 'reject');
+    expect(await screen.findByText('Fora do ar')).toBeTruthy();
   });
 });

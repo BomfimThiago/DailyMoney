@@ -60,7 +60,7 @@ export function SideBar() {
   const signedIn = state.status === 'signedIn';
   const summary = useSummary(useCurrentMonth(), signedIn);
   if (!signedIn) return null;
-  const pending = summary.data?.pending_transfers ?? 0;
+  const pending = (summary.data?.pending_transfers ?? 0) + (summary.data?.to_review ?? 0);
   const me = state.me;
   return (
     <View style={styles.side} accessibilityRole="navigation">

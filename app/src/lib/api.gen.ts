@@ -571,6 +571,30 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/review': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Review Queue
+     * @description Imported lines waiting for approval, by upload or bank read.
+     */
+    get: operations['review_queue_api_v1_transactions_review_get'];
+    put?: never;
+    /**
+     * Decide
+     * @description Approve imported lines (they start counting) or turn them down.
+     */
+    post: operations['decide_api_v1_transactions_review_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/{tx_id}': {
     parameters: {
       query?: never;
@@ -909,6 +933,8 @@ export interface components {
       display_currency: components['schemas']['Currency'];
       /** Month Start Day */
       month_start_day: number;
+      /** Review Imports */
+      review_imports: boolean;
       /** Members */
       members: components['schemas']['MemberOut'][];
     };
@@ -919,6 +945,8 @@ export interface components {
       display_currency?: components['schemas']['Currency'] | null;
       /** Month Start Day */
       month_start_day?: number | null;
+      /** Review Imports */
+      review_imports?: boolean | null;
     };
     /** FinishIn */
     FinishIn: {
@@ -1033,6 +1061,11 @@ export interface components {
       created_at: string;
       /** Finished At */
       finished_at: string | null;
+      /**
+       * To Review
+       * @default 0
+       */
+      to_review: number;
     };
     /** InvestmentMonth */
     InvestmentMonth: {
@@ -1191,6 +1224,11 @@ export interface components {
       currencies: components['schemas']['CurrencySummary'][];
       /** Pending Transfers */
       pending_transfers: number;
+      /**
+       * To Review
+       * @default 0
+       */
+      to_review: number;
     };
     /** NewAccount */
     NewAccount: {
@@ -1274,6 +1312,51 @@ export interface components {
       /** Refresh Token */
       refresh_token: string;
     };
+    /** ReviewDecision */
+    ReviewDecision: {
+      /** Ids */
+      ids: string[];
+      /**
+       * Decision
+       * @enum {string}
+       */
+      decision: 'approve' | 'reject';
+    };
+    /** ReviewGroup */
+    ReviewGroup: {
+      /** Import Id */
+      import_id: string | null;
+      /** Label */
+      label: string;
+      /**
+       * Source
+       * @enum {string}
+       */
+      source: 'statement' | 'bank';
+      /** Imported At */
+      imported_at?: string | null;
+      /** Items */
+      items: components['schemas']['TransactionOut'][];
+    };
+    /** ReviewQueue */
+    ReviewQueue: {
+      /** Total */
+      total: number;
+      /** Groups */
+      groups: components['schemas']['ReviewGroup'][];
+    };
+    /** ReviewResult */
+    ReviewResult: {
+      /** Count */
+      count: number;
+      /** Left */
+      left: number;
+    };
+    /**
+     * ReviewStatus
+     * @enum {string}
+     */
+    ReviewStatus: 'approved' | 'pending' | 'rejected';
     /** RowErrorOut */
     RowErrorOut: {
       /** Row */
@@ -1360,6 +1443,8 @@ export interface components {
       category_name: string | null;
       /** Member Id */
       member_id: string | null;
+      /** @default approved */
+      review: components['schemas']['ReviewStatus'];
       /** Display Amount */
       display_amount?: string | null;
       display_currency?: components['schemas']['Currency'] | null;
@@ -2594,6 +2679,70 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransferOverview'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  review_queue_api_v1_transactions_review_get: {
+    parameters: {
+      query?: {
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReviewQueue'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  decide_api_v1_transactions_review_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ReviewDecision'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ReviewResult'];
         };
       };
       /** @description Validation Error */

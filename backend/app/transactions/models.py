@@ -30,6 +30,17 @@ class TxKind(enum.StrEnum):
     PENDING = "pending"
 
 
+class ReviewStatus(enum.StrEnum):
+    # Counts everywhere.
+    APPROVED = "approved"
+    # Just imported (statement or bank sync): waits for the person to approve it and,
+    # until then, stays out of every figure (like the old app's review screen).
+    PENDING = "pending"
+    # Turned down in the review: hidden everywhere, but kept so the next read of the
+    # same statement or bank doesn't bring it back.
+    REJECTED = "rejected"
+
+
 class Transaction(UUIDPk, CreatedAt, Base):
     __tablename__ = "transaction"
     __table_args__ = (
@@ -37,6 +48,7 @@ class Transaction(UUIDPk, CreatedAt, Base):
         UniqueConstraint("account_id", "source_key", name="uq_transaction_account_source"),
         Index("ix_transaction_family_date", "family_id", "date"),
         Index("ix_transaction_account_date", "account_id", "date"),
+        Index("ix_transaction_family_review", "family_id", "review"),
     )
 
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("family.id", ondelete="CASCADE"))
@@ -65,3 +77,12 @@ class Transaction(UUIDPk, CreatedAt, Base):
     transfer_pair_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("transaction.id", ondelete="SET NULL")
     )
+    review: Mapped[ReviewStatus] = mapped_column(
+        Enum(ReviewStatus, name="review_status", values_callable=lambda e: [m.value for m in e]),
+        default=ReviewStatus.APPROVED,
+        server_default=ReviewStatus.APPROVED.value,
+    )
+
+
+# Only approved lines count in figures, lists and analyses.
+APPROVED = Transaction.review == ReviewStatus.APPROVED

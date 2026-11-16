@@ -18,7 +18,7 @@ from app.families.models import Currency, Family
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
 from app.statements.parsing.own_moves import product_name
-from app.transactions.models import Transaction, TxKind
+from app.transactions.models import APPROVED, ReviewStatus, Transaction, TxKind
 from app.transactions.schemas import (
     CurrencyDashboard,
     CurrencySummary,
@@ -61,6 +61,7 @@ async def month_summary(
     rows = await db.execute(
         select(Transaction.currency, Transaction.kind, Transaction.amount, Transaction.date).where(
             Transaction.family_id == family_id,
+            APPROVED,
             Transaction.date.between(lo, hi),
             Transaction.kind.in_([TxKind.REGULAR, TxKind.INVESTMENT]),
         )
@@ -89,12 +90,18 @@ async def month_summary(
                 left=s["income"] - s["spending"] - invested,
             )
         )
-    pending = await db.scalar(
+    pending = await _count(db, family_id, APPROVED, Transaction.kind == TxKind.PENDING)
+    to_review = await _count(db, family_id, Transaction.review == ReviewStatus.PENDING)
+    return MonthSummary(month=month, currencies=out, pending_transfers=pending, to_review=to_review)
+
+
+async def _count(db: AsyncSession, family_id: uuid.UUID, *where: object) -> int:
+    count = await db.scalar(
         select(func.count())
         .select_from(Transaction)
-        .where(Transaction.family_id == family_id, Transaction.kind == TxKind.PENDING)
+        .where(Transaction.family_id == family_id, *where)  # type: ignore[arg-type]
     )
-    return MonthSummary(month=month, currencies=out, pending_transfers=pending or 0)
+    return count or 0
 
 
 OTHER_CATEGORY = "Outros"
@@ -116,6 +123,7 @@ async def month_dashboard(
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(
             Transaction.family_id == family_id,
+            APPROVED,
             Transaction.kind == TxKind.REGULAR,
             Transaction.amount < 0,
             Transaction.date.between(prev_lo, hi),
@@ -168,7 +176,7 @@ async def _with_names(
         select(Transaction, Account.name, Category.name)
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .where(Transaction.family_id == family_id, *where)  # type: ignore[arg-type]
+        .where(Transaction.family_id == family_id, APPROVED, *where)  # type: ignore[arg-type]
         .order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id)
     )
     return [(tx, account_name, category_name) for tx, account_name, category_name in rows]

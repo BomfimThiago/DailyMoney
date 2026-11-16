@@ -47,6 +47,7 @@ const tx = (account, d, description, amount, kind = 'regular', category = null) 
   category_id: category ? `cat-${category}` : null,
   category_name: category,
   member_id: null,
+  review: 'approved',
 });
 
 const regular = [
@@ -72,6 +73,35 @@ const investments = [
 const pending = [tx(accounts.nubank, 26, 'Pix enviado: Thiago Bomfim', '-400.00', 'pending')];
 
 // Início on a computer: spending per day (this month and the one before), shares.
+// Lines that came in and wait for approval: a bank read and a sent statement.
+const waiting = (account, d, description, amount, category) => ({
+  ...tx(account, d, description, amount, 'regular', category),
+  review: 'pending',
+});
+const toReview = [
+  {
+    import_id: 'imp-sync-wise',
+    label: 'Wise · Wise EUR',
+    source: 'bank',
+    imported_at: `${day(27)}T06:00:00Z`,
+    items: [
+      waiting(accounts.wise, 27, 'Mercadona', '-23.40', 'Mercado'),
+      waiting(accounts.wise, 26, 'Metro de Madrid', '-12.00', 'Transporte'),
+      waiting(accounts.wise, 26, 'Cafe Comercial', '-4.80', 'Restaurantes'),
+    ],
+  },
+  {
+    import_id: 'imp-nubank-novembro.ofx',
+    label: 'nubank-novembro.ofx',
+    source: 'statement',
+    imported_at: `${day(25)}T21:10:00Z`,
+    items: [
+      waiting(accounts.nubank, 25, 'iFood *Pizzaria', '-68.90', 'Restaurantes'),
+      waiting(accounts.nubank, 24, 'Drogasil', '-41.30', 'Saúde'),
+    ],
+  },
+];
+
 const daysIn = (offset) => {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0));
   return d.getUTCDate();
@@ -109,6 +139,7 @@ const importDone = (filename, format, bank, imported, duplicates, d) => ({
   skipped_count: 0,
   created_at: `${day(d)}T12:00:00Z`,
   finished_at: `${day(d)}T12:00:05Z`,
+  to_review: 0,
 });
 
 export const fixtures = {
@@ -122,6 +153,7 @@ export const fixtures = {
       name: 'Família',
       display_currency: 'BRL',
       month_start_day: 1,
+      review_imports: true,
       members: [{ id: 'mem-1', name: 'Pessoa', color: '#3D5AC2', user_id: 'user-1' }],
     },
   },
@@ -231,6 +263,11 @@ export const fixtures = {
       },
     ],
     pending_transfers: pending.length,
+    to_review: toReview.reduce((n, g) => n + g.items.length, 0),
+  },
+  '/transactions/review': {
+    total: toReview.reduce((n, g) => n + g.items.length, 0),
+    groups: toReview,
   },
   '/transactions/dashboard': {
     month,

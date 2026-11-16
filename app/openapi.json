@@ -1757,6 +1757,102 @@
         }
       }
     },
+    "/api/v1/transactions/review": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Review Queue",
+        "description": "Imported lines waiting for approval, by upload or bank read.",
+        "operationId": "review_queue_api_v1_transactions_review_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewQueue"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["transactions"],
+        "summary": "Decide",
+        "description": "Approve imported lines (they start counting) or turn them down.",
+        "operationId": "decide_api_v1_transactions_review_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions/{tx_id}": {
       "patch": {
         "tags": ["transactions"],
@@ -2646,6 +2742,10 @@
             "type": "integer",
             "title": "Month Start Day"
           },
+          "review_imports": {
+            "type": "boolean",
+            "title": "Review Imports"
+          },
           "members": {
             "items": {
               "$ref": "#/components/schemas/MemberOut"
@@ -2655,7 +2755,14 @@
           }
         },
         "type": "object",
-        "required": ["id", "name", "display_currency", "month_start_day", "members"],
+        "required": [
+          "id",
+          "name",
+          "display_currency",
+          "month_start_day",
+          "review_imports",
+          "members"
+        ],
         "title": "FamilyOut"
       },
       "FamilyUpdate": {
@@ -2695,6 +2802,17 @@
               }
             ],
             "title": "Month Start Day"
+          },
+          "review_imports": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Imports"
           }
         },
         "type": "object",
@@ -2985,6 +3103,11 @@
               }
             ],
             "title": "Finished At"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review",
+            "default": 0
           }
         },
         "type": "object",
@@ -3363,6 +3486,11 @@
           "pending_transfers": {
             "type": "integer",
             "title": "Pending Transfers"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review",
+            "default": 0
           }
         },
         "type": "object",
@@ -3586,6 +3714,113 @@
         "required": ["refresh_token"],
         "title": "RefreshRequest"
       },
+      "ReviewDecision": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "minItems": 1,
+            "title": "Ids"
+          },
+          "decision": {
+            "type": "string",
+            "enum": ["approve", "reject"],
+            "title": "Decision"
+          }
+        },
+        "type": "object",
+        "required": ["ids", "decision"],
+        "title": "ReviewDecision"
+      },
+      "ReviewGroup": {
+        "properties": {
+          "import_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["statement", "bank"],
+            "title": "Source"
+          },
+          "imported_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imported At"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TransactionOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": ["import_id", "label", "source", "items"],
+        "title": "ReviewGroup"
+      },
+      "ReviewQueue": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          }
+        },
+        "type": "object",
+        "required": ["total", "groups"],
+        "title": "ReviewQueue"
+      },
+      "ReviewResult": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "left": {
+            "type": "integer",
+            "title": "Left"
+          }
+        },
+        "type": "object",
+        "required": ["count", "left"],
+        "title": "ReviewResult"
+      },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": ["approved", "pending", "rejected"],
+        "title": "ReviewStatus"
+      },
       "RowErrorOut": {
         "properties": {
           "row": {
@@ -3763,6 +3998,10 @@
               }
             ],
             "title": "Member Id"
+          },
+          "review": {
+            "$ref": "#/components/schemas/ReviewStatus",
+            "default": "approved"
           },
           "display_amount": {
             "anyOf": [

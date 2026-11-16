@@ -14,6 +14,7 @@ export const movement = builder<Transaction>(() => ({
   category_id: null,
   category_name: 'Aplicação',
   member_id: null,
+  review: 'approved',
 }));
 
 export const overview = builder<InvestmentOverview>(() => ({

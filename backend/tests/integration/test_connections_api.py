@@ -15,7 +15,7 @@ from httpx import AsyncClient
 from app.connections import daily
 from app.connections.services import connection_service, enablebanking, pluggy
 from app.core.config import settings
-from tests.integration.conftest import auth, login
+from tests.integration.conftest import approve_all, auth, login
 
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 PEM = KEY.private_bytes(
@@ -177,6 +177,14 @@ async def test_connect_wise_reads_into_the_existing_account_without_duplicates(
     # Cafe and the salary are new; Mercadona was in the statement; the pending one waits.
     assert (eur["name"], eur["new"], eur["duplicate"], eur["error"]) == ("Wise EUR", 2, 1, None)
 
+    # Lines read from the bank wait for approval, like a sent statement.
+    queue = (await client.get("/api/v1/transactions/review", headers=h)).json()
+    assert sorted((g["source"], g["label"], len(g["items"])) for g in queue["groups"]) == [
+        ("bank", "Wise · Wise EUR", 2),
+        ("statement", "w.csv", 1),
+    ]
+    await approve_all(client, h)
+
     txs = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()["items"]
     assert sorted(float(t["amount"]) for t in txs) == [-45.2, -12.0, 2000.0]
     # Reads of a connected bank don't show as sent statements.
@@ -245,6 +253,7 @@ async def test_disconnect_keeps_transactions_and_hides_from_other_families(
     assert (await client.delete(f"/api/v1/connections/{conn_id}", headers=h)).status_code == 204
     assert fake_eb.deleted == ["sess-1"]
     assert (await client.get("/api/v1/connections", headers=h)).json()["connections"] == []
+    await approve_all(client, h)
     txs = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()["items"]
     assert len(txs) == 3
 
@@ -362,6 +371,7 @@ async def test_a_bank_authorized_in_meu_pluggy_shows_up_and_syncs(
         ("Nubank BRL", 3),
         ("Nubank cartão", 2),
     ]
+    await approve_all(client, h)
     txs = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()["items"]
     by = {t["description"]: (t["date"], t["amount"], t["kind"]) for t in txs}
     # 02:00 UTC is still the day before in Brasília.

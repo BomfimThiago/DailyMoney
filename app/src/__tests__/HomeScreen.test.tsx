@@ -92,6 +92,7 @@ describe('HomeScreen on the phone', () => {
       pathname: '/transacoes',
       params: { aba: 'transferencias' },
     });
+    expect(screen.queryByTestId('review-link')).toBeNull();
     await fireEvent.press(screen.getByText('Ver todas as 9'));
     expect(router.navigate).toHaveBeenCalledWith('/transacoes');
     await fireEvent.press(screen.getByText('Enviar extrato'));
@@ -161,6 +162,17 @@ describe('HomeScreen on a computer', () => {
     expect(screen.getByLabelText('2: sem gastos')).toBeTruthy();
     await fireEvent.press(screen.getByText('EUR'));
     expect(screen.getByText('1.200')).toBeTruthy();
+  });
+
+  it('points to the imported lines waiting for review', async () => {
+    wide();
+    summary({ data: monthSummary({ to_review: 5 }) });
+    await render(withCurrency(<HomeScreen />));
+    await fireEvent.press(screen.getByText('5 transações para revisar'));
+    expect(router.navigate).toHaveBeenCalledWith({
+      pathname: '/transacoes',
+      params: { aba: 'revisar' },
+    });
   });
 
   it('stacks the cards on a narrow computer, even for a month without spending', async () => {

@@ -9,7 +9,8 @@ import type { TransactionsPage } from '@/lib/useTransactionsPage';
 import { colors } from '@/theme';
 
 import { FilterMenu } from './FilterMenu';
-import { ListBody, MoreButton, TabSegment, TransfersBody } from './parts';
+import { ReviewBody } from './Review';
+import { ListBody, MoreButton, showsReview, TabSegment, TransfersBody } from './parts';
 import { styles } from './styles';
 
 // Computer: a table with search and filters, and the detail beside it.
@@ -25,8 +26,8 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
           </View>
         </View>
         <View style={styles.toolbar}>
-          <View style={styles.segmentBox}>
-            <TabSegment page={page} />
+          <View style={[styles.segmentBox, showsReview(page) && styles.segmentBoxThree]}>
+            <TabSegment page={page} wide />
           </View>
           {page.tab === 'lista' ? <Filters page={page} /> : null}
         </View>
@@ -45,6 +46,13 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
                   </>
                 )}
               </ListBody>
+            </View>
+            <DetailPanel page={page} />
+          </View>
+        ) : page.tab === 'revisar' ? (
+          <View style={styles.split}>
+            <View style={styles.tableBox}>
+              <ReviewBody page={page} wide />
             </View>
             <DetailPanel page={page} />
           </View>

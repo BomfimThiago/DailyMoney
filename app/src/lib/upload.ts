@@ -122,7 +122,12 @@ export function sinceOptions(preview: ImportPreview): SinceOption[] {
   return options.length > 1 ? options : [];
 }
 
+export function reviewLabel(count: number): string {
+  return plural(count, '1 transação para revisar', (n) => `${n} transações para revisar`);
+}
+
 export function doneTitle(summary: ImportSummary): string {
+  if (summary.to_review > 0) return reviewLabel(summary.to_review);
   return plural(
     summary.imported_count,
     '1 transação importada',
@@ -135,7 +140,10 @@ export function doneNote(summary: ImportSummary): string {
     summary.duplicate_count ? `${summary.duplicate_count} já existiam` : null,
     summary.skipped_count ? `${summary.skipped_count} fora do período` : null,
   ].filter(Boolean);
-  return [summary.filename, ...extra].join(' · ');
+  const line = [summary.filename, ...extra].join(' · ');
+  return summary.to_review > 0
+    ? `${line}. Elas só entram nas contas depois que você aprovar.`
+    : line;
 }
 
 export function historyLine(h: ImportSummary): string {
