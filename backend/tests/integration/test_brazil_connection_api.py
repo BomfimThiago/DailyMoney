@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connections.models import PendingPluggyItem
 from app.connections.services import pluggy, pluggy_link
 from app.core.config import settings
-from tests.integration.conftest import auth, login
+from tests.integration.conftest import approve_all, auth, login
 
 NUBANK = [
     {"id": "nu-acc", "type": "BANK", "currencyCode": "BRL", "name": "Nu Pagamentos S.A."},
@@ -324,5 +324,6 @@ async def test_connecting_a_bank_again_after_removing_it_duplicates_nothing(
     ]
     accounts = (await client.get("/api/v1/accounts", headers=h)).json()
     assert [a["name"] for a in accounts] == ["Nubank BRL"]
+    await approve_all(client, h)
     txs = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()["items"]
     assert len(txs) == 1

@@ -107,3 +107,5 @@ class ImportSummary(BaseModel):
     skipped_count: int
     created_at: datetime
     finished_at: datetime | None
+    # Lines of this import still waiting for the person's approval (only after confirming).
+    to_review: int = 0

@@ -2,7 +2,7 @@ from typing import Any
 
 from httpx import AsyncClient
 
-from tests.integration.conftest import auth, login
+from tests.integration.conftest import approve_all, auth, login
 
 NUBANK = (
     "Data,Valor,Identificador,Descrição\n"
@@ -32,6 +32,7 @@ async def _confirm(
 ) -> dict[str, Any]:
     r = await client.post(f"/api/v1/imports/{import_id}/confirm", json=body, headers=h)
     assert r.status_code == 200, r.text
+    await approve_all(client, h)
     data: dict[str, Any] = r.json()
     return data
 

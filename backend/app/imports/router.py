@@ -51,8 +51,9 @@ async def confirm(
 ) -> ImportSummary:
     imp = await import_service.get_import(db, user.family_id, import_id)
     await import_service.confirm(db, user, imp, data.accounts, data.since)
+    to_review = await import_service.waiting_review(db, imp.id)
     await db.commit()
-    return ImportSummary.model_validate(imp)
+    return ImportSummary.model_validate(imp).model_copy(update={"to_review": to_review})
 
 
 @router.post("/{import_id}/cancel", response_model=ImportSummary)

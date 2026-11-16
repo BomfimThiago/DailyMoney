@@ -12,6 +12,9 @@ from app.transactions.schemas import (
     KindUpdate,
     MonthDashboard,
     MonthSummary,
+    ReviewDecision,
+    ReviewQueue,
+    ReviewResult,
     TransactionOut,
     TransactionPage,
     TransactionUpdate,
@@ -89,6 +92,20 @@ async def investments(
 @router.get("/transfers", response_model=TransferOverview)
 async def transfers(user: CurrentUser, db: DbSession, month: Month) -> TransferOverview:
     return await overview_service.transfers(db, user.family_id, month)
+
+
+@router.get("/review", response_model=ReviewQueue)
+async def review_queue(user: CurrentUser, db: DbSession, currency: ShowIn = None) -> ReviewQueue:
+    """Imported lines waiting for approval, by upload or bank read."""
+    return await transaction_service.review_queue(db, user.family_id, currency)
+
+
+@router.post("/review", response_model=ReviewResult)
+async def decide(data: ReviewDecision, user: CurrentUser, db: DbSession) -> ReviewResult:
+    """Approve imported lines (they start counting) or turn them down."""
+    result = await transaction_service.decide(db, user.family_id, data)
+    await db.commit()
+    return result
 
 
 @router.patch("/{tx_id}", response_model=TransactionOut)

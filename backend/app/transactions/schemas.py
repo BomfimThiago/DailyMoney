@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime
 from datetime import date as date_
 from decimal import Decimal
 from typing import Annotated, Literal
@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.families.models import Currency
-from app.transactions.models import TxKind
+from app.transactions.models import ReviewStatus, TxKind
 
 
 class TransactionOut(BaseModel):
@@ -22,6 +22,8 @@ class TransactionOut(BaseModel):
     category_id: uuid.UUID | None
     category_name: str | None
     member_id: uuid.UUID | None
+    # "pending": just imported, waiting for the person's approval before it counts.
+    review: ReviewStatus = ReviewStatus.APPROVED
     # When the screen shows another currency: the amount converted with its day's ECB rate.
     display_amount: Decimal | None = None
     display_currency: Currency | None = None
@@ -51,6 +53,37 @@ class KindUpdate(BaseModel):
     kind: Literal[TxKind.REGULAR, TxKind.INVESTMENT, TxKind.TRANSFER]
 
 
+# ── review of imported lines ─────────────────────────────────────────────────
+
+
+class ReviewGroup(BaseModel):
+    # The upload or bank read the lines came in; None for lines without one.
+    import_id: uuid.UUID | None
+    # The file name, or "Bank · account" for a bank read.
+    label: str
+    source: Literal["statement", "bank"]
+    imported_at: datetime | None = None
+    items: list[TransactionOut]
+
+
+class ReviewQueue(BaseModel):
+    total: int
+    # Newest import first; lines newest first inside each.
+    groups: list[ReviewGroup]
+
+
+class ReviewDecision(BaseModel):
+    ids: Annotated[list[uuid.UUID], Field(min_length=1, max_length=1000)]
+    decision: Literal["approve", "reject"]
+
+
+class ReviewResult(BaseModel):
+    # Lines decided now (already decided or unknown ones are left alone).
+    count: int
+    # Lines still waiting for approval.
+    left: int
+
+
 # ── month summary ────────────────────────────────────────────────────────────
 
 
@@ -72,6 +105,8 @@ class MonthSummary(BaseModel):
     # amounts are converted (?currency=). Empty when there are no accounts yet.
     currencies: list[CurrencySummary]
     pending_transfers: int
+    # Imported lines waiting for approval (any month); they don't count in the figures yet.
+    to_review: int = 0
 
 
 class SpendingShare(BaseModel):

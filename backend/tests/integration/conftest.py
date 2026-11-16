@@ -89,3 +89,14 @@ async def login(client: AsyncClient, token: str = "token-thiago-padded") -> dict
 
 def auth(tokens: dict[str, str]) -> dict[str, str]:
     return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+async def approve_all(client: AsyncClient, h: dict[str, str]) -> None:
+    """Imported lines wait for approval; tests about other things approve them all."""
+    queue = (await client.get("/api/v1/transactions/review", headers=h)).json()
+    ids = [t["id"] for g in queue["groups"] for t in g["items"]]
+    if ids:
+        r = await client.post(
+            "/api/v1/transactions/review", json={"ids": ids, "decision": "approve"}, headers=h
+        )
+        assert r.status_code == 200, r.text

@@ -2,7 +2,7 @@ from typing import Any
 
 from httpx import AsyncClient
 
-from tests.integration.conftest import auth, login
+from tests.integration.conftest import approve_all, auth, login
 
 # The logged-in user is "Thiago Bomfim" (conftest).
 NUBANK = (
@@ -54,6 +54,7 @@ async def _import(
         f"/api/v1/imports/{preview['id']}/confirm", json={"accounts": accounts}, headers=h
     )
     assert r.status_code == 200, r.text
+    await approve_all(client, h)
     return preview
 
 

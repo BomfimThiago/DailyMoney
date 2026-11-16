@@ -15,10 +15,15 @@ from app.core.family_scope import get_in_family
 from app.families.models import Currency
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import Converter, converter
+from app.imports.models import StatementImport
 from app.imports.services.transfers import MAX_DAYS
-from app.transactions.models import Transaction, TxKind
+from app.transactions.models import ReviewStatus, Transaction, TxKind
 from app.transactions.schemas import (
     KindUpdate,
+    ReviewDecision,
+    ReviewGroup,
+    ReviewQueue,
+    ReviewResult,
     TransactionOut,
     TransactionPage,
     TransactionUpdate,
@@ -38,8 +43,9 @@ async def list_transactions(
     limit: int = 50,
     offset: int = 0,
     currency: Currency | None = None,
+    review: ReviewStatus = ReviewStatus.APPROVED,
 ) -> TransactionPage:
-    where = [Transaction.family_id == family_id]
+    where = [Transaction.family_id == family_id, Transaction.review == review]
     if account_id is not None:
         where.append(Transaction.account_id == account_id)
     if month is not None:
@@ -196,6 +202,7 @@ async def _mirror(db: AsyncSession, tx: Transaction) -> Transaction | None:
                 # Never a line the person already called spending or income.
                 Transaction.kind.in_([TxKind.PENDING, TxKind.TRANSFER]),
                 Transaction.transfer_pair_id.is_(None),
+                Transaction.review != ReviewStatus.REJECTED,
                 Transaction.date.between(
                     tx.date - timedelta(days=MAX_DAYS), tx.date + timedelta(days=MAX_DAYS)
                 ),
@@ -232,4 +239,76 @@ def to_out(
         category_id=tx.category_id,
         category_name=category_name,
         member_id=tx.member_id,
+        review=tx.review,
     )
+
+
+# ── review of imported lines ─────────────────────────────────────────────────
+
+BANK_FORMATS = ("eb", "pluggy")
+
+
+async def review_queue(
+    db: AsyncSession, family_id: uuid.UUID, currency: Currency | None = None
+) -> ReviewQueue:
+    """Imported lines waiting for approval, grouped by the upload or bank read they came in."""
+    rows = list(
+        await db.execute(
+            select(Transaction, Account.name, Category.name, StatementImport)
+            .join(Account, Account.id == Transaction.account_id)
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .outerjoin(StatementImport, StatementImport.id == Transaction.import_id)
+            .where(Transaction.family_id == family_id, Transaction.review == ReviewStatus.PENDING)
+            .order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id)
+        )
+    )
+    dates = [tx.date for tx, *_ in rows]
+    conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
+    groups: dict[uuid.UUID | None, ReviewGroup] = {}
+    for tx, account_name, category_name, imp in rows:
+        group = groups.get(tx.import_id)
+        if group is None:
+            group = groups[tx.import_id] = _group(imp, account_name)
+        group.items.append(to_out(tx, account_name, category_name, conv))
+    ordered = sorted(groups.values(), key=lambda g: (g.imported_at is None, g.imported_at))
+    ordered.reverse()
+    return ReviewQueue(total=len(rows), groups=ordered)
+
+
+def _group(imp: StatementImport | None, account_name: str) -> ReviewGroup:
+    if imp is None:
+        return ReviewGroup(import_id=None, label=account_name, source="statement", items=[])
+    return ReviewGroup(
+        import_id=imp.id,
+        label=imp.filename,
+        source="bank" if imp.format in BANK_FORMATS else "statement",
+        imported_at=imp.created_at,
+        items=[],
+    )
+
+
+async def decide(db: AsyncSession, family_id: uuid.UUID, data: ReviewDecision) -> ReviewResult:
+    """Approves imported lines (they start counting) or turns them down (hidden for good)."""
+    rows = list(
+        await db.scalars(
+            select(Transaction).where(
+                Transaction.family_id == family_id,
+                Transaction.id.in_(data.ids),
+                Transaction.review == ReviewStatus.PENDING,
+            )
+        )
+    )
+    for tx in rows:
+        if data.decision == "approve":
+            tx.review = ReviewStatus.APPROVED
+        else:
+            # A turned-down line can't keep completing a transfer on another account.
+            await _unpair(db, tx)
+            tx.review = ReviewStatus.REJECTED
+    await db.flush()
+    left = await db.scalar(
+        select(func.count())
+        .select_from(Transaction)
+        .where(Transaction.family_id == family_id, Transaction.review == ReviewStatus.PENDING)
+    )
+    return ReviewResult(count=len(rows), left=left or 0)
