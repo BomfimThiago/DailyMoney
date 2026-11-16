@@ -4,16 +4,21 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button, Chip } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { setKind, updateTransaction } from '@/lib/imports';
+import { useCategories } from '@/lib/queries';
 import {
+  categoriesFor,
   formErrors,
   formOf,
   patchOf,
   type Direction,
   type EditKind,
   type TxForm,
+  withDirection,
 } from '@/lib/txEdit';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
+
+import { CategorySelect, MerchantCheck } from './CategorySelect';
 
 const KINDS: { value: EditKind; label: string }[] = [
   { value: 'regular', label: 'Gasto ou entrada' },
@@ -21,7 +26,7 @@ const KINDS: { value: EditKind; label: string }[] = [
   { value: 'transfer', label: 'Entre minhas contas' },
 ];
 
-// The old app's edit: description, date, amount (gasto/entrada) and what the line was.
+// The old app's edit: description, date, amount (gasto/entrada), category and what the line was.
 // The currency is the account's, so it is shown but not edited.
 export function TxEditForm({
   t,
@@ -33,6 +38,8 @@ export function TxEditForm({
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<TxForm>(() => formOf(t));
+  const categories = useCategories(true);
+  const all = categories.data ?? [];
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +106,7 @@ export function TxEditForm({
             key={d}
             label={d === 'out' ? 'Saiu dinheiro' : 'Entrou dinheiro'}
             selected={form.direction === d}
-            onPress={() => set('direction', d)}
+            onPress={() => setForm((f) => withDirection(f, d, all))}
           />
         ))}
       </View>
@@ -115,13 +122,31 @@ export function TxEditForm({
           />
         ))}
       </View>
-      {form.kind !== 'regular' ? (
+      {form.kind === 'regular' ? (
+        <Field label="Categoria">
+          {categories.isError ? (
+            <Text style={styles.error}>Não consegui carregar as categorias.</Text>
+          ) : (
+            <CategorySelect
+              value={form.categoryId}
+              options={categoriesFor(all, form.direction)}
+              onChange={(id) => set('categoryId', id)}
+            />
+          )}
+          {form.categoryId && form.categoryId !== t.category_id ? (
+            <MerchantCheck
+              on={form.forMerchant}
+              onToggle={() => set('forMerchant', !form.forMerchant)}
+            />
+          ) : null}
+        </Field>
+      ) : (
         <Text style={styles.hint}>
           {form.kind === 'investment'
             ? 'Sai de Gastos e entradas e passa a contar em Investimentos.'
             : 'Sai de Gastos e entradas; fica em Transferências.'}
         </Text>
-      ) : null}
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       <View style={styles.actions}>

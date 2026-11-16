@@ -279,37 +279,35 @@ async function checkScreens(page, tag) {
       .filter({ visible: true })
       .first()
       .click();
-    await seen('Valer também para as próximas deste estabelecimento').waitFor();
+    const button = (name) =>
+      page.getByRole('button', { name, exact: true }).filter({ visible: true });
+    await button('Editar').waitFor();
     await page.waitForTimeout(400); // the sheet fades in
     await shot('transacoes-detalhe');
-    await page.getByRole('radio', { name: 'Restaurantes' }).filter({ visible: true }).click();
-    await page.waitForTimeout(400);
-    if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
-    // Editing like the old app: the form, and the question before deleting.
-    await page
-      .getByRole('button', { name: 'Editar', exact: true })
-      .filter({ visible: true })
-      .click();
+    // Only the chosen category shows; it changes from a list in Editar (like the old app).
+    if (await page.getByRole('radio', { name: 'Restaurantes' }).filter({ visible: true }).count()) {
+      flag('o detalhe ainda mostra todas as categorias');
+    }
+    await button('Editar').click();
     await page.getByLabel('Descrição', { exact: true }).filter({ visible: true }).waitFor();
     await shot('transacoes-editar');
-    await page
-      .getByRole('button', { name: 'Cancelar', exact: true })
-      .filter({ visible: true })
-      .click();
-    await page
-      .getByRole('button', { name: 'Excluir', exact: true })
-      .filter({ visible: true })
-      .click();
+    await button('Categoria').click();
+    await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).waitFor();
+    await shot('transacoes-editar-categoria');
+    await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).click();
+    await seen('Valer também para as próximas deste estabelecimento').waitFor();
+    await button('Salvar').click();
+    await button('Editar').waitFor();
+    if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
+    // The question before deleting.
+    await button('Excluir').click();
     await seen('Excluir esta transação?').waitFor();
     await shot('transacoes-excluir');
-    await page
-      .getByRole('button', { name: 'Cancelar', exact: true })
-      .filter({ visible: true })
-      .click();
-    await seen('Valer também para as próximas deste estabelecimento').waitFor();
+    await button('Cancelar').click();
+    await button('Editar').waitFor();
     if (tag === 'celular') {
       await page.getByRole('button', { name: 'Fechar', exact: true }).click();
-      await seen('Valer também para as próximas deste estabelecimento')
+      await button('Editar')
         .waitFor({ state: 'detached', timeout: 3000 })
         .catch(() => flag('a folha de detalhe não fechou'));
     } else {

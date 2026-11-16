@@ -1,5 +1,5 @@
 import { fullDate } from './format';
-import type { Transaction, TxKind } from './types';
+import type { Category, Transaction, TxKind } from './types';
 
 // Editing a line (like the old app): what the person types and what goes to the API.
 // Amounts stay decimal strings end to end; nothing here goes through a float.
@@ -13,12 +13,17 @@ export interface TxForm {
   amount: string; // 1.234,56 (no sign)
   direction: Direction;
   kind: EditKind;
+  categoryId: string | null;
+  // "Valer também para as próximas deste estabelecimento".
+  forMerchant: boolean;
 }
 
 export interface TxPatch {
   description?: string;
   date?: string;
   amount?: string;
+  category_id?: string;
+  apply_to_merchant?: boolean;
 }
 
 export type FormErrors = Partial<Record<'description' | 'date' | 'amount', string>>;
@@ -31,7 +36,21 @@ export function formOf(t: Transaction): TxForm {
     amount: amountText(negative ? t.amount.trim().slice(1) : t.amount.trim()),
     direction: negative ? 'out' : 'in',
     kind: t.kind === 'pending' ? 'transfer' : t.kind,
+    categoryId: t.category_id,
+    forMerchant: true,
   };
+}
+
+// The categories that fit money going out (gastos) or coming in (entradas).
+export function categoriesFor(all: Category[], direction: Direction): Category[] {
+  const kind = direction === 'out' ? 'expense' : 'income';
+  return all.filter((c) => c.kind === kind);
+}
+
+// Turning spending into income (or back) drops a category that no longer fits.
+export function withDirection(form: TxForm, direction: Direction, all: Category[]): TxForm {
+  const fits = categoriesFor(all, direction).some((c) => c.id === form.categoryId);
+  return { ...form, direction, categoryId: fits ? form.categoryId : null };
 }
 
 // "312.4000" → "312,40"; more than two cents are kept as they are.
@@ -94,6 +113,11 @@ export function patchOf(t: Transaction, form: TxForm): TxPatch {
   if (plain) {
     const signed = form.direction === 'out' ? `-${plain}` : plain;
     if (!sameAmount(signed, t.amount)) patch.amount = signed;
+  }
+  // Only spending and income have a category; the other kinds set their own.
+  if (form.kind === 'regular' && form.categoryId && form.categoryId !== t.category_id) {
+    patch.category_id = form.categoryId;
+    patch.apply_to_merchant = form.forMerchant;
   }
   return patch;
 }

@@ -1,7 +1,17 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { Transaction } from '@/lib/types';
-import { amountText, formErrors, formOf, parseAmount, parseDate, patchOf } from '@/lib/txEdit';
+import {
+  amountText,
+  categoriesFor,
+  formErrors,
+  formOf,
+  parseAmount,
+  parseDate,
+  patchOf,
+  withDirection,
+} from '@/lib/txEdit';
+import { category } from '@/testing/categories';
 
 const tx = (o: Partial<Transaction> = {}): Transaction => ({
   id: 'tx-1',
@@ -27,6 +37,8 @@ describe('txEdit', () => {
       amount: '1.312,40',
       direction: 'out',
       kind: 'regular',
+      categoryId: 'c',
+      forMerchant: true,
     });
     expect(formOf(tx({ amount: '50.0000', kind: 'pending' }))).toMatchObject({
       amount: '50,00',
@@ -63,6 +75,20 @@ describe('txEdit', () => {
       date: 'Data inválida (ex.: 28/11/2026).',
       amount: 'Valor inválido (ex.: 312,40).',
     });
+  });
+
+  it('sends a new category only for spending or income, and drops one that no longer fits', () => {
+    const cats = [
+      category({ id: 'c', name: 'Mercado' }),
+      category({ id: 'r', name: 'Restaurantes' }),
+      category({ id: 's', name: 'Salário', kind: 'income' }),
+    ];
+    expect(categoriesFor(cats, 'in').map((c) => c.id)).toEqual(['s']);
+    const form = { ...formOf(tx()), categoryId: 'r', forMerchant: false };
+    expect(patchOf(tx(), form)).toEqual({ category_id: 'r', apply_to_merchant: false });
+    expect(patchOf(tx(), { ...form, kind: 'investment' })).toEqual({});
+    expect(withDirection(form, 'in', cats).categoryId).toBeNull();
+    expect(withDirection(form, 'out', cats).categoryId).toBe('r');
   });
 
   it('sends only what changed, with the sign from gasto/entrada', () => {

@@ -3,13 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react-nativ
 
 import { TxDetail } from '@/components/TxDetail';
 import { ApiError } from '@/lib/api';
-import {
-  decideReview,
-  deleteTransaction,
-  setKind,
-  updateCategory,
-  updateTransaction,
-} from '@/lib/imports';
+import { decideReview, deleteTransaction, setKind, updateTransaction } from '@/lib/imports';
 import type { Category, Transaction } from '@/lib/types';
 import { category } from '@/testing/categories';
 
@@ -29,7 +23,6 @@ const mockCategoryList: Category[] = [
 jest.mock('@/lib/queries', () => ({
   useCategories: () => ({ data: mockCategoryList, isError: false }),
 }));
-const mockUpdate = jest.mocked(updateCategory);
 const mockEdit = jest.mocked(updateTransaction);
 const mockKind = jest.mocked(setKind);
 const mockDelete = jest.mocked(deleteTransaction);
@@ -52,45 +45,65 @@ const tx = (o: Partial<Transaction> = {}): Transaction => ({
 });
 
 beforeEach(() => {
-  for (const m of [mockUpdate, mockEdit, mockKind, mockDelete, mockDecide]) m.mockReset();
+  for (const m of [mockEdit, mockKind, mockDelete, mockDecide]) m.mockReset();
 });
 
 describe('TxDetail', () => {
-  it('offers spending categories for money out and income ones for money in', async () => {
+  it('shows only the chosen category, not the whole list', async () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
-    expect(screen.getByText('Restaurantes')).toBeTruthy();
-    expect(screen.queryByText('Salário')).toBeNull();
-    expect(screen.queryByText('Transferência')).toBeNull();
-
-    await render(<TxDetail t={tx({ amount: '8500.0000' })} onChanged={jest.fn()} />);
-    expect(screen.getByText('Salário')).toBeTruthy();
+    expect(screen.getByText('Mercado')).toBeTruthy();
     expect(screen.queryByText('Restaurantes')).toBeNull();
+
+    await render(
+      <TxDetail t={tx({ category_id: null, category_name: null })} onChanged={jest.fn()} />,
+    );
+    expect(screen.getByText('Sem categoria')).toBeTruthy();
   });
 
-  it('saves the new category for this shop too, then refreshes', async () => {
-    mockUpdate.mockResolvedValue(tx());
+  it('changes the category from a list in Editar, for this shop too', async () => {
+    mockEdit.mockResolvedValue(tx());
     const onChanged = jest.fn();
     await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Editar'));
+    expect(screen.queryByText('Restaurantes')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Categoria'));
+    // Money out: only spending categories.
+    expect(screen.queryByText('Salário')).toBeNull();
+    expect(screen.queryByText('Transferência')).toBeNull();
     await fireEvent.press(screen.getByText('Restaurantes'));
+    expect(screen.getByRole('checkbox')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Salvar'));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
-    expect(mockUpdate).toHaveBeenCalledWith('tx-1', 'c-rest', true);
+    expect(mockEdit).toHaveBeenCalledWith('tx-1', {
+      category_id: 'c-rest',
+      apply_to_merchant: true,
+    });
   });
 
-  it('can save only this line, and ignores the category it already has', async () => {
-    mockUpdate.mockResolvedValue(tx());
+  it('can change the category of only this line', async () => {
+    mockEdit.mockResolvedValue(tx());
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
-    await fireEvent.press(screen.getByText('Mercado'));
-    expect(mockUpdate).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByText('Editar'));
+    await fireEvent.press(screen.getByLabelText('Categoria'));
+    await fireEvent.press(screen.getByText('Restaurantes'));
     await fireEvent.press(screen.getByRole('checkbox'));
-    await fireEvent.press(screen.getByText('Restaurantes'));
-    await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('tx-1', 'c-rest', false));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() =>
+      expect(mockEdit).toHaveBeenCalledWith('tx-1', {
+        category_id: 'c-rest',
+        apply_to_merchant: false,
+      }),
+    );
   });
 
-  it('shows what the API said when saving fails', async () => {
-    mockUpdate.mockRejectedValue(new ApiError(404, 'Categoria não encontrada'));
+  it('money coming in offers income categories', async () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
-    await fireEvent.press(screen.getByText('Restaurantes'));
-    expect(await screen.findByText('Categoria não encontrada')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Editar'));
+    await fireEvent.press(screen.getByText('Entrou dinheiro'));
+    expect(screen.getByText('Escolher categoria')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Categoria'));
+    expect(screen.getByText('Salário')).toBeTruthy();
+    expect(screen.queryByText('Restaurantes')).toBeNull();
   });
 
   it('edits description, date, amount and direction, sending only what changed', async () => {
