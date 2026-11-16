@@ -21,6 +21,7 @@ import {
   listTransactions,
   type TxFilters,
 } from './imports';
+import { useDisplayCurrency } from './displayCurrency';
 
 // Server data for the money screens. Every key starts with "money" so one invalidation
 // after an import or a reclassified transaction refreshes all tabs, which stay mounted.
@@ -35,46 +36,59 @@ if (Platform.OS !== 'web') {
 
 const PAGE = 50;
 
+// Amounts in the currency chosen on screen (useDisplayCurrency): it is part of every key.
 export function useSummary(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
   return useQuery({
-    queryKey: ['money', 'summary', month],
-    queryFn: () => getSummary(month),
+    queryKey: ['money', 'summary', month, currency],
+    queryFn: () => getSummary(month, currency),
     enabled,
   });
 }
 
 // Spending per day, category and account, for the computer's Início.
 export function useDashboard(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
   return useQuery({
-    queryKey: ['money', 'dashboard', month],
-    queryFn: () => getDashboard(month),
+    queryKey: ['money', 'dashboard', month, currency],
+    queryFn: () => getDashboard(month, currency),
     enabled,
   });
 }
 
 // Análises: the chosen month against the months before it.
 export function useAnalysis(month: string, months: number, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
   return useQuery({
-    queryKey: ['money', 'analysis', month, months],
-    queryFn: () => getAnalysis(month, months),
+    queryKey: ['money', 'analysis', month, months, currency],
+    queryFn: () => getAnalysis(month, months, currency),
     enabled,
   });
 }
 
 export function useRecent(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
   return useQuery({
-    queryKey: ['money', 'recent', month],
-    queryFn: () => listTransactions({ month, limit: 8 }),
+    queryKey: ['money', 'recent', month, currency],
+    queryFn: () => listTransactions({ month, limit: 8, currency }),
     enabled,
   });
 }
 
 // Spending and income only, 50 at a time; on a computer also searched and filtered.
 export function useRegular(month: string, enabled: boolean, filters: TxFilters = {}) {
+  const { currency } = useDisplayCurrency();
   return useInfiniteQuery({
-    queryKey: ['money', 'regular', month, filters],
+    queryKey: ['money', 'regular', month, filters, currency],
     queryFn: ({ pageParam }) =>
-      listTransactions({ month, kinds: ['regular'], limit: PAGE, offset: pageParam, ...filters }),
+      listTransactions({
+        month,
+        kinds: ['regular'],
+        limit: PAGE,
+        offset: pageParam,
+        currency,
+        ...filters,
+      }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
@@ -85,9 +99,10 @@ export function useRegular(month: string, enabled: boolean, filters: TxFilters =
 }
 
 export function useInvestments(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
   return useQuery({
-    queryKey: ['money', 'investments', month],
-    queryFn: () => getInvestments(month),
+    queryKey: ['money', 'investments', month, currency],
+    queryFn: () => getInvestments(month, currency),
     enabled,
   });
 }

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { dayMonth, isIncome, money } from '@/lib/format';
+import { dayMonth, isIncome } from '@/lib/format';
+import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -36,9 +37,7 @@ export function TxRow({
   onPress?: () => void;
 }) {
   const regular = t.kind === 'regular';
-  const amount = regular
-    ? money(t.amount, t.currency, true)
-    : money(t.amount.replace('-', ''), t.currency);
+  const amount = lineAmounts(t, regular ? 'signed' : 'plain');
   return (
     <Pressable
       onPress={onPress}
@@ -55,16 +54,19 @@ export function TxRow({
           {[kindLabel(t), t.account_name, dayMonth(t.date)].filter(Boolean).join(' · ')}
         </Text>
       </View>
-      <Text
-        style={[
-          styles.amount,
-          regular && isIncome(t.amount) && styles.income,
-          t.kind === 'investment' && styles.invest,
-          (t.kind === 'transfer' || t.kind === 'pending') && styles.muted,
-        ]}
-      >
-        {amount}
-      </Text>
+      <View style={styles.amounts}>
+        <Text
+          style={[
+            styles.amount,
+            regular && isIncome(t.amount) && styles.income,
+            t.kind === 'investment' && styles.invest,
+            (t.kind === 'transfer' || t.kind === 'pending') && styles.muted,
+          ]}
+        >
+          {amount.shown}
+        </Text>
+        {amount.original ? <Text style={styles.original}>{amount.original}</Text> : null}
+      </View>
     </Pressable>
   );
 }
@@ -88,6 +90,8 @@ const styles = StyleSheet.create({
   main: { flex: 1, minWidth: 0, gap: 2 },
   title: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
   sub: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  amounts: { alignItems: 'flex-end', gap: 2 },
+  original: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   amount: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
   income: { color: colors.positive },
   invest: { color: colors.invest },

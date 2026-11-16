@@ -1253,6 +1253,9 @@ export interface components {
       category_name: string | null;
       /** Member Id */
       member_id: string | null;
+      /** Display Amount */
+      display_amount?: string | null;
+      display_currency?: components['schemas']['Currency'] | null;
     };
     /** TransactionPage */
     TransactionPage: {
@@ -2149,6 +2152,7 @@ export interface operations {
         q?: string | null;
         limit?: number;
         offset?: number;
+        currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2180,6 +2184,7 @@ export interface operations {
     parameters: {
       query: {
         month: string;
+        currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2211,6 +2216,7 @@ export interface operations {
     parameters: {
       query: {
         month: string;
+        currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2243,6 +2249,7 @@ export interface operations {
       query: {
         month: string;
         months?: number;
+        currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2274,6 +2281,7 @@ export interface operations {
     parameters: {
       query: {
         month: string;
+        currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;

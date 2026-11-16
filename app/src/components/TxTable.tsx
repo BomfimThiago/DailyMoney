@@ -1,7 +1,8 @@
 import { Fragment } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { isIncome, money } from '@/lib/format';
+import { isIncome } from '@/lib/format';
+import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -38,6 +39,7 @@ export function TxTable({
         const newDay = i === 0 || items[i - 1].date !== t.date;
         const on = t.id === selectedId;
         const income = isIncome(t.amount);
+        const amount = lineAmounts(t);
         return (
           <Fragment key={t.id}>
             {newDay ? <Text style={styles.day}>{dayHeading(t.date)}</Text> : null}
@@ -45,7 +47,7 @@ export function TxTable({
               onPress={() => onSelect(t)}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
-              accessibilityLabel={`${t.description}, ${money(t.amount, t.currency, true)}`}
+              accessibilityLabel={`${t.description}, ${amount.shown}`}
               style={[styles.row, newDay && styles.rowFirst, on && styles.rowOn]}
             >
               <Text style={[styles.td, styles.colDesc]} numberOfLines={1}>
@@ -60,9 +62,12 @@ export function TxTable({
               <Text style={[styles.td, styles.muted, styles.colAcc]} numberOfLines={1}>
                 {t.account_name}
               </Text>
-              <Text style={[styles.td, styles.colVal, income && styles.income]}>
-                {money(t.amount, t.currency, true)}
-              </Text>
+              <View style={styles.valueBox}>
+                <Text style={[styles.td, styles.value, income && styles.income]}>
+                  {amount.shown}
+                </Text>
+                {amount.original ? <Text style={styles.original}>{amount.original}</Text> : null}
+              </View>
             </Pressable>
           </Fragment>
         );
@@ -85,6 +90,9 @@ const styles = StyleSheet.create({
   colCat: { flex: 1.2, minWidth: 0 },
   colAcc: { flex: 1, minWidth: 0 },
   colVal: { width: 120, textAlign: 'right' },
+  valueBox: { width: 120, alignItems: 'flex-end', gap: 2 },
+  value: { textAlign: 'right' },
+  original: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   day: {
     fontFamily: fonts.regular,
     fontSize: 12,

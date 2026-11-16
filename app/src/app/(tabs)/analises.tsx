@@ -17,33 +17,26 @@ import { PERIODS, type Period, shownAnalysis } from '@/lib/analysis';
 import { contentWidth, PAGE_MAX, PAGE_PAD, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
 import { currentMonth } from '@/lib/format';
 import { useAnalysis } from '@/lib/queries';
-import type { Currency, CurrencyAnalysis } from '@/lib/types';
+import { useDisplayCurrency } from '@/lib/displayCurrency';
+import type { CurrencyAnalysis } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
 const EMPTY =
   'Nenhum gasto nos extratos enviados para este período. Envie um extrato para ver as análises.';
 
 // Análises (validated mock): how this month compares, what changed, habits, weekdays, peaks,
-// and the charges that repeat. One currency at a time, like Início.
+// and the charges that repeat, in the currency chosen on screen.
 export default signedInPage(Analyses);
 
 function Analyses() {
   const { width } = useWindowDimensions();
   const [month, setMonth] = useState(currentMonth);
   const [period, setPeriod] = useState<Period>(6);
-  const [currency, setCurrency] = useState<Currency | null>(null);
+  const { currency } = useDisplayCurrency();
   const query = useAnalysis(month, period, true);
-  const currencies = query.data?.currencies ?? [];
-  const a = shownAnalysis(currencies, currency);
+  const a = shownAnalysis(query.data?.currencies ?? [], currency);
   const isWide = width >= WIDE_MIN;
-  const chips = (
-    <CurrencyChips
-      currencies={currencies}
-      current={a?.currency}
-      onChange={setCurrency}
-      style={styles.chips}
-    />
-  );
+  const chips = <CurrencyChips style={styles.chips} />;
   const periods = <PeriodChips period={period} onChange={setPeriod} />;
   const body = (
     <Loadable isError={query.isError} loading={!query.data} value={a} empty={EMPTY}>

@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.core.deps import CurrentUser, DbSession
+from app.families.models import Currency
 from app.transactions.models import TxKind
 from app.transactions.schemas import (
     Analysis,
@@ -21,6 +22,9 @@ from app.transactions.services import analysis_service, overview_service, transa
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
 Month = Annotated[str, Query(pattern=r"^\d{4}-\d{2}$", examples=["2026-10"])]
+# Show every amount in this currency (each line converted with its day's ECB rate).
+# Without it, amounts stay in each account's own currency.
+ShowIn = Annotated[Currency | None, Query()]
 
 
 @router.get("", response_model=TransactionPage)
@@ -34,6 +38,7 @@ async def list_transactions(
     q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
+    currency: ShowIn = None,
 ) -> TransactionPage:
     return await transaction_service.list_transactions(
         db,
@@ -45,17 +50,22 @@ async def list_transactions(
         q=q,
         limit=limit,
         offset=offset,
+        currency=currency,
     )
 
 
 @router.get("/summary", response_model=MonthSummary)
-async def month_summary(user: CurrentUser, db: DbSession, month: Month) -> MonthSummary:
-    return await overview_service.month_summary(db, user.family_id, month)
+async def month_summary(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> MonthSummary:
+    return await overview_service.month_summary(db, user.family_id, month, currency)
 
 
 @router.get("/dashboard", response_model=MonthDashboard)
-async def month_dashboard(user: CurrentUser, db: DbSession, month: Month) -> MonthDashboard:
-    return await overview_service.month_dashboard(db, user.family_id, month)
+async def month_dashboard(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> MonthDashboard:
+    return await overview_service.month_dashboard(db, user.family_id, month, currency)
 
 
 @router.get("/analysis", response_model=Analysis)
@@ -64,13 +74,16 @@ async def analysis(
     db: DbSession,
     month: Month,
     months: Annotated[int, Query(ge=1, le=12)] = 6,
+    currency: ShowIn = None,
 ) -> Analysis:
-    return await analysis_service.analysis(db, user.family_id, month, months)
+    return await analysis_service.analysis(db, user.family_id, month, months, currency=currency)
 
 
 @router.get("/investments", response_model=InvestmentOverview)
-async def investments(user: CurrentUser, db: DbSession, month: Month) -> InvestmentOverview:
-    return await overview_service.investments(db, user.family_id, month)
+async def investments(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> InvestmentOverview:
+    return await overview_service.investments(db, user.family_id, month, currency)
 
 
 @router.get("/transfers", response_model=TransferOverview)

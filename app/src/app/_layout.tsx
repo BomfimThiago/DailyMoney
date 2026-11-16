@@ -9,6 +9,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from '@/lib/auth';
+import { DisplayCurrencyProvider } from '@/lib/displayCurrency';
 import { queryClient } from '@/lib/queries';
 import { colors } from '@/theme';
 
@@ -18,10 +19,12 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}
-        />
+        <DisplayCurrencyProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}
+          />
+        </DisplayCurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

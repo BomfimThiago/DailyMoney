@@ -1,7 +1,8 @@
 """Month summary, investments and transfers (spec: Início, Investimentos, Transferências).
 
-Values stay in each account's own currency: there is one summary per currency until
-conversion (European Central Bank rates) arrives.
+Values stay in each account's own currency (one summary per currency), unless a currency
+is chosen: then every line is converted with its day's European Central Bank rate and
+there is one summary, in that currency.
 """
 
 import uuid
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.accounts.models import Account
 from app.categories.models import Category
 from app.families.models import Currency, Family
+from app.fx.services.fx_service import converter
 from app.statements.parsing.own_moves import product_name
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
@@ -37,39 +39,47 @@ ZERO = Decimal("0")
 HISTORY_MONTHS = 6
 
 
-async def _currencies(db: AsyncSession, family_id: uuid.UUID) -> list[Currency]:
+async def _currencies(
+    db: AsyncSession, family_id: uuid.UUID, target: Currency | None = None
+) -> list[Currency]:
     family = await db.get(Family, family_id)
     used = set(
         await db.scalars(select(Account.currency).where(Account.family_id == family_id).distinct())
     )
+    if target is not None:
+        return [target] if used else []
     first = family.display_currency if family else Currency.BRL
     return sorted(used, key=lambda c: (c != first, c.value))
 
 
-async def month_summary(db: AsyncSession, family_id: uuid.UUID, month: str) -> MonthSummary:
+async def month_summary(
+    db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
+) -> MonthSummary:
     lo, hi = month_range(month)
+    conv = await converter(db, currency, lo, hi)
     rows = await db.execute(
-        select(Transaction.currency, Transaction.kind, Transaction.amount).where(
+        select(Transaction.currency, Transaction.kind, Transaction.amount, Transaction.date).where(
             Transaction.family_id == family_id,
             Transaction.date.between(lo, hi),
             Transaction.kind.in_([TxKind.REGULAR, TxKind.INVESTMENT]),
         )
     )
     sums: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
-    for currency, kind, amount in rows:
-        s = sums[currency]
+    for original, kind, raw, day in rows:
+        s = sums[conv.currency(original)]
+        amount = conv(raw, original, day)
         if kind == TxKind.REGULAR:
             s["income" if amount > 0 else "spending"] += abs(amount)
         else:
             s["taken_out" if amount > 0 else "put_in"] += abs(amount)
 
     out = []
-    for currency in await _currencies(db, family_id):
-        s = sums[currency]
+    for shown in await _currencies(db, family_id, currency):
+        s = sums[shown]
         invested = s["put_in"] - s["taken_out"]
         out.append(
             CurrencySummary(
-                currency=currency,
+                currency=shown,
                 income=s["income"],
                 spending=s["spending"],
                 invested=invested,
@@ -89,10 +99,13 @@ async def month_summary(db: AsyncSession, family_id: uuid.UUID, month: str) -> M
 OTHER_CATEGORY = "Outros"
 
 
-async def month_dashboard(db: AsyncSession, family_id: uuid.UUID, month: str) -> MonthDashboard:
+async def month_dashboard(
+    db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
+) -> MonthDashboard:
     """Spending per day (this month and the one before), by category and by account."""
     lo, hi = month_range(month)
     prev_lo, prev_hi = month_range(shift(month, -1))
+    conv = await converter(db, currency, prev_lo, hi)
     rows = await db.execute(
         select(
             Transaction.currency, Transaction.date, Transaction.amount, Account.name, Category.name
@@ -110,8 +123,9 @@ async def month_dashboard(db: AsyncSession, family_id: uuid.UUID, month: str) ->
     previous: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * prev_hi.day)
     by_category: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
     by_account: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
-    for currency, day, amount, account_name, category_name in rows:
-        spent = -amount
+    for original, day, amount, account_name, category_name in rows:
+        currency = conv.currency(original)
+        spent = -conv(amount, original, day)
         if day < lo:
             previous[currency][day.day - 1] += spent
             continue
@@ -135,7 +149,7 @@ async def month_dashboard(db: AsyncSession, family_id: uuid.UUID, month: str) ->
                 categories=shares(by_category[c]),
                 accounts=shares(by_account[c]),
             )
-            for c in await _currencies(db, family_id)
+            for c in await _currencies(db, family_id, currency)
         ],
     )
 
@@ -153,9 +167,13 @@ async def _with_names(
     return [(tx, account_name, category_name) for tx, account_name, category_name in rows]
 
 
-async def investments(db: AsyncSession, family_id: uuid.UUID, month: str) -> InvestmentOverview:
+async def investments(
+    db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
+) -> InvestmentOverview:
     lo, hi = month_range(month)
     rows = await _with_names(db, family_id, Transaction.kind == TxKind.INVESTMENT)
+    dates = [tx.date for tx, _, _ in rows]
+    conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
 
     products: dict[tuple[uuid.UUID, str], InvestmentProduct] = {}
     first_month = shift(month, -(HISTORY_MONTHS - 1))
@@ -170,24 +188,25 @@ async def investments(db: AsyncSession, family_id: uuid.UUID, month: str) -> Inv
                 name=name,
                 account_id=tx.account_id,
                 account_name=account_name,
-                currency=tx.currency,
+                currency=conv.currency(tx.currency),
                 put_in=ZERO,
                 taken_out=ZERO,
                 net=ZERO,
                 month_net=ZERO,
                 last_date=tx.date,
             )
-        put_in = -tx.amount if tx.amount < 0 else ZERO
-        taken_out = tx.amount if tx.amount > 0 else ZERO
+        amount = conv(tx.amount, tx.currency, tx.date)
+        put_in = -amount if amount < 0 else ZERO
+        taken_out = amount if amount > 0 else ZERO
         p.put_in += put_in
         p.taken_out += taken_out
         p.net += put_in - taken_out
         if lo <= tx.date <= hi:
             p.month_net += put_in - taken_out
-            movements.append(to_out(tx, account_name, category_name))
+            movements.append(to_out(tx, account_name, category_name, conv))
         tx_month = month_of(tx.date)
         if first_month <= tx_month <= month:
-            h = history[(tx_month, tx.currency)]
+            h = history[(tx_month, conv.currency(tx.currency))]
             h[0] += put_in
             h[1] += taken_out
 

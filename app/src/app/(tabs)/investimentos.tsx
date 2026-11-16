@@ -17,8 +17,8 @@ import { SectionTitle } from '@/components/ui';
 import { contentWidth, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
 import { currentMonth, money, monthLabel, shortMonth } from '@/lib/format';
 import { type InvestmentView, investmentView, monthMoves, monthTotals } from '@/lib/investments';
+import { useDisplayCurrency } from '@/lib/displayCurrency';
 import { useInvestments } from '@/lib/queries';
-import type { Currency, InvestmentOverview } from '@/lib/types';
 
 type Tab = 'produtos' | 'movimentos';
 
@@ -31,15 +31,13 @@ export default signedInPage(Investments);
 function Investments() {
   const { width } = useWindowDimensions();
   const [month, setMonth] = useState(currentMonth);
-  const [currency, setCurrency] = useState<Currency | null>(null);
+  const { currency } = useDisplayCurrency();
   const query = useInvestments(month, true);
   const view = query.data ? investmentView(query.data, currency) : null;
   const page = {
     month,
     setMonth,
     view,
-    totals: query.data?.totals ?? [],
-    setCurrency,
     load: { isError: query.isError, loading: !query.data, value: view, empty: EMPTY },
   };
   return width >= WIDE_MIN ? (
@@ -53,8 +51,6 @@ type PageProps = {
   month: string;
   setMonth: (m: string) => void;
   view: InvestmentView | null;
-  totals: InvestmentOverview['totals'];
-  setCurrency: (c: Currency) => void;
   load: { isError: boolean; loading: boolean; value: InvestmentView | null; empty: string };
 };
 
@@ -62,8 +58,6 @@ function WideInvestments({
   month,
   setMonth,
   view,
-  totals,
-  setCurrency,
   load,
   twoColumns,
 }: PageProps & { twoColumns: boolean }) {
@@ -73,14 +67,7 @@ function WideInvestments({
         <View style={wide.head}>
           <Text style={wide.title}>Investimentos</Text>
           <View style={wide.headRight}>
-            {view ? (
-              <CurrencyChips
-                currencies={totals}
-                current={view.currency}
-                onChange={setCurrency}
-                style={wide.chips}
-              />
-            ) : null}
+            <CurrencyChips style={wide.chips} />
             <MonthNav month={month} onChange={setMonth} compact />
           </View>
         </View>
@@ -145,7 +132,7 @@ function WideFigures({ v, month }: { v: InvestmentView; month: string }) {
   );
 }
 
-function PhoneInvestments({ month, setMonth, totals, setCurrency, load }: PageProps) {
+function PhoneInvestments({ month, setMonth, load }: PageProps) {
   const [tab, setTab] = useState<Tab>('produtos');
   return (
     <View style={styles.page}>
@@ -158,12 +145,7 @@ function PhoneInvestments({ month, setMonth, totals, setCurrency, load }: PagePr
           <Loadable {...load}>
             {(v) => (
               <>
-                <CurrencyChips
-                  currencies={totals}
-                  current={v.currency}
-                  onChange={setCurrency}
-                  style={styles.chips}
-                />
+                <CurrencyChips style={styles.chips} />
                 <Segment
                   options={[
                     { value: 'produtos', label: 'Produtos' },

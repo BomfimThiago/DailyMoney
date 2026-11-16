@@ -3,7 +3,7 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { Breakdown } from '@/components/home/Breakdown';
 import { Pace } from '@/components/home/Pace';
-import { type Home, CurrencyHint, NoAccounts, PendingLink } from '@/components/home/shared';
+import { type Home, NoAccounts, PendingLink } from '@/components/home/shared';
 import { SpendingCalendar } from '@/components/home/SpendingCalendar';
 import { dash as styles } from '@/components/home/styles';
 import { MonthNav } from '@/components/nav';
@@ -28,12 +28,7 @@ export function HomeDashboard({ home }: { home: Home }) {
       <View style={styles.column}>
         <View style={styles.head}>
           <MonthNav month={home.month} onChange={home.setMonth} />
-          <CurrencyChips
-            currencies={home.summary?.currencies ?? []}
-            current={home.shown?.currency}
-            onChange={home.setCurrency}
-            style={styles.chips}
-          />
+          <CurrencyChips style={styles.chips} />
         </View>
         <Loadable
           isError={home.isError}
@@ -67,7 +62,6 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
   return (
     <>
       <Figures month={home.month} shown={shown} dash={dash} />
-      <CurrencyHint summary={summary} shown={shown} style={styles.hint} />
       <PendingLink count={summary.pending_transfers} />
       <Loadable
         isError={query.isError}

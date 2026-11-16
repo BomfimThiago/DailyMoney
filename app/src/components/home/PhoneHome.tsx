@@ -9,9 +9,9 @@ import { Button, SectionTitle } from '@/components/ui';
 import { money, plain } from '@/lib/format';
 import { hasNoAccounts } from '@/lib/home';
 import { useRecent } from '@/lib/queries';
-import type { CurrencySummary, MonthSummary, TransactionPage } from '@/lib/types';
+import type { CurrencySummary, TransactionPage } from '@/lib/types';
 
-import { type Home, CurrencyHint, NoAccounts, PendingLink } from './shared';
+import { type Home, NoAccounts, PendingLink } from './shared';
 import { phone as styles } from './styles';
 
 // Início on a phone: variant A from the validated mock (Entradas · Gastos · Investido and
@@ -24,12 +24,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
         <View style={styles.column}>
           <View style={styles.head}>
             <MonthNav month={home.month} onChange={home.setMonth} />
-            <CurrencyChips
-              currencies={home.summary?.currencies ?? []}
-              current={home.shown?.currency}
-              onChange={home.setCurrency}
-              style={styles.chips}
-            />
+            <CurrencyChips style={styles.chips} />
           </View>
           <Loadable
             isError={home.isError}
@@ -42,7 +37,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
               noAccounts ? (
                 <NoAccounts name={home.name} style={styles.emptyBox} />
               ) : (
-                <MonthFigures summary={summary} shown={home.shown} />
+                <MonthFigures shown={home.shown} />
               )
             }
           </Loadable>
@@ -57,13 +52,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
   );
 }
 
-function MonthFigures({
-  summary,
-  shown,
-}: {
-  summary: MonthSummary;
-  shown: CurrencySummary | null;
-}) {
+function MonthFigures({ shown }: { shown: CurrencySummary | null }) {
   if (!shown) return null;
   return (
     <>
@@ -76,7 +65,6 @@ function MonthFigures({
         <Text style={styles.leftLabel}>Sobrou no mês</Text>
         <Text style={styles.leftValue}>{money(shown.left, shown.currency)}</Text>
       </View>
-      <CurrencyHint summary={summary} shown={shown} style={styles.hint} />
     </>
   );
 }

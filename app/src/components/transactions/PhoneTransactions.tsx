@@ -1,5 +1,6 @@
 import { ScrollView, Text, View } from 'react-native';
 
+import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
@@ -17,6 +18,7 @@ export function PhoneTransactions({ page }: { page: TransactionsPage }) {
             <Text style={styles.title}>Transações</Text>
             <MonthNav month={page.month} onChange={page.setMonth} compact />
           </View>
+          <CurrencyChips style={styles.currencies} />
           <TabSegment page={page} />
           {page.tab === 'lista' ? (
             <ListBody page={page}>

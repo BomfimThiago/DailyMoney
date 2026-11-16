@@ -50,3 +50,16 @@ describe('TxRow', () => {
     expect((await shown({ kind: 'pending' })).sub).toMatch(/^A confirmar/);
   });
 });
+
+describe('TxRow in another currency', () => {
+  it('shows the converted amount with the statement amount below', async () => {
+    await render(<TxRow t={{ ...base, display_amount: '-52.0667', display_currency: 'EUR' }} />);
+    const texts = screen.getAllByText(/\d,\d\d$/).map((n) => String(n.props.children));
+    expect(texts.map((t) => t.replace(/\s/g, ' '))).toEqual(['-€ 52,07', '-R$ 312,40']);
+  });
+
+  it('shows one amount when the line is already in that currency', async () => {
+    await render(<TxRow t={{ ...base, display_amount: '-312.4000', display_currency: 'BRL' }} />);
+    expect(screen.getAllByText(/\d,\d\d$/)).toHaveLength(1);
+  });
+});

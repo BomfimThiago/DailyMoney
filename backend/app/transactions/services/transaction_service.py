@@ -11,6 +11,8 @@ from app.categories.services import category_service
 from app.categories.services.categorize import TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
 from app.core.family_scope import get_in_family
+from app.families.models import Currency
+from app.fx.services.fx_service import Converter, converter
 from app.imports.services.transfers import MAX_DAYS
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
@@ -33,6 +35,7 @@ async def list_transactions(
     q: str | None = None,
     limit: int = 50,
     offset: int = 0,
+    currency: Currency | None = None,
 ) -> TransactionPage:
     where = [Transaction.family_id == family_id]
     if account_id is not None:
@@ -58,9 +61,15 @@ async def list_transactions(
         .limit(limit)
         .offset(offset)
     )
+    found = list(rows)
+    dates = [tx.date for tx, _, _ in found]
+    conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
     return TransactionPage(
         total=total or 0,
-        items=[to_out(tx, account_name, category_name) for tx, account_name, category_name in rows],
+        items=[
+            to_out(tx, account_name, category_name, conv)
+            for tx, account_name, category_name in found
+        ],
     )
 
 
@@ -163,8 +172,13 @@ async def _out_of(db: AsyncSession, tx: Transaction) -> TransactionOut:
     return to_out(tx, account.name, category.name if category else None)
 
 
-def to_out(tx: Transaction, account_name: str, category_name: str | None) -> TransactionOut:
+def to_out(
+    tx: Transaction, account_name: str, category_name: str | None, conv: Converter | None = None
+) -> TransactionOut:
+    converted = conv is not None and conv.target is not None
     return TransactionOut(
+        display_amount=conv(tx.amount, tx.currency, tx.date) if conv and converted else None,
+        display_currency=conv.target if conv else None,
         id=tx.id,
         date=tx.date,
         description=tx.description,

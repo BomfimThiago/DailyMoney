@@ -1180,6 +1180,22 @@
               "default": 0,
               "title": "Offset"
             }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
           }
         ],
         "responses": {
@@ -1227,6 +1243,22 @@
               "examples": ["2026-10"],
               "title": "Month"
             }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
           }
         ],
         "responses": {
@@ -1273,6 +1305,22 @@
               "pattern": "^\\d{4}-\\d{2}$",
               "examples": ["2026-10"],
               "title": "Month"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
             }
           }
         ],
@@ -1333,6 +1381,22 @@
               "default": 6,
               "title": "Months"
             }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
           }
         ],
         "responses": {
@@ -1379,6 +1443,22 @@
               "pattern": "^\\d{4}-\\d{2}$",
               "examples": ["2026-10"],
               "title": "Month"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
             }
           }
         ],
@@ -3328,6 +3408,27 @@
               }
             ],
             "title": "Member Id"
+          },
+          "display_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Amount"
+          },
+          "display_currency": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Currency"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

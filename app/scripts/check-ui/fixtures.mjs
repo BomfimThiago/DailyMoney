@@ -54,6 +54,12 @@ const regular = [
   tx(accounts.nubank, 27, 'Uber', '-23.90', 'regular', 'Transporte'),
   tx(accounts.inter, 25, 'Salário', '8500.00', 'regular', 'Salário'),
   tx(accounts.nubank, 22, 'Netflix', '-55.90', 'regular', 'Assinaturas'),
+  // An euro line shown in reais: the converted amount, with the statement's below.
+  {
+    ...tx(accounts.wise, 20, 'Mercadona', '-42.30', 'regular', 'Mercado'),
+    display_amount: '-262.26',
+    display_currency: 'BRL',
+  },
   tx(accounts.nubank, 18, 'iFood', '-64.50', 'regular', 'Restaurantes'),
   tx(accounts.nubank, 12, 'Farmácia São Paulo', '-89.10', 'regular', 'Saúde'),
   tx(accounts.inter, 5, 'Aluguel', '-2800.00', 'regular', 'Casa'),

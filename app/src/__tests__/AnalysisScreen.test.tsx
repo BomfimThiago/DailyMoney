@@ -4,11 +4,16 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import AnalysisScreen from '@/app/(tabs)/analises';
 import { useAuth } from '@/lib/auth';
 import { useAnalysis } from '@/lib/queries';
+import { withCurrency } from '@/testing/currency';
 import type { Analysis } from '@/lib/types';
 import { analysis } from '@/testing/analysis';
 
 jest.mock('expo-router', () => ({ Redirect: () => null }));
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
+jest.mock('@/lib/api', () => ({
+  ...jest.requireActual<typeof import('@/lib/api')>('@/lib/api'),
+  api: jest.fn(() => Promise.resolve({})),
+}));
 jest.mock('@/lib/queries', () => ({ useAnalysis: jest.fn() }));
 
 const mockAnalysis = jest.mocked(useAnalysis);
@@ -46,15 +51,15 @@ const wide = (width: number) =>
 
 beforeEach(() => {
   jest.restoreAllMocks();
-  jest
-    .mocked(useAuth)
-    .mockReturnValue({ state: { status: 'signedIn', me: {} } } as ReturnType<typeof useAuth>);
+  jest.mocked(useAuth).mockReturnValue({
+    state: { status: 'signedIn', me: { family: { display_currency: 'BRL' } } },
+  } as ReturnType<typeof useAuth>);
   answer({ data: data(full, analysis({ currency: 'EUR', average: null, changes: [] })) });
 });
 
 describe('AnalysisScreen', () => {
   it('shows every card with its lines', async () => {
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.getByText('GASTOS POR MÊS')).toBeTruthy();
     expect(screen.getByText(/^média /)).toBeTruthy();
     expect(screen.getByText('+50%')).toBeTruthy();
@@ -67,7 +72,7 @@ describe('AnalysisScreen', () => {
   });
 
   it('switches currency and period, with each card saying when it has nothing', async () => {
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     await fireEvent.press(screen.getByText('EUR'));
     expect(screen.getByText('Precisa de pelo menos um mês anterior para comparar.')).toBeTruthy();
     expect(screen.getByText('Nenhuma compra se repetiu tanto neste mês.')).toBeTruthy();
@@ -81,23 +86,24 @@ describe('AnalysisScreen', () => {
 
   it('shows loading, error and empty states', async () => {
     answer({});
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.queryByText('GASTOS POR MÊS')).toBeNull();
     answer({ isError: true });
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
     answer({ data: data(analysis({ months: [{ month: '2026-10', amount: '0' }] })) });
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.getByText(/Nenhum gasto nos extratos enviados/)).toBeTruthy();
-    expect(screen.queryByText('BRL')).toBeNull();
+    // The currencies stay: the period may be empty in one view and not in another.
+    expect(screen.getByText('BRL')).toBeTruthy();
   });
 
   it('puts cards side by side on a wide computer and stacks them on a narrow one', async () => {
     wide(1440);
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.getByText('O QUE MAIS MUDOU')).toBeTruthy();
     wide(950);
-    await render(<AnalysisScreen />);
+    await render(withCurrency(<AnalysisScreen />));
     expect(screen.getByText('PICOS DO MÊS')).toBeTruthy();
   });
 });

@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     PLUGGY_CLIENT_SECRET: str = ""
     PLUGGY_API_URL: str = "https://api.pluggy.ai"
 
+    # European Central Bank reference rates (Frankfurter: free, no key).
+    FX_API_URL: str = "https://api.frankfurter.dev/v1"
+
     @field_validator("GOOGLE_CLIENT_IDS", "ALLOWED_EMAILS", "CORS_ORIGINS", mode="before")
     @classmethod
     def _csv(cls, value: object) -> object:

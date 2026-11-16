@@ -13,6 +13,8 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  currencies: { marginBottom: 12 },
   loading: { marginVertical: 32 },
   top: { marginTop: 16 },
   empty: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },

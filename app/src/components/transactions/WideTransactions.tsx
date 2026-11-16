@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ScrollView, Text, TextInput, View } from 'react-native';
 
+import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
 import { TxDetail } from '@/components/TxDetail';
 import { TxTable } from '@/components/TxTable';
@@ -18,7 +19,10 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
       <View style={styles.wideColumn}>
         <View style={styles.head}>
           <Text style={styles.title}>Transações</Text>
-          <MonthNav month={page.month} onChange={page.setMonth} compact />
+          <View style={styles.headRight}>
+            <CurrencyChips />
+            <MonthNav month={page.month} onChange={page.setMonth} compact />
+          </View>
         </View>
         <View style={styles.toolbar}>
           <View style={styles.segmentBox}>

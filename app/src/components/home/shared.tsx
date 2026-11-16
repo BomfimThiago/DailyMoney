@@ -1,16 +1,9 @@
 import { router } from 'expo-router';
-import {
-  Pressable,
-  type StyleProp,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native';
 
 import { Button } from '@/components/ui';
 import { pendingLabel } from '@/lib/home';
-import type { Currency, CurrencySummary, MonthSummary } from '@/lib/types';
+import type { CurrencySummary, MonthSummary } from '@/lib/types';
 
 import { dash } from './styles';
 
@@ -58,21 +51,6 @@ export function PendingLink({ count, style }: { count: number; style?: StyleProp
   );
 }
 
-export function CurrencyHint({
-  summary,
-  shown,
-  style,
-}: {
-  summary: MonthSummary;
-  shown: CurrencySummary;
-  style: StyleProp<TextStyle>;
-}) {
-  if (summary.currencies.length < 2) return null;
-  return (
-    <Text style={style}>Só contas em {shown.currency}. A conversão entre moedas vem depois.</Text>
-  );
-}
-
 // What Início needs from its screen, shared by the phone and the computer layouts.
 export type Home = {
   month: string;
@@ -80,6 +58,5 @@ export type Home = {
   summary: MonthSummary | null;
   isError: boolean;
   shown: CurrencySummary | null;
-  setCurrency: (c: Currency) => void;
   name: string;
 };

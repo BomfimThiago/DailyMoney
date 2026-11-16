@@ -6,6 +6,7 @@ from app.categories.models import Category, CategoryRule
 from app.connections.models import BankConnection, PendingPluggyItem
 from app.db.base import Base
 from app.families.models import Family, Member, User
+from app.fx.models import FxRate
 from app.imports.models import StatementImport
 from app.transactions.models import Transaction
 
@@ -17,6 +18,7 @@ __all__ = [
     "Category",
     "CategoryRule",
     "Family",
+    "FxRate",
     "MagicLinkToken",
     "Member",
     "PendingPluggyItem",

@@ -4,6 +4,21 @@ import type { Account, Category, Transaction, TransactionPage, Transfer } from '
 
 export type Option = { id: string; name: string };
 
+// A line's amount in the currency the screen shows and, when it was converted, the amount
+// the statement has. "plain" drops the sign (money that only moved).
+export function lineAmounts(
+  t: Transaction,
+  sign: 'signed' | 'plain' = 'signed',
+): { shown: string; original: string | null } {
+  const fmt = (amount: string, currency: Transaction['currency']) =>
+    sign === 'signed' ? money(amount, currency, true) : money(amount.replace('-', ''), currency);
+  const original = fmt(t.amount, t.currency);
+  if (t.display_amount == null || !t.display_currency || t.display_currency === t.currency) {
+    return { shown: original, original: null };
+  }
+  return { shown: fmt(t.display_amount, t.display_currency), original };
+}
+
 export function pagedItems(pages: TransactionPage[] | undefined): Transaction[] | null {
   return pages ? pages.flatMap((p) => p.items) : null;
 }

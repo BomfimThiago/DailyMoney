@@ -5,6 +5,7 @@ import InvestmentsScreen from '@/app/(tabs)/investimentos';
 import { useAuth } from '@/lib/auth';
 import { currentMonth } from '@/lib/format';
 import { useInvestments } from '@/lib/queries';
+import { withCurrency } from '@/testing/currency';
 import { overview } from '@/testing/investments';
 
 jest.mock('expo-router', () => {
@@ -14,6 +15,10 @@ jest.mock('expo-router', () => {
   };
 });
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
+jest.mock('@/lib/api', () => ({
+  ...jest.requireActual<typeof import('@/lib/api')>('@/lib/api'),
+  api: jest.fn(() => Promise.resolve({})),
+}));
 jest.mock('@/lib/queries', () => ({ useInvestments: jest.fn() }));
 
 const mockAuth = jest.mocked(useAuth);
@@ -36,17 +41,19 @@ const wide = () =>
 
 beforeEach(() => {
   jest.restoreAllMocks();
-  mockAuth.mockReturnValue({ state: { status: 'signedIn', me: {} } } as ReturnType<typeof useAuth>);
+  mockAuth.mockReturnValue({
+    state: { status: 'signedIn', me: { family: { display_currency: 'BRL' } } },
+  } as ReturnType<typeof useAuth>);
   answer({ data: overview({ month: currentMonth() }) });
 });
 
 describe('InvestmentsScreen session', () => {
   it('waits for the session, then sends signed-out people to login', async () => {
     mockAuth.mockReturnValue({ state: { status: 'loading' } } as ReturnType<typeof useAuth>);
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.queryByText('Investimentos')).toBeNull();
     mockAuth.mockReturnValue({ state: { status: 'signedOut' } } as ReturnType<typeof useAuth>);
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('redirect /login')).toBeTruthy();
   });
 });
@@ -54,20 +61,20 @@ describe('InvestmentsScreen session', () => {
 describe('InvestmentsScreen on the phone', () => {
   it('shows loading, error and empty states', async () => {
     answer({});
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.queryByText('Seus produtos')).toBeNull();
     answer({ isError: true });
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
     answer({ data: overview({ totals: [] }) });
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(
       screen.getByText('Nenhuma aplicação ou resgate nos extratos enviados até agora.'),
     ).toBeTruthy();
   });
 
   it('shows the total, the month and the products', async () => {
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(text('R$ 4.000,00')).toBeTruthy();
     expect(text('+R$ 1.500,00')).toBeTruthy();
     expect(screen.getByText('RDB')).toBeTruthy();
@@ -76,7 +83,7 @@ describe('InvestmentsScreen on the phone', () => {
   });
 
   it('switches currency and says when the month had no moves', async () => {
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     await fireEvent.press(screen.getByText('EUR'));
     expect(screen.getAllByText(money('€ 300,00')).length).toBeGreaterThan(0);
     expect(screen.getByText(/^Nenhum movimento em /)).toBeTruthy();
@@ -84,7 +91,7 @@ describe('InvestmentsScreen on the phone', () => {
   });
 
   it('shows movements with the month figures', async () => {
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     await fireEvent.press(screen.getByTestId('segment-movimentos'));
     expect(screen.getByText('Investido por mês (aplicado menos resgatado)')).toBeTruthy();
     expect(screen.getByText('Resgatado')).toBeTruthy();
@@ -93,14 +100,14 @@ describe('InvestmentsScreen on the phone', () => {
 
   it('leaves out the figures and movements when the month is empty', async () => {
     answer({ data: overview({ history: [], movements: [] }) });
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     await fireEvent.press(screen.getByTestId('segment-movimentos'));
     expect(screen.queryByText('Resgatado')).toBeNull();
     expect(screen.getByText('Nenhuma aplicação ou resgate neste mês.')).toBeTruthy();
   });
 
   it('asks for another month when the arrow is pressed', async () => {
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     await fireEvent.press(screen.getByLabelText('Mês anterior'));
     const months = mockInvestments.mock.calls.map((c) => c[0]);
     expect(months[months.length - 1]).not.toBe(currentMonth());
@@ -110,7 +117,7 @@ describe('InvestmentsScreen on the phone', () => {
 describe('InvestmentsScreen on a computer', () => {
   it('shows the four figures and both cards', async () => {
     wide();
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('APLICADO NO TOTAL')).toBeTruthy();
     expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
     expect(screen.getByText('INVESTIDO POR MÊS')).toBeTruthy();
@@ -119,15 +126,15 @@ describe('InvestmentsScreen on a computer', () => {
     expect(screen.getAllByText(money('€ 300,00')).length).toBeGreaterThan(0);
   });
 
-  it('shows zeros without a month and no currency chips while loading', async () => {
+  it('shows zeros without a month, and the currencies even while loading', async () => {
     wide();
     answer({ data: overview({ totals: [overview().totals[0]], history: [] }) });
-    await render(<InvestmentsScreen />);
-    expect(screen.queryByText('EUR')).toBeNull();
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getAllByText(money('R$ 0,00'))).toHaveLength(3);
     answer({});
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.queryByText('SEUS PRODUTOS')).toBeNull();
+    expect(screen.getByText('USD')).toBeTruthy();
   });
 
   it('stacks the cards on a narrow computer', async () => {
@@ -137,7 +144,7 @@ describe('InvestmentsScreen on a computer', () => {
         'useWindowDimensions',
       )
       .mockReturnValue({ width: 960, height: 900, scale: 1, fontScale: 1 });
-    await render(<InvestmentsScreen />);
+    await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
   });
 });

@@ -21,6 +21,9 @@ class TransactionOut(BaseModel):
     category_id: uuid.UUID | None
     category_name: str | None
     member_id: uuid.UUID | None
+    # When the screen shows another currency: the amount converted with its day's ECB rate.
+    display_amount: Decimal | None = None
+    display_currency: Currency | None = None
 
 
 class TransactionPage(BaseModel):
@@ -56,7 +59,8 @@ class CurrencySummary(BaseModel):
 
 class MonthSummary(BaseModel):
     month: str  # YYYY-MM
-    # One entry per currency the family has accounts in (no conversion yet).
+    # One entry per currency the family has accounts in; just the chosen one when
+    # amounts are converted (?currency=). Empty when there are no accounts yet.
     currencies: list[CurrencySummary]
     pending_transfers: int
 

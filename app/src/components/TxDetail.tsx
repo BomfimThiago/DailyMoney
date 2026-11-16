@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { errorText } from '@/lib/api';
-import { fullDate, isIncome, money } from '@/lib/format';
+import { fullDate, isIncome } from '@/lib/format';
 import { updateCategory } from '@/lib/imports';
 import { useCategories } from '@/lib/queries';
+import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -15,6 +16,7 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
   const [error, setError] = useState<string | null>(null);
   const [forMerchant, setForMerchant] = useState(true);
   const incoming = isIncome(t.amount);
+  const amount = lineAmounts(t);
 
   const choose = async (categoryId: string) => {
     if (categoryId === t.category_id) return;
@@ -33,9 +35,12 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
   return (
     <View style={styles.box}>
       <Text style={styles.title}>{t.description}</Text>
-      <Text style={[styles.amount, incoming && styles.income]}>
-        {money(t.amount, t.currency, true)}
-      </Text>
+      <Text style={[styles.amount, incoming && styles.income]}>{amount.shown}</Text>
+      {amount.original ? (
+        <Text style={styles.original}>
+          {amount.original} no extrato, convertido pela cotação do Banco Central Europeu do dia
+        </Text>
+      ) : null}
       <View style={styles.facts}>
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
@@ -137,6 +142,7 @@ const styles = StyleSheet.create({
   box: { gap: 10 },
   title: { fontFamily: fonts.medium, fontSize: 16, color: colors.ink },
   amount: { fontFamily: fonts.regular, fontSize: 26, color: colors.ink },
+  original: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: -4 },
   income: { color: colors.positive },
   facts: { gap: 6, marginTop: 2 },
   fact: { flexDirection: 'row', gap: 12 },

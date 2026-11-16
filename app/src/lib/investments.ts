@@ -27,7 +27,7 @@ export function investmentView(
     history,
     thisMonth: history[history.length - 1],
     products: data.products.filter((p) => p.currency === currency),
-    movements: data.movements.filter((m) => m.currency === currency),
+    movements: data.movements.filter((m) => (m.display_currency ?? m.currency) === currency),
   };
 }
 

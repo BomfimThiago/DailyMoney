@@ -83,7 +83,13 @@ export interface TxFilters {
 }
 
 export function listTransactions(
-  opts: { limit?: number; offset?: number; month?: string; kinds?: TxKind[] } & TxFilters = {},
+  opts: {
+    limit?: number;
+    offset?: number;
+    month?: string;
+    kinds?: TxKind[];
+    currency?: Currency;
+  } & TxFilters = {},
 ) {
   const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
   const optional = {
@@ -92,18 +98,20 @@ export function listTransactions(
     q: opts.q?.trim(),
     category_id: opts.categoryId,
     account_id: opts.accountId,
+    currency: opts.currency,
   };
   for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
   for (const k of opts.kinds ?? []) q.append('kind', k);
   return api<TransactionPage>(`/transactions?${q.toString()}`);
 }
 
-export function getSummary(month: string) {
-  return api<MonthSummary>(`/transactions/summary?month=${month}`);
+// With a currency, every amount comes converted into it (ECB rate of each line's day).
+export function getSummary(month: string, currency: Currency) {
+  return api<MonthSummary>(`/transactions/summary?month=${month}&currency=${currency}`);
 }
 
-export function getInvestments(month: string) {
-  return api<InvestmentOverview>(`/transactions/investments?month=${month}`);
+export function getInvestments(month: string, currency: Currency) {
+  return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
 }
 
 export function getTransfers(month: string) {
@@ -117,12 +125,14 @@ export function setKind(id: string, kind: Exclude<TxKind, 'pending'>) {
   });
 }
 
-export function getDashboard(month: string) {
-  return api<MonthDashboard>(`/transactions/dashboard?month=${month}`);
+export function getDashboard(month: string, currency: Currency) {
+  return api<MonthDashboard>(`/transactions/dashboard?month=${month}&currency=${currency}`);
 }
 
-export function getAnalysis(month: string, months: number) {
-  return api<Analysis>(`/transactions/analysis?month=${month}&months=${months}`);
+export function getAnalysis(month: string, months: number, currency: Currency) {
+  return api<Analysis>(
+    `/transactions/analysis?month=${month}&months=${months}&currency=${currency}`,
+  );
 }
 
 export function listCategories() {

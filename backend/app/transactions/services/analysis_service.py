@@ -1,7 +1,8 @@
 """Análises: how spending moves over months, habits, weekdays, peaks and recurring charges.
 
 Only regular lines going out count (investments and own transfers are not spending).
-Values stay in each account's own currency, one analysis per currency, like Início.
+Values stay in each account's own currency, one analysis per currency, like Início, unless
+a currency is chosen: then every line is converted with its day's ECB rate.
 """
 
 import uuid
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.categories.models import Category
 from app.categories.services.categorize import merchant_key, merchant_part
 from app.families.models import Currency
+from app.fx.services.fx_service import converter
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
     Analysis,
@@ -243,7 +245,12 @@ def _steady(per_month: dict[str, list[Spend]]) -> bool:
 
 
 async def analysis(
-    db: AsyncSession, family_id: uuid.UUID, month: str, months: int, today: date | None = None
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    month: str,
+    months: int,
+    today: date | None = None,
+    currency: Currency | None = None,
 ) -> Analysis:
     first = min(shift(month, -(months - 1)), shift(month, -(RECURRING_MONTHS - 1)))
     lo, _ = month_range(first)
@@ -264,8 +271,9 @@ async def analysis(
             Transaction.date.between(lo, hi),
         )
     )
-    rows = [Spend(c, d, -a, desc, cat) for c, d, a, desc, cat in result]
-    currencies = await _currencies(db, family_id)
+    conv = await converter(db, currency, lo, hi)
+    rows = [Spend(conv.currency(c), d, -conv(a, c, d), desc, cat) for c, d, a, desc, cat in result]
+    currencies = await _currencies(db, family_id, currency)
     return Analysis(
         month=month,
         months=months,
