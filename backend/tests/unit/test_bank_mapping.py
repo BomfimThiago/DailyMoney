@@ -186,6 +186,21 @@ def test_pluggy_item_checks() -> None:
     assert pluggy.bank_name({}) == "Banco"
 
 
+def test_meu_pluggy_items_take_the_bank_from_their_accounts() -> None:
+    # Every item made in Meu Pluggy has the connector "MeuPluggy"; the bank is in the accounts.
+    meu = {"connector": {"name": "MeuPluggy"}}
+    nu = [{"name": "Nu Pagamentos S.A. - Instituição de Pagamento"}, {"name": "gold"}]
+    assert pluggy.bank_name(meu, nu) == "Nubank"
+    assert pluggy.bank_name(meu, [{"name": "BANCO INTER"}]) == "Inter"
+    assert pluggy.bank_name(meu, [{"name": "x", "marketingName": "Itaú Personnalité"}]) == "Itaú"
+    assert pluggy.bank_name(meu, [{"name": "C6 Bank"}]) == "C6 Bank"
+    assert pluggy.bank_name(meu, []) == "MeuPluggy"
+    # A known connector wins over the account names.
+    assert (
+        pluggy.bank_name({"connector": {"name": "Nubank"}}, [{"name": "BANCO INTER"}]) == "Nubank"
+    )
+
+
 def test_redirect_url_can_be_the_one_registered_in_enable_banking(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

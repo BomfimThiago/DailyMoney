@@ -14,6 +14,7 @@ Rules checked against real Meu Pluggy data in the old app:
 
 import re
 import time
+from collections.abc import Iterable
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
@@ -27,6 +28,8 @@ from app.core.exceptions import AppError, ConflictError
 from app.statements.parsing.types import SUPPORTED_CURRENCIES, ParsedRow, RowError, RowKind
 
 PROVIDER = "pluggy"
+# The connector of every item made in Meu Pluggy, whatever the bank.
+MEU_PLUGGY = "MeuPluggy"
 BRASILIA = ZoneInfo("America/Sao_Paulo")
 CENTS = Decimal("0.01")
 _TRANSFER_CATEGORIES = {"Same person transfer", "Transfer - Internal", "Credit card payment"}
@@ -111,12 +114,33 @@ def check_item(item: dict[str, Any], now: datetime) -> datetime | None:
     return until
 
 
-def bank_name(item: dict[str, Any]) -> str:
-    name = str((item.get("connector") or {}).get("name") or "").strip()
-    for known in ("Nubank", "Inter", "Itaú"):
-        if known.lower() in name.lower():
-            return known
-    return name or "Banco"
+# How each bank shows up in Pluggy's connector or account names.
+KNOWN_BANKS = {
+    "Nubank": ("nubank", "nu pagamentos"),
+    "Inter": ("inter",),
+    "Itaú": ("itaú", "itau"),
+}
+
+
+def _known_bank(text: str) -> str | None:
+    lowered = text.lower()
+    return next(
+        (bank for bank, marks in KNOWN_BANKS.items() if any(m in lowered for m in marks)),
+        None,
+    )
+
+
+def bank_name(item: dict[str, Any], accounts: Iterable[dict[str, Any]] = ()) -> str:
+    """The bank behind an item. Items made in Meu Pluggy all have the connector
+    "MeuPluggy", so the bank comes from their accounts' names."""
+    connector = str((item.get("connector") or {}).get("name") or "").strip()
+    names = [str(a.get(k) or "") for a in accounts for k in ("name", "marketingName")]
+    for text in [connector, *names]:
+        if bank := _known_bank(text):
+            return bank
+    if connector.lower() == MEU_PLUGGY.lower():
+        return next((n.strip() for n in names if n.strip()), connector)
+    return connector or "Banco"
 
 
 async def list_accounts(item_id: str) -> list[dict[str, Any]]:

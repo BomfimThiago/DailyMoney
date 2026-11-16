@@ -364,6 +364,48 @@ async def test_meu_pluggy_items_show_up_and_sync(
     assert len((await client.get("/api/v1/connections", headers=h)).json()["connections"]) == 1
 
 
+MEU_PLUGGY_ACCOUNTS = {
+    "item-a": [{"id": "a1", "type": "BANK", "name": "Nu Pagamentos S.A. - Instituição"}],
+    "item-b": [{"id": "b1", "type": "BANK", "name": "BANCO INTER"}],
+    "item-c": [{"id": "c1", "type": "BANK", "name": "BANCO INTER"}],
+}
+
+
+def fake_meu_pluggy(request: httpx.Request) -> httpx.Response:
+    path = request.url.path
+    if path == "/auth":
+        return httpx.Response(200, json={"apiKey": "k"})
+    if path.startswith("/items/"):
+        item = path.removeprefix("/items/")
+        return httpx.Response(
+            200, json={"id": item, "status": "UPDATED", "connector": {"name": "MeuPluggy"}}
+        )
+    assert path == "/accounts"
+    return httpx.Response(200, json={"results": MEU_PLUGGY_ACCOUNTS[request.url.params["itemId"]]})
+
+
+async def test_meu_pluggy_items_are_named_by_their_bank_and_never_break_the_list(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "PLUGGY_CLIENT_ID", "id")
+    monkeypatch.setattr(settings, "PLUGGY_CLIENT_SECRET", "secret")
+    # item-c is a second Inter: one connection per bank, so it is left out instead of
+    # failing the whole page.
+    monkeypatch.setattr(settings, "PLUGGY_ITEM_IDS", ["item-a", "item-b", "item-c"])
+    monkeypatch.setattr(pluggy, "transport", httpx.MockTransport(fake_meu_pluggy))
+    monkeypatch.setattr(pluggy, "_key", None)
+    h = auth(await login(client))
+
+    for _ in range(2):
+        r = await client.get("/api/v1/connections", headers=h)
+        assert r.status_code == 200
+        conns = r.json()["connections"]
+        assert [(c["bank"], c["provider"]) for c in conns] == [
+            ("Nubank", "pluggy"),
+            ("Inter", "pluggy"),
+        ]
+
+
 async def test_sync_all_reads_every_connection(
     client: AsyncClient, fake_eb: FakeEnableBanking, db: Any
 ) -> None:
