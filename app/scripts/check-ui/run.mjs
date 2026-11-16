@@ -6,6 +6,7 @@
 //   DIST=dist npm run check:ui    reuse an existing build
 // Screenshots go to $OUT (default: <tmp>/dailymoney-check-ui). Look at them before
 // calling a UI change done.
+import { Buffer } from 'node:buffer';
 import { execSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -66,6 +67,30 @@ let answered = false;
 const recategorized = [];
 
 const bankRequests = [];
+// The family's month start day, as saved from Ajustes (PATCH /family).
+let monthStartDay = 1;
+
+// The dashboard's days with a month starting on the 16th or later: from that day of the
+// month before up to the day before it this month.
+function shiftedDashboard(body) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const [y, m] = body.month.split('-').map(Number);
+  const startDate = new Date(Date.UTC(y, m - 2, monthStartDay));
+  const endDate = new Date(Date.UTC(y, m - 1, monthStartDay - 1));
+  const iso = (d) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+  const days = Math.round((endDate - startDate) / 86_400_000) + 1;
+  const fit = (list) => Array.from({ length: days }, (_, i) => list[i] ?? '0.00');
+  return {
+    ...body,
+    start: iso(startDate),
+    end: iso(endDate),
+    currencies: body.currencies.map((c) => ({
+      ...c,
+      daily: fit(c.daily),
+      previous_daily: fit(c.previous_daily),
+    })),
+  };
+}
 
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
@@ -93,6 +118,20 @@ function answer(url, method) {
     const connection = fixtures['/connections'].connections[1];
     const accounts = [{ name: 'Nubank', new: 37, duplicate: 5, error: null }];
     return { status: 200, body: { status: 'connected', results: [{ connection, accounts }] } };
+  }
+  if (method === 'PATCH' && p === '/family') {
+    monthStartDay = 27;
+    return { status: 200, body: { ...fixtures['/auth/me'].family, month_start_day: 27 } };
+  }
+  if (p === '/auth/me') {
+    const me = fixtures[p];
+    return {
+      status: 200,
+      body: { ...me, family: { ...me.family, month_start_day: monthStartDay } },
+    };
+  }
+  if (monthStartDay !== 1 && p === '/transactions/dashboard') {
+    return { status: 200, body: shiftedDashboard(fixtures[p]) };
   }
   if (p === '/bank-requests') {
     if (method === 'POST') {
@@ -339,6 +378,19 @@ async function checkScreens(page, tag) {
     await page.goto(`${base}/conexoes/retorno-brasil`);
     await seen('Nubank conectado').waitFor({ timeout: 5000 });
     await shot('conexoes-retorno-brasil');
+    // Ajustes: the month starts on the 27th, and Início names the month by its days.
+    await page.goto(`${base}/ajustes`);
+    await seen('O mês começa no dia').waitFor();
+    await shot('ajustes');
+    await page.getByTestId('month-start-27').click();
+    await page.getByRole('button', { name: 'Salvar início do mês' }).click();
+    await seen('O mês agora começa no dia 27.').waitFor({ timeout: 5000 });
+    await shot('ajustes-salvo');
+    await page.goto(`${base}/`);
+    await seen(/\d+ \w{3} – \d+ \w{3}/).waitFor({ timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+    await shot('inicio-dia-27');
+    monthStartDay = 1;
   } catch (e) {
     flag(`roteiro parou: ${e.message.split('\n').slice(0, 12).join(' | ')}`);
     await shot('falha').catch(() => {});

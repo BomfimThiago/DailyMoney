@@ -318,3 +318,35 @@ async def test_analysis_rejects_long_periods(client: AsyncClient) -> None:
     assert r.status_code == 422
     r = await client.get("/api/v1/transactions/analysis?month=2026-10")
     assert r.status_code == 401
+
+
+async def test_every_month_follows_the_family_start_day(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, DASHBOARD, "nu.csv", "Nubank")
+    r = await client.patch("/api/v1/family", json={"month_start_day": 16}, headers=h)
+    assert r.status_code == 200, r.text
+
+    # Starting on the 16th, "October" runs from 16 Sep to 15 Oct.
+    dash = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10")
+    assert (dash["start"], dash["end"]) == ("2026-09-16", "2026-10-15")
+    [brl] = dash["currencies"]
+    daily = [float(v) for v in brl["daily"]]
+    assert len(daily) == 30
+    assert daily[12] == 80 and daily[17] == 250 and sum(daily) == 330
+
+    november = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-11")
+    assert sum(float(v) for v in november["currencies"][0]["daily"]) == 150
+    assert sum(float(v) for v in november["currencies"][0]["previous_daily"]) == 330
+
+    [summary] = (await _get(client, h, "/api/v1/transactions/summary?month=2026-10"))["currencies"]
+    assert summary["spending"] == "330.0000"
+
+    page = await _get(client, h, "/api/v1/transactions?month=2026-11")
+    assert [t["date"] for t in page["items"] if t["amount"].startswith("-")] == ["2026-10-20"]
+
+    data = await _get(client, h, "/api/v1/transactions/analysis?month=2026-11&months=2")
+    [brl] = data["currencies"]
+    assert [(m["month"], m["amount"]) for m in brl["months"]] == [
+        ("2026-10", "330.0000"),
+        ("2026-11", "150.0000"),
+    ]

@@ -15,8 +15,8 @@ import { Loadable, signedInPage } from '@/components/states';
 import { Chip } from '@/components/ui';
 import { PERIODS, type Period, shownAnalysis } from '@/lib/analysis';
 import { contentWidth, PAGE_MAX, PAGE_PAD, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
-import { currentMonth } from '@/lib/format';
 import { useAnalysis } from '@/lib/queries';
+import { useMonthState } from '@/lib/monthStart';
 import { useDisplayCurrency } from '@/lib/displayCurrency';
 import type { CurrencyAnalysis } from '@/lib/types';
 import { colors, fonts } from '@/theme';
@@ -30,7 +30,7 @@ export default signedInPage(Analyses);
 
 function Analyses() {
   const { width } = useWindowDimensions();
-  const [month, setMonth] = useState(currentMonth);
+  const [month, setMonth] = useMonthState();
   const [period, setPeriod] = useState<Period>(6);
   const { currency } = useDisplayCurrency();
   const query = useAnalysis(month, period, true);

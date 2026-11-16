@@ -10,6 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { AuthProvider } from '@/lib/auth';
 import { DisplayCurrencyProvider } from '@/lib/displayCurrency';
+import { MonthStartProvider } from '@/lib/monthStart';
 import { queryClient } from '@/lib/queries';
 import { colors } from '@/theme';
 
@@ -20,10 +21,12 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <DisplayCurrencyProvider>
-          <StatusBar style="dark" />
-          <Stack
-            screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}
-          />
+          <MonthStartProvider>
+            <StatusBar style="dark" />
+            <Stack
+              screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.page } }}
+            />
+          </MonthStartProvider>
         </DisplayCurrencyProvider>
       </AuthProvider>
     </QueryClientProvider>

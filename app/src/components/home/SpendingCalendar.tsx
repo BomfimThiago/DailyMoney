@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native';
 
-import { calendarLegend, calendarWeeks, dayLevel } from '@/lib/dashboard';
+import { calendarLegend, calendarWeeks, dayLevel, dayOfPeriod } from '@/lib/dashboard';
 import { money } from '@/lib/format';
 import type { Currency, CurrencyDashboard } from '@/lib/types';
 import { inkShade } from '@/theme';
@@ -10,7 +10,7 @@ import { dash as styles } from './styles';
 const WEEKDAYS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 
 // Each day shaded by how much was spent; the most expensive day is the darkest.
-export function SpendingCalendar({ month, dash }: { month: string; dash: CurrencyDashboard }) {
+export function SpendingCalendar({ start, dash }: { start: string; dash: CurrencyDashboard }) {
   const values = dash.daily.map(Number);
   const peak = Math.max(...values, 0);
   return (
@@ -23,7 +23,7 @@ export function SpendingCalendar({ month, dash }: { month: string; dash: Currenc
           </Text>
         ))}
       </View>
-      {calendarWeeks(month).map((week, wi) => (
+      {calendarWeeks(start, dash.daily.length).map((week, wi) => (
         <View key={wi} style={styles.week}>
           {week.map((d, di) =>
             d === null ? (
@@ -31,7 +31,7 @@ export function SpendingCalendar({ month, dash }: { month: string; dash: Currenc
             ) : (
               <Day
                 key={di}
-                day={d}
+                day={dayOfPeriod(start, d)}
                 value={values[d - 1] ?? 0}
                 peak={peak}
                 currency={dash.currency}
@@ -40,7 +40,7 @@ export function SpendingCalendar({ month, dash }: { month: string; dash: Currenc
           )}
         </View>
       ))}
-      <Text style={styles.legend}>{calendarLegend(month, dash.daily, dash.currency)}</Text>
+      <Text style={styles.legend}>{calendarLegend(start, dash.daily, dash.currency)}</Text>
     </View>
   );
 }

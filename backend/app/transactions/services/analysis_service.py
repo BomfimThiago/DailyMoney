@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.categories.models import Category
 from app.categories.services.categorize import merchant_key, merchant_part
 from app.families.models import Currency
+from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
 from app.transactions.models import Transaction, TxKind
 from app.transactions.schemas import (
@@ -55,6 +56,9 @@ class Spend:
     amount: Decimal
     description: str
     category: str | None
+    # The period ('AAAA-MM') the day falls in; with the family's start day it is not
+    # always the calendar month.
+    month: str
 
 
 def display_name(description: str) -> str:
@@ -91,25 +95,30 @@ def _name(rows: list[Spend]) -> str:
 
 
 def analyse(
-    rows: list[Spend], currencies: list[Currency], month: str, months: int, today: date
+    rows: list[Spend],
+    currencies: list[Currency],
+    month: str,
+    months: int,
+    today: date,
+    start_day: int = 1,
 ) -> list[CurrencyAnalysis]:
     window = [shift(month, i - (months - 1)) for i in range(months)]
     by_currency: dict[Currency, list[Spend]] = defaultdict(list)
     for r in rows:
         by_currency[r.currency].append(r)
-    return [_analyse_currency(c, by_currency[c], month, window, today) for c in currencies]
+    _, hi = month_range(month, start_day)
+    return [_analyse_currency(c, by_currency[c], month, window, min(hi, today)) for c in currencies]
 
 
 def _analyse_currency(
-    currency: Currency, rows: list[Spend], month: str, window: list[str], today: date
+    currency: Currency, rows: list[Spend], month: str, window: list[str], last_day: date
 ) -> CurrencyAnalysis:
-    lo, hi = month_range(month)
-    in_window = [r for r in rows if window[0] <= month_of(r.date) <= month]
-    in_month = [r for r in rows if lo <= r.date <= hi]
+    in_window = [r for r in rows if window[0] <= r.month <= month]
+    in_month = [r for r in rows if r.month == month]
 
     totals = dict.fromkeys(window, ZERO)
     for r in in_window:
-        totals[month_of(r.date)] += r.amount
+        totals[r.month] += r.amount
     # Months before the first imported line are not "zero spending": leave them out.
     with_data = [m for m in window if totals[m] > 0]
     base = [m for m in window[:-1] if with_data and m >= with_data[0]]
@@ -122,7 +131,7 @@ def _analyse_currency(
         average=average,
         changes=_changes(in_window, in_month, base),
         habits=_habits(rows, in_month, month),
-        weekdays=_weekdays(in_window, min(hi, today)),
+        weekdays=_weekdays(in_window, last_day),
         peaks=_peaks(in_month),
         recurring=recurring,
         recurring_total=sum((r.amount for r in recurring), ZERO),
@@ -139,7 +148,7 @@ def _changes(
     for r in in_month:
         now[r.category or OTHER_CATEGORY] += r.amount
     for r in in_window:
-        if month_of(r.date) in base:
+        if r.month in base:
             before[r.category or OTHER_CATEGORY] += r.amount
     changes = [
         CategoryChange(name=name, amount=now[name], average=_q(before[name] / len(base)))
@@ -150,7 +159,7 @@ def _changes(
 
 
 def _habits(rows: list[Spend], in_month: list[Spend], month: str) -> list[Habit]:
-    previous = _by_merchant([r for r in rows if month_of(r.date) == shift(month, -1)])
+    previous = _by_merchant([r for r in rows if r.month == shift(month, -1)])
     habits = [
         Habit(
             name=_name(group),
@@ -208,10 +217,10 @@ def _recurring(rows: list[Spend], month: str) -> list[Recurring]:
     first = shift(month, -(RECURRING_MONTHS - 1))
     recent = {month, shift(month, -1)}
     found = []
-    for group in _by_merchant([r for r in rows if first <= month_of(r.date) <= month]).values():
+    for group in _by_merchant([r for r in rows if first <= r.month <= month]).values():
         per_month: dict[str, list[Spend]] = defaultdict(list)
         for r in group:
-            per_month[month_of(r.date)].append(r)
+            per_month[r.month].append(r)
         last_month = max(per_month)
         if last_month not in recent:
             continue  # stopped: no charge this month or the one before
@@ -252,9 +261,10 @@ async def analysis(
     today: date | None = None,
     currency: Currency | None = None,
 ) -> Analysis:
+    start_day = await month_start_day(db, family_id)
     first = min(shift(month, -(months - 1)), shift(month, -(RECURRING_MONTHS - 1)))
-    lo, _ = month_range(first)
-    _, hi = month_range(month)
+    lo, _ = month_range(first, start_day)
+    _, hi = month_range(month, start_day)
     result = await db.execute(
         select(
             Transaction.currency,
@@ -272,10 +282,13 @@ async def analysis(
         )
     )
     conv = await converter(db, currency, lo, hi)
-    rows = [Spend(conv.currency(c), d, -conv(a, c, d), desc, cat) for c, d, a, desc, cat in result]
+    rows = [
+        Spend(conv.currency(c), d, -conv(a, c, d), desc, cat, month_of(d, start_day))
+        for c, d, a, desc, cat in result
+    ]
     currencies = await _currencies(db, family_id, currency)
     return Analysis(
         month=month,
         months=months,
-        currencies=analyse(rows, currencies, month, months, today or date.today()),
+        currencies=analyse(rows, currencies, month, months, today or date.today(), start_day),
     )

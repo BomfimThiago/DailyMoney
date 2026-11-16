@@ -15,8 +15,9 @@ import { MonthNav, Segment } from '@/components/nav';
 import { Loadable, signedInPage } from '@/components/states';
 import { SectionTitle } from '@/components/ui';
 import { contentWidth, TWO_COLUMNS, WIDE_MIN } from '@/lib/dashboard';
-import { currentMonth, money, monthLabel, shortMonth } from '@/lib/format';
+import { money, monthLabel, shortMonth } from '@/lib/format';
 import { type InvestmentView, investmentView, monthMoves, monthTotals } from '@/lib/investments';
+import { useMonthState } from '@/lib/monthStart';
 import { useDisplayCurrency } from '@/lib/displayCurrency';
 import { useInvestments } from '@/lib/queries';
 
@@ -30,7 +31,7 @@ export default signedInPage(Investments);
 
 function Investments() {
   const { width } = useWindowDimensions();
-  const [month, setMonth] = useState(currentMonth);
+  const [month, setMonth] = useMonthState();
   const { currency } = useDisplayCurrency();
   const query = useInvestments(month, true);
   const view = query.data ? investmentView(query.data, currency) : null;

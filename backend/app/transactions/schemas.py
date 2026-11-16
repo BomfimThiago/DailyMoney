@@ -83,6 +83,9 @@ class CurrencyDashboard(BaseModel):
 
 class MonthDashboard(BaseModel):
     month: str
+    # The period's first and last day: the month may start on the family's chosen day.
+    start: date
+    end: date
     currencies: list[CurrencyDashboard]
 
 

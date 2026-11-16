@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.accounts.models import Account
 from app.categories.models import Category
 from app.families.models import Currency, Family
+from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
 from app.statements.parsing.own_moves import product_name
 from app.transactions.models import Transaction, TxKind
@@ -55,7 +56,7 @@ async def _currencies(
 async def month_summary(
     db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
 ) -> MonthSummary:
-    lo, hi = month_range(month)
+    lo, hi = month_range(month, await month_start_day(db, family_id))
     conv = await converter(db, currency, lo, hi)
     rows = await db.execute(
         select(Transaction.currency, Transaction.kind, Transaction.amount, Transaction.date).where(
@@ -103,8 +104,9 @@ async def month_dashboard(
     db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
 ) -> MonthDashboard:
     """Spending per day (this month and the one before), by category and by account."""
-    lo, hi = month_range(month)
-    prev_lo, prev_hi = month_range(shift(month, -1))
+    start_day = await month_start_day(db, family_id)
+    lo, hi = month_range(month, start_day)
+    prev_lo, prev_hi = month_range(shift(month, -1), start_day)
     conv = await converter(db, currency, prev_lo, hi)
     rows = await db.execute(
         select(
@@ -119,17 +121,20 @@ async def month_dashboard(
             Transaction.date.between(prev_lo, hi),
         )
     )
-    daily: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * hi.day)
-    previous: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * prev_hi.day)
+    # Index 0 is the period's first day (not always the 1st).
+    daily: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * ((hi - lo).days + 1))
+    previous: dict[Currency, list[Decimal]] = defaultdict(
+        lambda: [ZERO] * ((prev_hi - prev_lo).days + 1)
+    )
     by_category: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
     by_account: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
     for original, day, amount, account_name, category_name in rows:
         currency = conv.currency(original)
         spent = -conv(amount, original, day)
         if day < lo:
-            previous[currency][day.day - 1] += spent
+            previous[currency][(day - prev_lo).days] += spent
             continue
-        daily[currency][day.day - 1] += spent
+        daily[currency][(day - lo).days] += spent
         by_category[currency][category_name or OTHER_CATEGORY] += spent
         by_account[currency][account_name] += spent
 
@@ -141,6 +146,8 @@ async def month_dashboard(
 
     return MonthDashboard(
         month=month,
+        start=lo,
+        end=hi,
         currencies=[
             CurrencyDashboard(
                 currency=c,
@@ -170,7 +177,8 @@ async def _with_names(
 async def investments(
     db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
 ) -> InvestmentOverview:
-    lo, hi = month_range(month)
+    start_day = await month_start_day(db, family_id)
+    lo, hi = month_range(month, start_day)
     rows = await _with_names(db, family_id, Transaction.kind == TxKind.INVESTMENT)
     dates = [tx.date for tx, _, _ in rows]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
@@ -204,7 +212,7 @@ async def investments(
         if lo <= tx.date <= hi:
             p.month_net += put_in - taken_out
             movements.append(to_out(tx, account_name, category_name, conv))
-        tx_month = month_of(tx.date)
+        tx_month = month_of(tx.date, start_day)
         if first_month <= tx_month <= month:
             h = history[(tx_month, conv.currency(tx.currency))]
             h[0] += put_in
@@ -240,7 +248,7 @@ async def investments(
 
 
 async def transfers(db: AsyncSession, family_id: uuid.UUID, month: str) -> TransferOverview:
-    lo, hi = month_range(month)
+    lo, hi = month_range(month, await month_start_day(db, family_id))
     pending = [
         to_out(tx, a, c)
         for tx, a, c in await _with_names(db, family_id, Transaction.kind == TxKind.PENDING)

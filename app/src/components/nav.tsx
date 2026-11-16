@@ -4,7 +4,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo } from '@/components/Logo';
 import { useAuth } from '@/lib/auth';
 import { SIDEBAR_WIDTH } from '@/lib/dashboard';
-import { currentMonth, initials, monthLabel, shiftMonth, shortMonth } from '@/lib/format';
+import { initials, monthLabel, shiftMonth, shortMonth } from '@/lib/format';
+import { useCurrentMonth, useMonthStart } from '@/lib/monthStart';
+import { periodCaption } from '@/lib/period';
 import { useSummary } from '@/lib/queries';
 import { colors, fonts } from '@/theme';
 
@@ -56,7 +58,7 @@ export function SideBar() {
   const path = usePathname();
   const { state, signOut } = useAuth();
   const signedIn = state.status === 'signedIn';
-  const summary = useSummary(currentMonth(), signedIn);
+  const summary = useSummary(useCurrentMonth(), signedIn);
   if (!signedIn) return null;
   const pending = summary.data?.pending_transfers ?? 0;
   const me = state.me;
@@ -98,6 +100,15 @@ export function SideBar() {
             {me.family.name}
           </Text>
         </View>
+        <Pressable
+          onPress={() => router.navigate('/ajustes')}
+          testID="tab-Ajustes"
+          accessibilityRole="link"
+          accessibilityState={{ selected: isOn('/ajustes', path) }}
+          style={styles.out}
+        >
+          <Text style={[styles.outText, isOn('/ajustes', path) && styles.outTextOn]}>Ajustes</Text>
+        </Pressable>
         <Pressable onPress={signOut} accessibilityRole="button" style={styles.out}>
           <Text style={styles.outText}>Sair</Text>
         </Pressable>
@@ -144,7 +155,8 @@ export function MonthNav({
   onChange: (m: string) => void;
   compact?: boolean;
 }) {
-  const isLatest = month >= currentMonth();
+  const isLatest = month >= useCurrentMonth();
+  const caption = periodCaption(month, useMonthStart().startDay);
   return (
     <View style={[styles.month, compact && styles.monthCompact]}>
       <Pressable
@@ -155,9 +167,12 @@ export function MonthNav({
       >
         <Text style={styles.arrowText}>‹</Text>
       </Pressable>
-      <Text style={compact ? styles.monthTextCompact : styles.monthText}>
-        {compact ? `${shortMonth(month)} ${month.slice(0, 4)}` : monthLabel(month)}
-      </Text>
+      <View style={styles.monthName}>
+        <Text style={compact ? styles.monthTextCompact : styles.monthText}>
+          {compact ? `${shortMonth(month)} ${month.slice(0, 4)}` : monthLabel(month)}
+        </Text>
+        {caption ? <Text style={styles.monthCaption}>{caption}</Text> : null}
+      </View>
       <Pressable
         onPress={() => onChange(shiftMonth(month, 1))}
         disabled={isLatest}
@@ -254,6 +269,7 @@ const styles = StyleSheet.create({
   meSub: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
   out: { paddingVertical: 6, paddingHorizontal: 4 },
   outText: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  outTextOn: { color: colors.ink, fontFamily: fonts.medium },
   bar: { borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.page },
   tabs: {
     flexDirection: 'row',
@@ -275,6 +291,8 @@ const styles = StyleSheet.create({
   monthText: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink },
   monthCompact: { marginLeft: 0, marginRight: -12 },
   monthTextCompact: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  monthName: { alignItems: 'center' },
+  monthCaption: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 1 },
   segment: {
     flexDirection: 'row',
     backgroundColor: colors.soft,

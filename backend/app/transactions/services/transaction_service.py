@@ -12,6 +12,7 @@ from app.categories.services.categorize import TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency
+from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import Converter, converter
 from app.imports.services.transfers import MAX_DAYS
 from app.transactions.models import Transaction, TxKind
@@ -41,7 +42,7 @@ async def list_transactions(
     if account_id is not None:
         where.append(Transaction.account_id == account_id)
     if month is not None:
-        lo, hi = month_range(month)
+        lo, hi = month_range(month, await month_start_day(db, family_id))
         where.append(Transaction.date.between(lo, hi))
     if kinds:
         where.append(Transaction.kind.in_(kinds))

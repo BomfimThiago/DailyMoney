@@ -4,13 +4,15 @@ from decimal import Decimal
 from app.families.models import Currency
 from app.transactions.schemas import CurrencyAnalysis
 from app.transactions.services.analysis_service import Spend, analyse, display_name
+from app.transactions.services.months import month_of
 
 EUR = Currency.EUR
 TODAY = date(2026, 11, 30)
 
 
 def s(day: str, amount: str, description: str, category: str | None = "Outros") -> Spend:
-    return Spend(EUR, date.fromisoformat(day), Decimal(amount), description, category)
+    d = date.fromisoformat(day)
+    return Spend(EUR, d, Decimal(amount), description, category, month_of(d))
 
 
 def run(

@@ -1,13 +1,12 @@
-import { useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 
 import { HomeDashboard } from '@/components/HomeDashboard';
 import { PhoneHome } from '@/components/home/PhoneHome';
 import { SignedIn } from '@/components/states';
 import { useAuth } from '@/lib/auth';
+import { useMonthState } from '@/lib/monthStart';
 import { useDisplayCurrency } from '@/lib/displayCurrency';
 import { WIDE_MIN } from '@/lib/dashboard';
-import { currentMonth } from '@/lib/format';
 import { firstName, shownCurrency } from '@/lib/home';
 import { useSummary } from '@/lib/queries';
 
@@ -24,7 +23,7 @@ export default function HomeScreen() {
 }
 
 function HomePage({ name, signOut }: { name: string; signOut: () => void }) {
-  const [month, setMonth] = useState(currentMonth);
+  const [month, setMonth] = useMonthState();
   const { currency } = useDisplayCurrency();
   const query = useSummary(month, true);
   const summary = query.data ?? null;

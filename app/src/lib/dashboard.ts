@@ -1,4 +1,5 @@
-import { money, monthLabel, shiftMonth } from './format';
+import { addDays, dayMonth, money, monthLabel, shiftMonth } from './format';
+import { daysElapsed } from './period';
 import type { Currency } from './types';
 
 // Below this width the app uses the phone layout (bottom tabs, one column).
@@ -14,18 +15,22 @@ export function contentWidth(windowWidth: number): number {
   return Math.min(windowWidth - SIDEBAR_WIDTH, PAGE_MAX) - PAGE_PAD * 2;
 }
 
-// Running total of a per-day list (index 0 is day 1).
+// Running total of a per-day list (index 0 is the period's first day).
 export function cumulative(daily: string[]): number[] {
   let total = 0;
   return daily.map((v) => (total += Number(v)));
 }
 
-// The last day of `month` that has already happened: today in the current month,
-// the whole month for past months, none for future ones.
-export function paceDay(month: string, days: number, today = new Date()): number {
-  const current = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  if (month === current) return Math.min(today.getDate(), days);
-  return month < current ? days : 0;
+// How many days of the period starting on `start` have already happened: up to today in
+// the current month, the whole month for past months, none for future ones.
+export function paceDay(start: string, days: number, today = new Date()): number {
+  return daysElapsed(start, days, today);
+}
+
+// Day of the month of the period's n-th day (1-based): with a month starting on the 27th,
+// day 1 is the 27th and day 5 the 31st or the 1st.
+export function dayOfPeriod(start: string, n: number): number {
+  return Number(addDays(start, n - 1).slice(8, 10));
 }
 
 // Spending up to `day` against the month before up to the same day, as a fraction
@@ -47,11 +52,11 @@ export function paceSentence(change: number | null, month: string): string | nul
   return `${pct}% a ${change < 0 ? 'menos' : 'mais'} que ${before}`;
 }
 
-// Weeks of the month, Sunday first, with null where a week spills into another month.
-export function calendarWeeks(month: string): (number | null)[][] {
-  const [y, m] = month.split('-').map(Number);
-  const first = new Date(y, m - 1, 1).getDay();
-  const days = new Date(y, m, 0).getDate();
+// Weeks of the period, Sunday first: each cell is the day's position in the period
+// (1-based), null where a week spills outside it.
+export function calendarWeeks(start: string, days: number): (number | null)[][] {
+  const [y, m, d] = start.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   const cells: (number | null)[] = [
     ...Array<null>(first).fill(null),
     ...Array.from({ length: days }, (_, i) => i + 1),
@@ -90,12 +95,21 @@ export function topShares<T extends { name: string; amount: string }>(
 }
 
 // "Até o dia 12: R$ 1.234,00 em gastos, 13% a menos que outubro no mesmo dia."
-export function paceText(month: string, daily: string[], previous: string[], currency: Currency) {
-  const day = paceDay(month, daily.length);
+// With a month starting on another day: "Até 12 nov: …".
+export function paceText(
+  month: string,
+  start: string,
+  daily: string[],
+  previous: string[],
+  currency: Currency,
+  today = new Date(),
+) {
+  const day = paceDay(start, daily.length, today);
   const spent = cumulative(daily)[day - 1] ?? 0;
   if (day <= 0 || spent <= 0) return 'Nenhum gasto neste mês ainda.';
   const change = paceSentence(paceChange(daily, previous, day), month);
-  const head = `Até o dia ${day}: ${money(String(spent), currency)} em gastos`;
+  const until = start.endsWith('-01') ? `o dia ${day}` : dayMonth(addDays(start, day - 1));
+  const head = `Até ${until}: ${money(String(spent), currency)} em gastos`;
   return change === null ? `${head}.` : `${head}, ${change} no mesmo dia.`;
 }
 
@@ -134,10 +148,11 @@ export function dayLevel(value: number, peak: number): number {
   return peak > 0 && value > 0 ? 0.12 + 0.88 * Math.sqrt(value / peak) : 0;
 }
 
-export function calendarLegend(month: string, daily: string[], currency: Currency): string {
+export function calendarLegend(start: string, daily: string[], currency: Currency): string {
   const values = daily.map(Number);
   const peak = Math.max(...values, 0);
   if (peak <= 0) return 'Nenhum gasto neste mês.';
-  const name = monthLabel(month).split(' ')[0].toLowerCase();
-  return `Dia mais caro: ${values.indexOf(peak) + 1} de ${name}, ${money(String(peak), currency)}.`;
+  const day = addDays(start, values.indexOf(peak));
+  const name = monthLabel(day.slice(0, 7)).split(' ')[0].toLowerCase();
+  return `Dia mais caro: ${Number(day.slice(8, 10))} de ${name}, ${money(String(peak), currency)}.`;
 }

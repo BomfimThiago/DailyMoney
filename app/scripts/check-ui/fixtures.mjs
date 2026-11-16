@@ -191,6 +191,8 @@ export const fixtures = {
   },
   '/transactions/dashboard': {
     month,
+    start: day(1),
+    end: day(daysIn(0)),
     currencies: [
       {
         currency: 'BRL',

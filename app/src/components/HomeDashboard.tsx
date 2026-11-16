@@ -59,9 +59,10 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
   const shown = home.shown;
   if (!shown) return null;
   const dash = query.data?.currencies.find((c) => c.currency === shown.currency) ?? null;
+  const start = query.data?.start ?? null;
   return (
     <>
-      <Figures month={home.month} shown={shown} dash={dash} />
+      <Figures month={home.month} start={start} shown={shown} dash={dash} />
       <PendingLink count={summary.pending_transfers} />
       <Loadable
         isError={query.isError}
@@ -71,21 +72,21 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
         error="Não consegui carregar os gráficos. Tente de novo."
         textStyle={[styles.muted, styles.loading]}
       >
-        {(d) => <Charts month={home.month} dash={d} />}
+        {(d) => <Charts month={home.month} start={start ?? ''} dash={d} />}
       </Loadable>
     </>
   );
 }
 
-function Charts({ month, dash }: { month: string; dash: CurrencyDashboard }) {
+function Charts({ month, start, dash }: { month: string; start: string; dash: CurrencyDashboard }) {
   const width = contentWidthFor(useWindowDimensions().width);
   const twoColumns = width >= TWO_COLUMNS;
   return (
     <>
-      <Pace month={month} dash={dash} width={width} />
+      <Pace month={month} start={start} dash={dash} width={width} />
       <View style={[styles.pair, !twoColumns && styles.stack]}>
         <Breakdown dash={dash} />
-        <SpendingCalendar month={month} dash={dash} />
+        <SpendingCalendar start={start} dash={dash} />
       </View>
     </>
   );
@@ -93,19 +94,22 @@ function Charts({ month, dash }: { month: string; dash: CurrencyDashboard }) {
 
 function Figures({
   month,
+  start,
   shown,
   dash,
 }: {
   month: string;
+  start: string | null;
   shown: CurrencySummary;
   dash: CurrencyDashboard | null;
 }) {
-  const sentence = dash
-    ? paceSentence(
-        paceChange(dash.daily, dash.previous_daily, paceDay(month, dash.daily.length)),
-        month,
-      )
-    : null;
+  const sentence =
+    dash && start
+      ? paceSentence(
+          paceChange(dash.daily, dash.previous_daily, paceDay(start, dash.daily.length)),
+          month,
+        )
+      : null;
   return (
     <View style={styles.figures}>
       <Figure label="Entradas" value={plain(shown.income)} color={colors.positive} />

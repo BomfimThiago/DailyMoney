@@ -1079,6 +1079,16 @@ export interface components {
     MonthDashboard: {
       /** Month */
       month: string;
+      /**
+       * Start
+       * Format: date
+       */
+      start: string;
+      /**
+       * End
+       * Format: date
+       */
+      end: string;
       /** Currencies */
       currencies: components['schemas']['CurrencyDashboard'][];
     };

@@ -4,6 +4,7 @@ import {
   axisLabel,
   calendarWeeks,
   cumulative,
+  dayOfPeriod,
   niceMax,
   paceChange,
   paceDay,
@@ -18,9 +19,17 @@ describe('dashboard math', () => {
 
   it('counts days only up to today in the current month', () => {
     const today = new Date(2026, 10, 10);
-    expect(paceDay('2026-11', 30, today)).toBe(10);
-    expect(paceDay('2026-10', 31, today)).toBe(31);
-    expect(paceDay('2026-12', 31, today)).toBe(0);
+    expect(paceDay('2026-11-01', 30, today)).toBe(10);
+    expect(paceDay('2026-10-01', 31, today)).toBe(31);
+    expect(paceDay('2026-12-01', 31, today)).toBe(0);
+    // A month that started on 27 Oct is on its 15th day on 10 Nov.
+    expect(paceDay('2026-10-27', 31, today)).toBe(15);
+  });
+
+  it('gives the day of the month of each day of the period', () => {
+    expect(dayOfPeriod('2026-11-01', 15)).toBe(15);
+    expect(dayOfPeriod('2026-10-27', 1)).toBe(27);
+    expect(dayOfPeriod('2026-10-27', 6)).toBe(1);
   });
 
   it('compares with the month before on the same day', () => {
@@ -42,10 +51,12 @@ describe('dashboard math', () => {
   });
 
   it('lays the month out in weeks starting on Sunday', () => {
-    const weeks = calendarWeeks('2026-11'); // starts on a Sunday, 30 days
+    const weeks = calendarWeeks('2026-11-01', 30); // starts on a Sunday, 30 days
     expect(weeks[0]).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(weeks[4]).toEqual([29, 30, null, null, null, null, null]);
-    expect(calendarWeeks('2026-10')[0].slice(0, 5)).toEqual([null, null, null, null, 1]);
+    expect(calendarWeeks('2026-10-01', 31)[0].slice(0, 5)).toEqual([null, null, null, null, 1]);
+    // 27 Oct 2026 is a Tuesday.
+    expect(calendarWeeks('2026-10-27', 31)[0]).toEqual([null, null, 1, 2, 3, 4, 5]);
   });
 
   it('labels the axis in thousands and rounds the top', () => {

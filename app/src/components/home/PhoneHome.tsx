@@ -43,9 +43,19 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
           </Loadable>
           <PendingLink count={home.summary?.pending_transfers ?? 0} style={styles.pending} />
           {noAccounts ? null : <Recent month={home.month} />}
-          <Pressable onPress={signOut} style={styles.signOut} accessibilityRole="button">
-            <Text style={styles.signOutText}>Sair</Text>
-          </Pressable>
+          <View style={styles.footer}>
+            <Pressable
+              onPress={() => router.navigate('/ajustes')}
+              testID="link-ajustes"
+              style={styles.signOut}
+              accessibilityRole="link"
+            >
+              <Text style={styles.signOutText}>Ajustes</Text>
+            </Pressable>
+            <Pressable onPress={signOut} style={styles.signOut} accessibilityRole="button">
+              <Text style={styles.signOutText}>Sair</Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </View>

@@ -38,12 +38,26 @@ describe('home summary', () => {
 describe('dashboard charts', () => {
   it('describes the pace of a past month', () => {
     const daily = ['100', '0', '50'];
-    expect(nb(paceText('2020-03', daily, ['300', '0', '0'], 'BRL'))).toBe(
+    expect(nb(paceText('2020-03', '2020-03-01', daily, ['300', '0', '0'], 'BRL'))).toBe(
       'Até o dia 3: R$ 150,00 em gastos, 50% a menos que fevereiro no mesmo dia.',
     );
-    expect(nb(paceText('2020-03', daily, [], 'BRL'))).toBe('Até o dia 3: R$ 150,00 em gastos.');
-    expect(paceText('2020-03', ['0', '0'], [], 'BRL')).toBe('Nenhum gasto neste mês ainda.');
-    expect(paceText('2099-01', daily, [], 'BRL')).toBe('Nenhum gasto neste mês ainda.');
+    expect(nb(paceText('2020-03', '2020-03-01', daily, [], 'BRL'))).toBe(
+      'Até o dia 3: R$ 150,00 em gastos.',
+    );
+    expect(paceText('2020-03', '2020-03-01', ['0', '0'], [], 'BRL')).toBe(
+      'Nenhum gasto neste mês ainda.',
+    );
+    expect(paceText('2099-01', '2099-01-01', daily, [], 'BRL')).toBe(
+      'Nenhum gasto neste mês ainda.',
+    );
+  });
+
+  it('names the day by date when the month starts on another day', () => {
+    // November starting on 27 Oct, seen on 28 Oct: two days in.
+    const today = new Date(2026, 9, 28);
+    expect(nb(paceText('2026-11', '2026-10-27', ['10', '5', '0'], [], 'BRL', today))).toBe(
+      'Até 28 out: R$ 15,00 em gastos.',
+    );
   });
 
   it('places chart points from day 1 at the axis to the last day at the edge', () => {
@@ -75,9 +89,12 @@ describe('dashboard charts', () => {
     expect(dayLevel(10, 0)).toBe(0);
     expect(dayLevel(100, 100)).toBe(1);
     expect(dayLevel(25, 100)).toBeCloseTo(0.56);
-    expect(nb(calendarLegend('2026-10', ['10', '90', '5'], 'BRL'))).toBe(
+    expect(nb(calendarLegend('2026-10-01', ['10', '90', '5'], 'BRL'))).toBe(
       'Dia mais caro: 2 de outubro, R$ 90,00.',
     );
-    expect(calendarLegend('2026-10', ['0', '0'], 'BRL')).toBe('Nenhum gasto neste mês.');
+    expect(nb(calendarLegend('2026-10-30', ['10', '0', '0', '90'], 'BRL'))).toBe(
+      'Dia mais caro: 2 de novembro, R$ 90,00.',
+    );
+    expect(calendarLegend('2026-10-01', ['0', '0'], 'BRL')).toBe('Nenhum gasto neste mês.');
   });
 });

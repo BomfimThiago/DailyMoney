@@ -68,7 +68,9 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof useAuth>);
   summary({ data: monthSummary() });
   recent({ data: { total: 9, items: [movement({ description: 'Uber', kind: 'regular' })] } });
-  dash({ data: { month: '2026-10', currencies: [dashboard()] } });
+  dash({
+    data: { month: '2026-10', start: '2026-10-01', end: '2026-10-31', currencies: [dashboard()] },
+  });
 });
 
 describe('HomeScreen session', () => {
@@ -166,6 +168,8 @@ describe('HomeScreen on a computer', () => {
     dash({
       data: {
         month: '2026-10',
+        start: '2026-10-01',
+        end: '2026-10-31',
         currencies: [dashboard({ daily: [], previous_daily: [], categories: [] })],
       },
     });

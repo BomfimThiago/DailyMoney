@@ -9,6 +9,7 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.core.family_scope import get_in_family
 from app.families.models import Family, Member
 from app.families.schemas import FamilyUpdate, MemberCreate, MemberUpdate
+from app.transactions.services.months import normalize_start_day
 
 # Muted tones that sit well on the white UI; new members cycle through them.
 MEMBER_PALETTE = ["#8a8799", "#c7795a", "#5f8f7b", "#6f7fb8", "#b88a3e", "#9b6fa8"]
@@ -24,6 +25,12 @@ async def get_family(db: AsyncSession, family_id: uuid.UUID) -> Family:
     if family is None:
         raise NotFoundError("Família não encontrada")
     return family
+
+
+async def month_start_day(db: AsyncSession, family_id: uuid.UUID) -> int:
+    """The day the family's month starts on (1 = the calendar month)."""
+    day = await db.scalar(select(Family.month_start_day).where(Family.id == family_id))
+    return normalize_start_day(day)
 
 
 async def update_family(db: AsyncSession, family_id: uuid.UUID, data: FamilyUpdate) -> Family:

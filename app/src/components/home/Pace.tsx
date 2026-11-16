@@ -7,6 +7,7 @@ import {
   cumulative,
   gridValues,
   niceMax,
+  dayOfPeriod,
   paceDay,
   paceScale,
   paceText,
@@ -22,20 +23,22 @@ const CHART_H = 150;
 // Spending added up day by day: this month (solid) against the month before (dashed).
 export function Pace({
   month,
+  start,
   dash,
   width,
 }: {
   month: string;
+  start: string;
   dash: CurrencyDashboard;
   width: number;
 }) {
   const days = dash.daily.length;
-  const now = cumulative(dash.daily).slice(0, paceDay(month, days));
+  const now = cumulative(dash.daily).slice(0, paceDay(start, days));
   const before = cumulative(dash.previous_daily);
   const { max, step } = niceMax(Math.max(now.at(-1) ?? 0, before.at(-1) ?? 0));
   const w = width - 36; // card padding
   const { x, y, points } = paceScale(days, max, w, CHART_H);
-  const sentence = paceText(month, dash.daily, dash.previous_daily, dash.currency);
+  const sentence = paceText(month, start, dash.daily, dash.previous_daily, dash.currency);
   const beforeName = monthLabel(shiftMonth(month, -1)).split(' ')[0].toLowerCase();
   const label = { fontSize: 10, fill: colors.muted, fontFamily: fonts.regular };
   return (
@@ -74,7 +77,7 @@ export function Pace({
         ) : null}
         {[1, 15, days].map((d) => (
           <SvgText key={`d${d}`} x={x(d)} y={CHART_H - 4} {...label} textAnchor={anchor(d, days)}>
-            {d}
+            {dayOfPeriod(start, d)}
           </SvgText>
         ))}
       </Svg>

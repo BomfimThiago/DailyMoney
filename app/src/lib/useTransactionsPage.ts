@@ -1,7 +1,7 @@
 // State and answers behind the transactions page, kept apart from its layout.
 import { useEffect, useState } from 'react';
 
-import { currentMonth } from './format';
+import { useMonthState } from './monthStart';
 import { useAccounts, useCategories, useRefreshMoney, useRegular, useTransfers } from './queries';
 import { accountOptions, categoryOptions, isFiltered, pagedItems } from './transactions';
 
@@ -33,7 +33,7 @@ export function useTabFromLink(aba: string | undefined) {
 // Search and filters only exist on a computer; the phone always lists the whole month.
 export function useTransactionsPage(wide: boolean, aba: string | undefined) {
   const [tab, setTab] = useTabFromLink(aba);
-  const [month, setMonth] = useState(currentMonth);
+  const [month, setMonth] = useMonthState();
   const [search, setSearch] = useState('');
   const q = useDebounced(search, 300);
   const [categoryId, setCategoryId] = useState<string | null>(null);

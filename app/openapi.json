@@ -2982,6 +2982,16 @@
             "type": "string",
             "title": "Month"
           },
+          "start": {
+            "type": "string",
+            "format": "date",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date",
+            "title": "End"
+          },
           "currencies": {
             "items": {
               "$ref": "#/components/schemas/CurrencyDashboard"
@@ -2991,7 +3001,7 @@
           }
         },
         "type": "object",
-        "required": ["month", "currencies"],
+        "required": ["month", "start", "end", "currencies"],
         "title": "MonthDashboard"
       },
       "MonthSpending": {
