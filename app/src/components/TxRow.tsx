@@ -8,7 +8,8 @@ import { colors, fonts } from '@/theme';
 function kindLabel(t: Transaction): string | null {
   switch (t.kind) {
     case 'investment':
-      return isIncome(t.amount) ? 'Resgate' : 'Aplicação';
+      // Its category, like any spending or income; the sign says aplicação or resgate.
+      return t.category_name ?? 'Investimento';
     case 'transfer':
       return 'Entre suas contas';
     case 'pending':
@@ -25,7 +26,8 @@ function dotStyle(t: Transaction) {
   return isIncome(t.amount) ? styles.dotIncome : styles.dotSpend;
 }
 
-// One line of money: what, where, when. Only spending and income carry a sign; the rest
+// One line of money: what, where, when. Spending, income and investments carry a sign
+// (an aplicação is money going out of the month, a resgate money coming in); transfers
 // just moved, so they show the plain value.
 export function TxRow({
   t,
@@ -37,7 +39,8 @@ export function TxRow({
   onPress?: () => void;
 }) {
   const regular = t.kind === 'regular';
-  const amount = lineAmounts(t, regular ? 'signed' : 'plain');
+  const moved = t.kind === 'transfer' || t.kind === 'pending';
+  const amount = lineAmounts(t, moved ? 'plain' : 'signed');
   return (
     <Pressable
       onPress={onPress}
@@ -60,7 +63,7 @@ export function TxRow({
             styles.amount,
             regular && isIncome(t.amount) && styles.income,
             t.kind === 'investment' && styles.invest,
-            (t.kind === 'transfer' || t.kind === 'pending') && styles.muted,
+            moved && styles.muted,
           ]}
         >
           {amount.shown}

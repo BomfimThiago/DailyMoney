@@ -14,8 +14,9 @@ import type { CurrencySummary, TransactionPage } from '@/lib/types';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from './shared';
 import { phone as styles } from './styles';
 
-// Início on a phone: variant A from the validated mock (Entradas · Gastos · Investido and
-// the latest lines).
+// Início on a phone: variant A from the validated mock (Entradas · Gastos and the latest
+// lines). Investments are already inside Entradas and Gastos, so there is no Investido here:
+// it lives in Investimentos.
 export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }) {
   const noAccounts = hasNoAccounts(home.summary);
   return (
@@ -78,7 +79,6 @@ function MonthFigures({ shown }: { shown: CurrencySummary | null }) {
       <View style={styles.numbers}>
         <Figure label="Entradas" value={plain(shown.income)} tone="income" />
         <Figure label="Gastos" value={plain(shown.spending)} divider />
-        <Figure label="Investido" value={plain(shown.invested)} tone="invest" divider />
       </View>
       <View style={styles.left}>
         <Text style={styles.leftLabel}>Sobrou no mês</Text>
@@ -96,7 +96,7 @@ function Figure({
 }: {
   label: string;
   value: string;
-  tone?: 'income' | 'invest';
+  tone?: 'income';
   divider?: boolean;
 }) {
   return (

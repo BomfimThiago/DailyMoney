@@ -48,11 +48,12 @@ async def test_summary_in_each_currency(client: AsyncClient, ecb: FakeEcb) -> No
 
     usd = await _get(client, h, "/api/v1/transactions/summary?month=2026-10&currency=USD")
     [only] = usd["currencies"]
-    # R$ 5000 income → US$ 1000; R$ 350 spending → US$ 70; the Wise line is a transfer.
-    assert (only["currency"], only["income"], only["spending"]) == ("USD", "1000.0000", "70.0000")
+    # R$ 5300 income (R$ 300 of it a resgate) → US$ 1060; R$ 1350 spending (R$ 1000 of it
+    # an aplicação) → US$ 270; the Wise line is a transfer.
+    assert (only["currency"], only["income"], only["spending"]) == ("USD", "1060.0000", "270.0000")
 
     eur = await _get(client, h, "/api/v1/transactions/summary?month=2026-10&currency=EUR")
-    assert eur["currencies"][0]["income"] == "833.3333"
+    assert eur["currencies"][0]["income"] == "883.3333"
     # The rates are kept: asking again does not call the bank.
     calls = ecb.calls
     await _get(client, h, "/api/v1/transactions/summary?month=2026-10&currency=BRL")
@@ -73,7 +74,7 @@ async def test_dashboard_analysis_investments_and_lines_converted(
 
     analysis = await _get(client, h, f"/api/v1/transactions/analysis?{q}&months=3")
     [a] = analysis["currencies"]
-    assert (a["currency"], a["months"][-1]["amount"]) == ("USD", "70.0000")
+    assert (a["currency"], a["months"][-1]["amount"]) == ("USD", "270.0000")
 
     inv = await _get(client, h, f"/api/v1/transactions/investments?{q}")
     assert inv["totals"] == [
@@ -110,4 +111,4 @@ async def test_rate_service_down(client: AsyncClient, ecb: FakeEcb) -> None:
     await _get(client, h, "/api/v1/transactions/summary?month=2026-09&currency=USD")
     ecb.down = True
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10&currency=USD")
-    assert summary["currencies"][0]["income"] == "1000.0000"
+    assert summary["currencies"][0]["income"] == "1060.0000"

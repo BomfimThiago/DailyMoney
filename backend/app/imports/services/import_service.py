@@ -13,7 +13,7 @@ from app.accounts.models import Account
 from app.accounts.services import account_service
 from app.categories.models import Category
 from app.categories.services import category_service
-from app.categories.services.categorize import TRANSFER, Categorizer
+from app.categories.services.categorize import INVESTMENT, TRANSFER, Categorizer
 from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency, Family, Member, User
@@ -379,9 +379,12 @@ def _planned(
     row = ctx.rows[index]
     kind = TxKind.TRANSFER if pair else kind
     category = None
-    if status == "new" and kind in (TxKind.REGULAR, TxKind.TRANSFER):
+    if status == "new" and kind != TxKind.PENDING:
         category = ctx.categorizer.category_for(
-            row.description, row.amount, is_transfer=kind == TxKind.TRANSFER
+            row.description,
+            row.amount,
+            is_transfer=kind == TxKind.TRANSFER,
+            is_investment=kind == TxKind.INVESTMENT,
         )
     return _Planned(
         index=index,
@@ -569,6 +572,10 @@ async def _save_row(
     review: ReviewStatus,
 ) -> None:
     category = categories.get(p.category or "")
+    kind = p.kind
+    if kind == TxKind.REGULAR and category is not None and category.system_key == INVESTMENT:
+        # A merchant the person taught as Investimento is an investment move.
+        kind = TxKind.INVESTMENT
     tx = Transaction(
         id=uuid.uuid4(),
         family_id=imp.family_id,
@@ -583,7 +590,7 @@ async def _save_row(
         external_id=row.external_id,
         source_key=row.source_key,
         source_format=imp.format,
-        kind=p.kind,
+        kind=kind,
         transfer_pair_id=p.pair_id,
         review=review,
     )
