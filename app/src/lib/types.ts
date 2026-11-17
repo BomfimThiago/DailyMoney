@@ -56,6 +56,10 @@ export type InvestmentProduct = S['InvestmentProduct'];
 export type InvestmentMonth = S['InvestmentMonth'];
 export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
+// The bank's own investment balances (Pluggy), as read on the last sync.
+export type Portfolio = S['PortfolioOut'];
+export type PortfolioClass = S['ClassOut'];
+export type PortfolioPosition = S['PositionOut'];
 export type Transfer = S['TransferOut'];
 export type TransferOverview = S['TransferOverview'];
 export type Analysis = S['Analysis'];

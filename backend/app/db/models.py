@@ -8,6 +8,7 @@ from app.db.base import Base
 from app.families.models import Family, Member, User
 from app.fx.models import FxRate
 from app.imports.models import StatementImport
+from app.portfolio.models import Investment, InvestmentSnapshot
 from app.transactions.models import Transaction
 
 __all__ = [
@@ -19,6 +20,8 @@ __all__ = [
     "CategoryRule",
     "Family",
     "FxRate",
+    "Investment",
+    "InvestmentSnapshot",
     "MagicLinkToken",
     "Member",
     "PendingPluggyItem",

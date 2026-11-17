@@ -37,6 +37,8 @@ class FakePluggy:
         self.down = False
         self.accounts_fail = False
         self.deletes_fail = False
+        self.investments: dict[str, list[dict[str, Any]]] = {}
+        self.investments_fail = False
 
     def window_item(self, owner: str | None = None) -> str:
         """The person got as far as Meu Pluggy's page: the item exists, not authorized."""
@@ -77,6 +79,11 @@ class FakePluggy:
             return httpx.Response(
                 200, json={"results": self.accounts.get(request.url.params["itemId"], [])}
             )
+        if path == "/investments" and self.investments_fail:
+            return httpx.Response(500, json={"message": "investments down"})
+        if path == "/investments":
+            found = self.investments.get(request.url.params["itemId"], [])
+            return httpx.Response(200, json={"results": found, "totalPages": 1})
         if path == "/v2/transactions":
             return httpx.Response(200, json={"results": [_tx(request.url.params["accountId"])]})
         return httpx.Response(404, json={"message": "not found"})
