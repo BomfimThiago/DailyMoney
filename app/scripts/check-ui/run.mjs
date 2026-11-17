@@ -313,6 +313,14 @@ async function checkScreens(page, tag) {
     await button('Salvar').click();
     await seen('Alterações salvas.').waitFor();
     if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
+    // The line's Responsável: anyone in the family, or the household.
+    await button('Responsável').click();
+    await page.getByRole('menuitem', { name: 'Ana' }).filter({ visible: true }).waitFor();
+    await shot('transacoes-responsavel');
+    await page.getByRole('menuitem', { name: 'Ana' }).filter({ visible: true }).click();
+    await button('Salvar').click();
+    await seen('Alterações salvas.').waitFor();
+    if (recategorized.length !== 2) flag('trocar o responsável não chamou a API');
     // The question before deleting.
     await button('Excluir').click();
     await seen('Excluir esta transação?').waitFor();

@@ -1,10 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DotSelect } from '@/components/DotSelect';
 import { Button, Chip } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { setKind, updateTransaction } from '@/lib/imports';
-import { useCategories } from '@/lib/queries';
+import { choiceOf, memberIdOf, ownerOptions } from '@/lib/people';
+import { useCategories, useFamily } from '@/lib/queries';
 import {
   categoriesFor,
   formErrors,
@@ -27,7 +29,7 @@ const KINDS: { value: EditKind; label: string }[] = [
 ];
 
 // The fields of a line, always open in the detail (no separate Editar step): description,
-// date, amount (gasto/entrada), category and what the line was. The currency is the
+// date, amount (gasto/entrada), category, what the line was and who it belongs to. The currency is the
 // account's, so it is shown but not edited. Salvar and Desfazer wake up once something changes.
 export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void }) {
   const [form, setForm] = useState<TxForm>(() => formOf(t));
@@ -36,6 +38,7 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
   const [saved, setSaved] = useState(false);
   const categories = useCategories(true);
   const all = categories.data ?? [];
+  const family = useFamily(true);
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +160,21 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
         </Text>
       )}
 
+      <Field label="Responsável">
+        {family.isError ? (
+          <Text style={styles.error}>Não consegui carregar os responsáveis.</Text>
+        ) : (
+          <DotSelect
+            value={choiceOf(form.memberId)}
+            options={ownerOptions(family.data?.members ?? [])}
+            onChange={(id) => set('memberId', memberIdOf(id))}
+            label="Responsável"
+            placeholder="Escolher responsável"
+            empty="Ninguém ainda."
+          />
+        )}
+      </Field>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {saved && !dirty ? <Text style={styles.hint}>Alterações salvas.</Text> : null}
       <View style={styles.actions}>
@@ -182,7 +200,8 @@ function changed(a: TxForm, b: TxForm): boolean {
     a.amount !== b.amount ||
     a.direction !== b.direction ||
     a.kind !== b.kind ||
-    a.categoryId !== b.categoryId
+    a.categoryId !== b.categoryId ||
+    a.memberId !== b.memberId
   );
 }
 

@@ -38,6 +38,7 @@ describe('txEdit', () => {
       direction: 'out',
       kind: 'regular',
       categoryId: 'c',
+      memberId: null,
       forMerchant: true,
     });
     expect(formOf(tx({ amount: '50.0000', kind: 'pending' }))).toMatchObject({
@@ -89,6 +90,12 @@ describe('txEdit', () => {
     expect(patchOf(tx(), { ...form, kind: 'investment' })).toEqual({});
     expect(withDirection(form, 'in', cats).categoryId).toBeNull();
     expect(withDirection(form, 'out', cats).categoryId).toBe('r');
+  });
+
+  it('sends the owner when it changed, null meaning the household', () => {
+    expect(patchOf(tx(), { ...formOf(tx()), memberId: 'm-ana' })).toEqual({ member_id: 'm-ana' });
+    const ana = tx({ member_id: 'm-ana' });
+    expect(patchOf(ana, { ...formOf(ana), memberId: null })).toEqual({ member_id: null });
   });
 
   it('sends only what changed, with the sign from gasto/entrada', () => {

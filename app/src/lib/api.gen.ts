@@ -1493,6 +1493,8 @@ export interface components {
       date?: string | null;
       /** Amount */
       amount?: number | string | null;
+      /** Member Id */
+      member_id?: string | null;
     };
     /** TransferOut */
     TransferOut: {
