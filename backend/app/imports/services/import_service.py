@@ -5,8 +5,9 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any, TypeVar
 
-from sqlalchemy import func, select
+from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import Account
@@ -34,8 +35,11 @@ from app.imports.services.transfers import MAX_DAYS, Candidate, pair_transfers
 from app.statements.parsing.reader import read_statement
 from app.statements.parsing.types import ParsedStatement
 from app.transactions.models import ReviewStatus, Transaction, TxKind
+from app.transactions.services import transaction_service
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
+# Reads of connected banks: shown on Conexões, never undone like a sent statement.
+_BANK_READS = ("eb", "pluggy")
 
 
 class ChoiceError(AppError):
@@ -141,12 +145,24 @@ async def list_imports(db: AsyncSession, family_id: uuid.UUID) -> list[Statement
             StatementImport.family_id == family_id,
             StatementImport.status == ImportStatus.IMPORTED,
             # Reads of connected banks show on Conexões, not as sent statements.
-            StatementImport.format.not_in(("eb", "pluggy")),
+            StatementImport.format.not_in(_BANK_READS),
         )
         .order_by(StatementImport.created_at.desc())
         .limit(30)
     )
     return list(rows)
+
+
+async def line_counts(db: AsyncSession, import_ids: list[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """How many lines each import still has (the person may have deleted some)."""
+    if not import_ids:
+        return {}
+    rows = await db.execute(
+        select(Transaction.import_id, func.count())
+        .where(Transaction.import_id.in_(import_ids))
+        .group_by(Transaction.import_id)
+    )
+    return {import_id: count for import_id, count in rows if import_id is not None}
 
 
 # ── preview ──────────────────────────────────────────────────────────────────
@@ -157,6 +173,7 @@ async def preview(
     imp: StatementImport,
     chosen: dict[Currency, uuid.UUID | None] | None = None,
     since: date | None = None,
+    replaces: StatementImport | None = None,
 ) -> ImportPreview:
     accounts: dict[str, Account | None] = {}
     for currency, account_id in (chosen or {}).items():
@@ -165,7 +182,11 @@ async def preview(
             if account_id
             else None
         )
-    plans = await _plan(db, imp, accounts, since) if imp.status == ImportStatus.PREVIEW else []
+    plans = (
+        await _plan(db, imp, accounts, since, replaces)
+        if imp.status == ImportStatus.PREVIEW
+        else []
+    )
     rows = _rows(imp)
     preview_rows = [
         PreviewRow(
@@ -246,6 +267,7 @@ async def _plan(
     imp: StatementImport,
     chosen: dict[str, Account | None],
     since: date | None,
+    replaces: StatementImport | None = None,
 ) -> list[_GroupPlan]:
     rows = _rows(imp)
     ctx = _Context(
@@ -255,6 +277,7 @@ async def _plan(
         categorizer=await category_service.categorizer_for(db, imp.family_id),
         names=await _family_names(db, imp.family_id),
         since=since,
+        replaced=replaces.id if replaces else None,
     )
     plans = []
     for currency, indexes in sorted(_by_currency(rows).items()):
@@ -263,6 +286,9 @@ async def _plan(
         )
         plans.append(await _plan_group(ctx, currency, account, indexes))
     return plans
+
+
+_Q = TypeVar("_Q", bound=Select[Any])
 
 
 @dataclass
@@ -275,6 +301,14 @@ class _Context:
     categorizer: Categorizer
     names: list[str]
     since: date | None
+    # Re-reading a statement: the lines of the import it replaces don't count, since
+    # they are removed when this one is confirmed.
+    replaced: uuid.UUID | None = None
+
+    def keeps(self, query: _Q) -> _Q:
+        if self.replaced is None:
+            return query
+        return query.where(Transaction.import_id.is_distinct_from(self.replaced))
 
 
 async def _family_names(db: AsyncSession, family_id: uuid.UUID) -> list[str]:
@@ -297,7 +331,7 @@ async def _plan_group(
 ) -> _GroupPlan:
     lo = min(ctx.rows[i].date for i in indexes)
     hi = max(ctx.rows[i].date for i in indexes)
-    first_import = account is None or not await _has_transactions(ctx.db, account.id)
+    first_import = account is None or not await _has_transactions(ctx, account.id)
     duplicates = await _duplicates(ctx, account, indexes, lo, hi)
     statuses = {
         i: _status(ctx.rows[i], is_dup, first_import, ctx.since)
@@ -315,7 +349,7 @@ async def _duplicates(
     ctx: _Context, account: Account | None, indexes: list[int], lo: date, hi: date
 ) -> list[bool]:
     existing = await _existing(
-        ctx.db, account, lo - timedelta(days=NEAR_DAYS), hi + timedelta(days=NEAR_DAYS)
+        ctx, account, lo - timedelta(days=NEAR_DAYS), hi + timedelta(days=NEAR_DAYS)
     )
     incoming = [
         Incoming(
@@ -353,8 +387,7 @@ async def _pairs(
     hi: date,
 ) -> dict[str, str]:
     others = await _transfer_candidates(
-        ctx.db,
-        ctx.imp.family_id,
+        ctx,
         account,
         currency,
         lo - timedelta(days=MAX_DAYS),
@@ -425,21 +458,22 @@ async def _account_in_currency(
     return account
 
 
-async def _has_transactions(db: AsyncSession, account_id: uuid.UUID) -> bool:
-    count = await db.scalar(
-        select(func.count()).select_from(Transaction).where(Transaction.account_id == account_id)
+async def _has_transactions(ctx: _Context, account_id: uuid.UUID) -> bool:
+    # A statement read again still counts: re-reading never asks from when to import.
+    found = await ctx.db.scalar(
+        select(Transaction.id).where(Transaction.account_id == account_id).limit(1)
     )
-    return bool(count)
+    return found is not None
 
 
-async def _existing(
-    db: AsyncSession, account: Account | None, lo: date, hi: date
-) -> list[Existing]:
+async def _existing(ctx: _Context, account: Account | None, lo: date, hi: date) -> list[Existing]:
     if account is None:
         return []
-    rows = await db.scalars(
-        select(Transaction).where(
-            Transaction.account_id == account.id, Transaction.date.between(lo, hi)
+    rows = await ctx.db.scalars(
+        ctx.keeps(
+            select(Transaction).where(
+                Transaction.account_id == account.id, Transaction.date.between(lo, hi)
+            )
         )
     )
     return [
@@ -457,15 +491,14 @@ async def _existing(
 
 
 async def _transfer_candidates(
-    db: AsyncSession,
-    family_id: uuid.UUID,
+    ctx: _Context,
     account: Account | None,
     currency: str,
     lo: date,
     hi: date,
 ) -> list[Candidate]:
-    query = select(Transaction).where(
-        Transaction.family_id == family_id,
+    query = ctx.keeps(select(Transaction)).where(
+        Transaction.family_id == ctx.imp.family_id,
         Transaction.currency == Currency(currency),
         Transaction.kind != TxKind.INVESTMENT,
         Transaction.transfer_pair_id.is_(None),
@@ -482,7 +515,7 @@ async def _transfer_candidates(
             amount=t.amount,
             currency=currency,
         )
-        for t in await db.scalars(query)
+        for t in await ctx.db.scalars(query)
     ]
 
 
@@ -495,10 +528,14 @@ async def confirm(
     imp: StatementImport,
     choices: list[AccountChoice],
     since: date | None,
+    replaces: StatementImport | None = None,
 ) -> StatementImport:
     if imp.status != ImportStatus.PREVIEW:
         raise ConflictError("Este envio já foi importado ou cancelado")
     by_currency = _choices_by_currency(imp, choices)
+    if replaces is not None:
+        # The old reading goes first, so the new lines are not taken for its duplicates.
+        await undo(db, replaces)
     accounts: dict[str, Account | None] = {
         currency: await _chosen_account(db, user, imp, currency, choice)
         for currency, choice in by_currency.items()
@@ -621,6 +658,37 @@ async def waiting_review(db: AsyncSession, import_id: uuid.UUID) -> int:
         .where(Transaction.import_id == import_id, Transaction.review == ReviewStatus.PENDING)
     )
     return count or 0
+
+
+async def replaced_import(
+    db: AsyncSession, imp: StatementImport, replaces_id: uuid.UUID | None
+) -> StatementImport | None:
+    """The sent statement a new upload reads again (same family, already imported)."""
+    if replaces_id is None:
+        return None
+    old = await get_import(db, imp.family_id, replaces_id)
+    _check_undoable(old)
+    if old.id == imp.id:
+        raise ConflictError("Um envio não substitui a si mesmo")
+    return old
+
+
+def _check_undoable(imp: StatementImport) -> None:
+    if imp.format in _BANK_READS:
+        raise ConflictError("Leituras de banco conectado não podem ser desfeitas")
+    if imp.status != ImportStatus.IMPORTED:
+        raise ConflictError("Este envio não foi importado")
+
+
+async def undo(db: AsyncSession, imp: StatementImport) -> int:
+    """Takes a sent statement back: its lines (approved, waiting or rejected) and the
+    import itself go away. Returns how many lines were removed."""
+    _check_undoable(imp)
+    lines = list(await db.scalars(select(Transaction).where(Transaction.import_id == imp.id)))
+    await transaction_service.delete_lines(db, lines)
+    await db.delete(imp)
+    await db.flush()
+    return len(lines)
 
 
 async def cancel(imp: StatementImport) -> StatementImport:

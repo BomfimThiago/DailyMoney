@@ -5,7 +5,13 @@ from fastapi import APIRouter, File, Form, UploadFile, status
 
 from app.core.deps import CurrentUser, DbSession
 from app.families.models import Currency
-from app.imports.schemas import ConfirmRequest, ImportPreview, ImportSummary, PreviewRequest
+from app.imports.schemas import (
+    ConfirmRequest,
+    ImportPreview,
+    ImportSummary,
+    ImportUndone,
+    PreviewRequest,
+)
 from app.imports.services import import_service
 from app.statements.parsing.errors import StatementError
 from app.statements.parsing.reader import MAX_BYTES
@@ -19,6 +25,8 @@ async def upload(
     user: CurrentUser,
     db: DbSession,
     default_currency: Annotated[Currency | None, Form()] = None,
+    # Reading a sent statement again (Desfazer > Reler o arquivo).
+    replaces: Annotated[uuid.UUID | None, Form()] = None,
 ) -> ImportPreview:
     data = await file.read(MAX_BYTES + 1)
     if len(data) > MAX_BYTES:
@@ -26,7 +34,8 @@ async def upload(
     imp = await import_service.create_import(
         db, user, file.filename or "extrato", data, default_currency
     )
-    result = await import_service.preview(db, imp)
+    old = await import_service.replaced_import(db, imp, replaces)
+    result = await import_service.preview(db, imp, replaces=old)
     await db.commit()
     return result
 
@@ -34,7 +43,11 @@ async def upload(
 @router.get("", response_model=list[ImportSummary])
 async def list_imports(user: CurrentUser, db: DbSession) -> list[ImportSummary]:
     rows = await import_service.list_imports(db, user.family_id)
-    return [ImportSummary.model_validate(i) for i in rows]
+    lines = await import_service.line_counts(db, [i.id for i in rows])
+    return [
+        ImportSummary.model_validate(i).model_copy(update={"lines": lines.get(i.id, 0)})
+        for i in rows
+    ]
 
 
 @router.post("/{import_id}/preview", response_model=ImportPreview)
@@ -42,7 +55,8 @@ async def preview(
     import_id: uuid.UUID, data: PreviewRequest, user: CurrentUser, db: DbSession
 ) -> ImportPreview:
     imp = await import_service.get_import(db, user.family_id, import_id)
-    return await import_service.preview(db, imp, data.accounts, data.since)
+    old = await import_service.replaced_import(db, imp, data.replaces)
+    return await import_service.preview(db, imp, data.accounts, data.since, old)
 
 
 @router.post("/{import_id}/confirm", response_model=ImportSummary)
@@ -50,7 +64,8 @@ async def confirm(
     import_id: uuid.UUID, data: ConfirmRequest, user: CurrentUser, db: DbSession
 ) -> ImportSummary:
     imp = await import_service.get_import(db, user.family_id, import_id)
-    await import_service.confirm(db, user, imp, data.accounts, data.since)
+    old = await import_service.replaced_import(db, imp, data.replaces)
+    await import_service.confirm(db, user, imp, data.accounts, data.since, old)
     to_review = await import_service.waiting_review(db, imp.id)
     await db.commit()
     return ImportSummary.model_validate(imp).model_copy(update={"to_review": to_review})
@@ -62,3 +77,12 @@ async def cancel(import_id: uuid.UUID, user: CurrentUser, db: DbSession) -> Impo
     await import_service.cancel(imp)
     await db.commit()
     return ImportSummary.model_validate(imp)
+
+
+@router.post("/{import_id}/undo", response_model=ImportUndone)
+async def undo(import_id: uuid.UUID, user: CurrentUser, db: DbSession) -> ImportUndone:
+    """Takes a sent statement back, with every line that came from it."""
+    imp = await import_service.get_import(db, user.family_id, import_id)
+    removed = await import_service.undo(db, imp)
+    await db.commit()
+    return ImportUndone(removed=removed)

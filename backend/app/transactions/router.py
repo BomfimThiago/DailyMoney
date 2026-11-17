@@ -12,6 +12,9 @@ from app.transactions.schemas import (
     KindUpdate,
     MonthDashboard,
     MonthSummary,
+    MovementsOverview,
+    PurgeOverview,
+    PurgeResult,
     ReviewDecision,
     ReviewQueue,
     ReviewResult,
@@ -20,7 +23,13 @@ from app.transactions.schemas import (
     TransactionUpdate,
     TransferOverview,
 )
-from app.transactions.services import analysis_service, overview_service, transaction_service
+from app.transactions.services import (
+    analysis_service,
+    movements_service,
+    overview_service,
+    purge_service,
+    transaction_service,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -92,6 +101,30 @@ async def investments(
 @router.get("/transfers", response_model=TransferOverview)
 async def transfers(user: CurrentUser, db: DbSession, month: Month) -> TransferOverview:
     return await overview_service.transfers(db, user.family_id, month)
+
+
+@router.get("/movements", response_model=MovementsOverview)
+async def movements(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> MovementsOverview:
+    """Money that only changed place in the month, and whether it all came back."""
+    return await movements_service.movements(db, user.family_id, month, currency)
+
+
+@router.get("/purge", response_model=PurgeOverview)
+async def purge_overview(user: CurrentUser, db: DbSession) -> PurgeOverview:
+    """What deleting every transaction would take away."""
+    return await purge_service.overview(db, user.family_id)
+
+
+@router.delete("", response_model=PurgeResult)
+async def delete_all(
+    user: CurrentUser, db: DbSession, expected: Annotated[int, Query(ge=0)]
+) -> PurgeResult:
+    """Deletes every transaction; `expected` is the number the person confirmed."""
+    result = await purge_service.delete_all(db, user.family_id, expected)
+    await db.commit()
+    return result
 
 
 @router.get("/review", response_model=ReviewQueue)

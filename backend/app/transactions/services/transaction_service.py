@@ -158,8 +158,15 @@ def _moves_money(category: Category) -> bool:
 async def delete_transaction(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> None:
     """Removes a line for good; the other side of a transfer goes back to waiting."""
     tx = await _get(db, family_id, tx_id)
-    await _unpair(db, tx)
-    await db.delete(tx)
+    await delete_lines(db, [tx])
+
+
+async def delete_lines(db: AsyncSession, txs: list[Transaction]) -> None:
+    """Removes lines for good; the other side of each transfer goes back to waiting."""
+    for tx in txs:
+        await _unpair(db, tx)
+    for tx in txs:
+        await db.delete(tx)
     await db.flush()
 
 

@@ -68,6 +68,8 @@ class ImportPreview(BaseModel):
 class PreviewRequest(BaseModel):
     accounts: dict[Currency, uuid.UUID | None] = Field(default_factory=dict)
     since: date | None = None
+    # Reading a sent statement again: its lines are replaced when this one is confirmed.
+    replaces: uuid.UUID | None = None
 
 
 class NewAccount(BaseModel):
@@ -90,6 +92,7 @@ class AccountChoice(BaseModel):
 class ConfirmRequest(BaseModel):
     accounts: list[AccountChoice] = Field(min_length=1)
     since: date | None = None
+    replaces: uuid.UUID | None = None
 
 
 class ImportSummary(BaseModel):
@@ -109,3 +112,9 @@ class ImportSummary(BaseModel):
     finished_at: datetime | None
     # Lines of this import still waiting for the person's approval (only after confirming).
     to_review: int = 0
+    # Lines that came from this import and are still in the app (the history list).
+    lines: int = 0
+
+
+class ImportUndone(BaseModel):
+    removed: int
