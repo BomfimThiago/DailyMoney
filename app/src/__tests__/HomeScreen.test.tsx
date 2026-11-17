@@ -103,6 +103,18 @@ describe('HomeScreen on the phone', () => {
     expect(signOut).toHaveBeenCalled();
   });
 
+  it('compares with the month before, splits the spending and draws the flow', async () => {
+    await render(withCurrency(<HomeScreen />));
+    expect(screen.getByText(/^COMPARADO COM /)).toBeTruthy();
+    expect(screen.getByLabelText(/^Entradas: diferença \+R\$\s500,00$/)).toBeTruthy();
+    // Less spending is good news: shown as a negative difference, in green.
+    expect(screen.getByLabelText(/^Gastos: diferença -R\$\s194,00$/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Pessoa'));
+    expect(screen.getByText('Casa')).toBeTruthy();
+    expect(screen.getByText('FLUXO DO MÊS')).toBeTruthy();
+    expect(screen.getByLabelText(/^Entradas R\$\s8\.500,00; Gastos R\$\s150,00/)).toBeTruthy();
+  });
+
   it('switches currency', async () => {
     await render(withCurrency(<HomeScreen />));
     await fireEvent.press(screen.getByText('EUR'));
@@ -161,6 +173,13 @@ describe('HomeScreen on a computer', () => {
     expect(screen.getByText('Mercado')).toBeTruthy();
     await fireEvent.press(screen.getByText('Conta'));
     expect(screen.getByText('Nubank')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Pessoa'));
+    expect(screen.getByText('Thiago')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Banco'));
+    expect(screen.getByText('Nubank')).toBeTruthy();
+    expect(screen.getByText(/^COMPARADO COM /)).toBeTruthy();
+    expect(screen.getByText('Diferença')).toBeTruthy();
+    expect(screen.getByText('FLUXO DO MÊS')).toBeTruthy();
     expect(screen.getByLabelText(/^1: /)).toBeTruthy();
     expect(screen.getByLabelText('2: sem gastos')).toBeTruthy();
     await fireEvent.press(screen.getByText('EUR'));

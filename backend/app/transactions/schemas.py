@@ -123,6 +123,14 @@ class CurrencyDashboard(BaseModel):
     # Biggest first. Lines with no category count as "Outros".
     categories: list[SpendingShare]
     accounts: list[SpendingShare]
+    # By whoever the line belongs to ("Casa" when nobody), and by the account's bank.
+    people: list[SpendingShare] = []
+    banks: list[SpendingShare] = []
+    # Money coming in this month by category, biggest first (for the flow chart).
+    income_categories: list[SpendingShare] = []
+    # Entradas and Gastos of the month before, counted like the month summary.
+    previous_income: Decimal = Decimal("0")
+    previous_spending: Decimal = Decimal("0")
 
 
 class MonthDashboard(BaseModel):

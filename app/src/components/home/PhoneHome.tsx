@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
@@ -8,9 +8,12 @@ import { TxRow } from '@/components/TxRow';
 import { Button, SectionTitle } from '@/components/ui';
 import { money, plain } from '@/lib/format';
 import { hasNoAccounts } from '@/lib/home';
-import { useRecent } from '@/lib/queries';
+import { useDashboard, useRecent } from '@/lib/queries';
 import type { CurrencySummary, TransactionPage } from '@/lib/types';
 
+import { Breakdown } from './Breakdown';
+import { Comparison } from './Comparison';
+import { Flow } from './Flow';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from './shared';
 import { phone as styles } from './styles';
 
@@ -44,6 +47,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
           </Loadable>
           <ReviewLink count={home.summary?.to_review ?? 0} style={styles.pending} />
           <PendingLink count={home.summary?.pending_transfers ?? 0} style={styles.pending} />
+          {noAccounts || !home.shown ? null : <Cards month={home.month} shown={home.shown} />}
           {noAccounts ? null : <Recent month={home.month} />}
           <View style={styles.footer}>
             <Pressable
@@ -120,6 +124,25 @@ function Figure({
     </View>
   );
 }
+
+// The month before, the spending split and the flow: the computer's cards, one column.
+// They stay hidden while loading or on error; the figures above already say the essential.
+function Cards({ month, shown }: { month: string; shown: CurrencySummary }) {
+  const query = useDashboard(month, true);
+  const width = Math.min(useWindowDimensions().width, PHONE_MAX) - PHONE_PAD * 2;
+  const dash = query.data?.currencies.find((c) => c.currency === shown.currency);
+  if (!dash) return null;
+  return (
+    <View style={styles.cards}>
+      <Comparison month={month} shown={shown} dash={dash} />
+      <Breakdown dash={dash} half={false} />
+      <Flow dash={dash} width={width} />
+    </View>
+  );
+}
+
+const PHONE_MAX = 520 + 32;
+const PHONE_PAD = 16;
 
 function Recent({ month }: { month: string }) {
   const query = useRecent(month, true);
