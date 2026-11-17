@@ -14,7 +14,7 @@ const accounts = {
     bank: 'Nubank',
     currency: 'BRL',
     is_card: false,
-    member_id: null,
+    member_id: 'mem-1',
   },
   inter: {
     id: 'acc-inter',
@@ -22,7 +22,7 @@ const accounts = {
     bank: 'Inter',
     currency: 'BRL',
     is_card: false,
-    member_id: null,
+    member_id: 'mem-2',
   },
   wise: {
     id: 'acc-wise',
@@ -46,7 +46,7 @@ const tx = (account, d, description, amount, kind = 'regular', category = null) 
   account_name: account.name,
   category_id: category ? `cat-${category}` : null,
   category_name: category,
-  member_id: null,
+  member_id: account.member_id,
   review: 'approved',
 });
 
@@ -151,21 +151,27 @@ const importDone = (filename, format, bank, imported, duplicates, d) => ({
   to_review: 0,
 });
 
+const family = {
+  id: 'fam-1',
+  name: 'Família',
+  display_currency: 'BRL',
+  month_start_day: 1,
+  review_imports: true,
+  members: [
+    { id: 'mem-1', name: 'Pessoa', color: '#8a8799', user_id: 'user-1' },
+    { id: 'mem-2', name: 'Ana', color: '#c7795a', user_id: null },
+  ],
+};
+
 export const fixtures = {
   '/auth/me': {
     id: 'user-1',
     email: 'pessoa@example.com',
     name: 'Pessoa Exemplo',
     picture_url: null,
-    family: {
-      id: 'fam-1',
-      name: 'Família',
-      display_currency: 'BRL',
-      month_start_day: 1,
-      review_imports: true,
-      members: [{ id: 'mem-1', name: 'Pessoa', color: '#3D5AC2', user_id: 'user-1' }],
-    },
+    family,
   },
+  '/family': family,
   '/accounts': Object.values(accounts),
   // Wise read through Enable Banking; Nubank through Meu Pluggy, its card unreadable.
   '/connections': {

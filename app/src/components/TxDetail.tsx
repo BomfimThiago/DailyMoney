@@ -6,6 +6,8 @@ import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm'
 import { errorText } from '@/lib/api';
 import { fullDate, isIncome } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
+import { ownerName } from '@/lib/people';
+import { useFamily } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
@@ -17,6 +19,7 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
   const [deleting, setDeleting] = useState(false);
   const incoming = isIncome(t.amount);
   const amount = lineAmounts(t);
+  const members = useFamily(true).data?.members ?? [];
 
   return (
     <View style={styles.box}>
@@ -30,6 +33,7 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       <View style={styles.facts}>
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
+        <Fact label="Responsável" value={ownerName(t.member_id, members)} />
       </View>
       {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
 
@@ -134,7 +138,7 @@ const styles = StyleSheet.create({
   income: { color: colors.positive },
   facts: { gap: 6, marginTop: 2 },
   fact: { flexDirection: 'row', gap: 12 },
-  factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  factLabel: { width: 84, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   factValue: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
   rule: { height: 1, backgroundColor: colors.line, marginVertical: 4 },
   deleteLink: { alignSelf: 'flex-start' },

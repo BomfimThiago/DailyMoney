@@ -22,6 +22,9 @@ const mockCategoryList: Category[] = [
 ];
 jest.mock('@/lib/queries', () => ({
   useCategories: () => ({ data: mockCategoryList, isError: false }),
+  useFamily: () => ({
+    data: { members: [{ id: 'm-ana', name: 'Ana', color: '#c7795a', user_id: null }] },
+  }),
 }));
 const mockEdit = jest.mocked(updateTransaction);
 const mockKind = jest.mocked(setKind);
@@ -49,6 +52,17 @@ beforeEach(() => {
 });
 
 describe('TxDetail', () => {
+  it('shows who the line belongs to, or the household', async () => {
+    await render(<TxDetail t={tx({ member_id: 'm-ana' })} onChanged={jest.fn()} />);
+    expect(screen.getByText('Responsável')).toBeTruthy();
+    expect(screen.getByText('Ana')).toBeTruthy();
+  });
+
+  it('a line with no one belongs to the household', async () => {
+    await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
+    expect(screen.getByText('Casa')).toBeTruthy();
+  });
+
   it('opens with the summary and the fields ready to change, no Editar step', async () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
     expect(screen.getAllByText('Pão de Açúcar').length).toBeGreaterThan(0);

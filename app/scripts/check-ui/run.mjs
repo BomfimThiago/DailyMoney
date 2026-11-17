@@ -127,6 +127,10 @@ function answer(url, method) {
   if (approved && p === '/transactions/review') {
     return { status: 200, body: { total: 0, groups: [] } };
   }
+  if (method === 'PATCH' && p.startsWith('/accounts/')) {
+    const account = fixtures['/accounts'].find((a) => a.id === p.split('/').pop());
+    return { status: 200, body: account };
+  }
   if (method === 'PATCH' && p === '/family') {
     monthStartDay = 27;
     return { status: 200, body: { ...fixtures['/auth/me'].family, month_start_day: 27 } };
@@ -474,6 +478,18 @@ async function checkScreens(page, tag) {
       .click();
     await seen('Criar categoria').waitFor();
     await shot('categorias-nova');
+    // Responsáveis: the people, and who owns each account; one account changing hands.
+    await page.goto(`${base}/responsaveis`);
+    await seen('Wise EUR').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('responsaveis');
+    await page.getByRole('button', { name: 'Responsável por Wise EUR' }).click();
+    await seen('Casa').last().waitFor();
+    await shot('responsaveis-escolher');
+    await page.getByRole('menuitem', { name: 'Ana' }).click();
+    await page.getByRole('button', { name: 'Editar Ana' }).click();
+    await seen('Excluir pessoa').waitFor();
+    await shot('responsaveis-editar');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();

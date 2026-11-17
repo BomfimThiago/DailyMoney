@@ -45,8 +45,14 @@ export const phone = StyleSheet.create({
   upload: { marginTop: 24 },
   emptyBox: { gap: 12, marginTop: 8 },
   empty: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },
-  footer: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 32 },
-  signOut: { paddingVertical: 8, paddingHorizontal: 16 },
+  footer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginTop: 32,
+  },
+  signOut: { paddingVertical: 8, paddingHorizontal: 12 },
   signOutText: { fontFamily: fonts.medium, fontSize: 14, color: colors.muted },
 });
 

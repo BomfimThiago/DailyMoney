@@ -24,6 +24,7 @@ import {
   type TxFilters,
 } from './imports';
 import { useDisplayCurrency } from './displayCurrency';
+import { getFamily } from './people';
 
 // Server data for the money screens. Every key starts with "money" so one invalidation
 // after an import or a reclassified transaction refreshes all tabs, which stay mounted.
@@ -160,4 +161,10 @@ export function useConnections(enabled: boolean) {
 // Not money data: kept out of the "money" key so imports don't refetch it.
 export function useBankRequests(enabled: boolean) {
   return useQuery({ queryKey: ['bank-requests'], queryFn: listBankRequests, enabled });
+}
+
+// The family and its people (Responsáveis). Under "money" so changing an account's owner
+// refreshes the lines that follow it.
+export function useFamily(enabled: boolean) {
+  return useQuery({ queryKey: ['money', 'family'], queryFn: getFamily, enabled });
 }

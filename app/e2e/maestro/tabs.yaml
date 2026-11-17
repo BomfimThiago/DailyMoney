@@ -54,3 +54,16 @@ appId: com.bomfimthiago.dailymoney
     timeout: 15000
 - waitForAnimationToEnd
 - takeScreenshot: 06-categorias
+- tapOn:
+    id: tab-Início
+- scrollUntilVisible:
+    element:
+      id: link-responsaveis
+    direction: DOWN
+- tapOn:
+    id: link-responsaveis
+- extendedWaitUntil:
+    visible: 'CONTAS'
+    timeout: 15000
+- waitForAnimationToEnd
+- takeScreenshot: 07-responsaveis

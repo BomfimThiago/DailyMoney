@@ -1,12 +1,9 @@
-import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { DotSelect } from '@/components/DotSelect';
 import type { Category } from '@/lib/types';
-import { useCloseOnOutsideTap } from '@/lib/useCloseOnOutsideTap';
 import { colors, fonts } from '@/theme';
 
-// A dropdown of categories: takes one line however many categories the family has.
-// The list opens in place (not floating) so it is never cut off inside the phone sheet.
 export function CategorySelect({
   value,
   options,
@@ -16,53 +13,16 @@ export function CategorySelect({
   options: Category[];
   onChange: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const current = options.find((c) => c.id === value);
-  const outside = useCloseOnOutsideTap(open, setOpen);
   return (
-    <View {...outside}>
-      <Pressable
-        onPress={() => setOpen(!open)}
-        accessibilityRole="button"
-        accessibilityLabel="Categoria"
-        accessibilityState={{ expanded: open }}
-        style={[styles.button, open && styles.buttonOpen]}
-      >
-        {current ? <Dot color={current.color} /> : null}
-        <Text style={[styles.value, !current && styles.placeholder]} numberOfLines={1}>
-          {current ? current.name : 'Escolher categoria'}
-        </Text>
-        <Text style={styles.caret}>{open ? '▴' : '▾'}</Text>
-      </Pressable>
-      {open ? (
-        <ScrollView style={styles.list} nestedScrollEnabled accessibilityRole="menu">
-          {options.length ? null : <Text style={styles.empty}>Nenhuma categoria.</Text>}
-          {options.map((c) => {
-            const on = c.id === value;
-            return (
-              <Pressable
-                key={c.id}
-                onPress={() => {
-                  onChange(c.id);
-                  setOpen(false);
-                }}
-                accessibilityRole="menuitem"
-                accessibilityState={{ selected: on }}
-                style={[styles.item, on && styles.itemOn]}
-              >
-                <Dot color={c.color} />
-                <Text style={[styles.itemText, on && styles.itemTextOn]}>{c.name}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      ) : null}
-    </View>
+    <DotSelect
+      value={value}
+      options={options}
+      onChange={onChange}
+      label="Categoria"
+      placeholder="Escolher categoria"
+      empty="Nenhuma categoria."
+    />
   );
-}
-
-function Dot({ color }: { color: string }) {
-  return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
 
 export function MerchantCheck({ on, onToggle }: { on: boolean; onToggle: () => void }) {
@@ -82,40 +42,6 @@ export function MerchantCheck({ on, onToggle }: { on: boolean; onToggle: () => v
 }
 
 const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-  },
-  buttonOpen: { borderColor: colors.ink },
-  value: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
-  placeholder: { color: colors.muted },
-  caret: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
-  list: {
-    maxHeight: 220,
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: 10,
-    paddingVertical: 4,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  itemOn: { backgroundColor: colors.soft },
-  itemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
-  itemTextOn: { fontFamily: fonts.medium },
-  empty: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, padding: 12 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
   check: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   box: {
     width: 18,

@@ -84,6 +84,7 @@ export function SideBar() {
           />
         ))}
         <SideLink label="Categorias" href="/categorias" on={isOn('/categorias', path)} />
+        <SideLink label="Responsáveis" href="/responsaveis" on={isOn('/responsaveis', path)} />
         <Text style={styles.sideGroup}>DADOS</Text>
         {DATA_PAGES.map((t) => (
           <SideLink key={t.href} label={t.label} href={t.href} on={isOn(t.href, path)} />

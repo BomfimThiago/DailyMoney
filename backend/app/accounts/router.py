@@ -1,6 +1,8 @@
+import uuid
+
 from fastapi import APIRouter
 
-from app.accounts.schemas import AccountOut
+from app.accounts.schemas import AccountOut, AccountUpdate
 from app.accounts.services import account_service
 from app.core.deps import CurrentUser, DbSession
 
@@ -11,3 +13,12 @@ router = APIRouter(prefix="/accounts", tags=["accounts"])
 async def list_accounts(user: CurrentUser, db: DbSession) -> list[AccountOut]:
     rows = await account_service.list_accounts(db, user.family_id)
     return [AccountOut.model_validate(a) for a in rows]
+
+
+@router.patch("/{account_id}", response_model=AccountOut)
+async def update_account(
+    account_id: uuid.UUID, data: AccountUpdate, user: CurrentUser, db: DbSession
+) -> AccountOut:
+    account = await account_service.set_owner(db, user.family_id, account_id, data.member_id)
+    await db.commit()
+    return AccountOut.model_validate(account)
