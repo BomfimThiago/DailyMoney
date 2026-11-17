@@ -59,21 +59,6 @@ export function CategorySelect({
   );
 }
 
-// The chosen category on one line, as the detail shows it.
-export function CategoryName({
-  category,
-}: {
-  category: Pick<Category, 'name' | 'color'> | null | undefined;
-}) {
-  if (!category) return <Text style={styles.none}>Sem categoria</Text>;
-  return (
-    <View style={styles.name}>
-      <Dot color={category.color} />
-      <Text style={styles.nameText}>{category.name}</Text>
-    </View>
-  );
-}
-
 function Dot({ color }: { color: string }) {
   return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
@@ -128,9 +113,6 @@ const styles = StyleSheet.create({
   itemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   itemTextOn: { fontFamily: fonts.medium },
   empty: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, padding: 12 },
-  name: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  nameText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
-  none: { fontFamily: fonts.regular, fontSize: 14, color: colors.muted },
   dot: { width: 8, height: 8, borderRadius: 4 },
   check: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 2 },
   box: {

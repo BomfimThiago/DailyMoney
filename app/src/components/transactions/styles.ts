@@ -88,9 +88,9 @@ export const styles = StyleSheet.create({
     borderLeftWidth: 1,
     borderLeftColor: colors.line,
     paddingLeft: 24,
-    gap: 12,
     minHeight: 240,
   },
+  panelBody: { gap: 12, paddingBottom: 8 },
   panelTitle: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
   transfersBox: { maxWidth: 640 },
 

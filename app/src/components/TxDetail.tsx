@@ -1,52 +1,20 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CategoryName } from '@/components/transactions/CategorySelect';
 import { Small } from '@/components/transactions/Review';
 import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
 import { fullDate, isIncome } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
-import { useCategories } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
-type Mode = 'view' | 'edit' | 'delete';
-
-// One line of spending or income: what the statement says and its category. Everything,
-// the category included, changes in Editar (like the old app); it can also be deleted.
+// One line of spending or income: the summary on top and, right below, the fields to
+// change it and the way to delete it. All in one place, no extra Editar step.
 // Side panel on a computer, sheet on a phone.
 export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => void }) {
-  const [mode, setMode] = useState<Mode>('view');
-  if (mode === 'edit') {
-    return (
-      <TxEditForm
-        t={t}
-        onSaved={() => {
-          setMode('view');
-          onChanged();
-        }}
-        onCancel={() => setMode('view')}
-      />
-    );
-  }
-  return <TxView t={t} onChanged={onChanged} mode={mode} setMode={setMode} />;
-}
-
-function TxView({
-  t,
-  onChanged,
-  mode,
-  setMode,
-}: {
-  t: Transaction;
-  onChanged: () => void;
-  mode: Mode;
-  setMode: (m: Mode) => void;
-}) {
-  const categories = useCategories(true);
-  const category = categories.data?.find((c) => c.id === t.category_id);
+  const [deleting, setDeleting] = useState(false);
   const incoming = isIncome(t.amount);
   const amount = lineAmounts(t);
 
@@ -64,21 +32,24 @@ function TxView({
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
       </View>
       {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
-      {mode === 'delete' ? (
-        <Deleting t={t} onDone={onChanged} onCancel={() => setMode('view')} />
-      ) : (
-        <View style={styles.links}>
-          <Link label="Editar" onPress={() => setMode('edit')} />
-          <Link label="Excluir" onPress={() => setMode('delete')} danger />
-        </View>
-      )}
 
-      <Text style={styles.section}>CATEGORIA</Text>
-      <CategoryName
-        category={
-          category ?? (t.category_name ? { name: t.category_name, color: colors.muted } : null)
-        }
-      />
+      <View style={styles.rule} />
+      <TxEditForm t={t} onSaved={onChanged} />
+
+      <View style={styles.rule} />
+      {deleting ? (
+        <Deleting t={t} onDone={onChanged} onCancel={() => setDeleting(false)} />
+      ) : (
+        <Pressable
+          onPress={() => setDeleting(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir"
+          hitSlop={6}
+          style={styles.deleteLink}
+        >
+          <Text style={styles.linkDanger}>Excluir transação</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -146,22 +117,6 @@ function Deleting({
   return <DeleteConfirm busy={busy} error={error} onConfirm={confirm} onCancel={onCancel} />;
 }
 
-function Link({
-  label,
-  onPress,
-  danger,
-}: {
-  label: string;
-  onPress: () => void;
-  danger?: boolean;
-}) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="button" hitSlop={6}>
-      <Text style={[styles.link, danger && styles.linkDanger]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.fact}>
@@ -181,7 +136,8 @@ const styles = StyleSheet.create({
   fact: { flexDirection: 'row', gap: 12 },
   factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   factValue: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
-  links: { flexDirection: 'row', gap: 18, marginTop: 2 },
+  rule: { height: 1, backgroundColor: colors.line, marginVertical: 4 },
+  deleteLink: { alignSelf: 'flex-start' },
   waiting: {
     borderWidth: 1,
     borderColor: colors.pendingLine,
@@ -193,20 +149,6 @@ const styles = StyleSheet.create({
   },
   waitingText: { fontFamily: fonts.regular, fontSize: 13, color: colors.pendingText },
   waitingActions: { flexDirection: 'row', gap: 8 },
-  link: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.ink,
-    textDecorationLine: 'underline',
-    textDecorationColor: colors.dashed,
-  },
-  linkDanger: { color: colors.danger },
-  section: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    letterSpacing: 0.7,
-    color: colors.muted,
-    marginTop: 10,
-  },
+  linkDanger: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
   error: { fontFamily: fonts.regular, fontSize: 13, color: colors.danger },
 });

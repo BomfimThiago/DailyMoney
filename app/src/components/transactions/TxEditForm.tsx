@@ -26,18 +26,14 @@ const KINDS: { value: EditKind; label: string }[] = [
   { value: 'transfer', label: 'Entre minhas contas' },
 ];
 
-// The old app's edit: description, date, amount (gasto/entrada), category and what the line was.
-// The currency is the account's, so it is shown but not edited.
-export function TxEditForm({
-  t,
-  onSaved,
-  onCancel,
-}: {
-  t: Transaction;
-  onSaved: () => void;
-  onCancel: () => void;
-}) {
+// The fields of a line, always open in the detail (no separate Editar step): description,
+// date, amount (gasto/entrada), category and what the line was. The currency is the
+// account's, so it is shown but not edited. Salvar and Desfazer wake up once something changes.
+export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void }) {
   const [form, setForm] = useState<TxForm>(() => formOf(t));
+  // What the fields held when opened or last saved; Desfazer goes back to it.
+  const [base, setBase] = useState<TxForm>(form);
+  const [saved, setSaved] = useState(false);
   const categories = useCategories(true);
   const all = categories.data ?? [];
   const [tried, setTried] = useState(false);
@@ -45,19 +41,32 @@ export function TxEditForm({
   const [error, setError] = useState<string | null>(null);
   const errors = formErrors(form);
   const shown = tried ? errors : {};
+  const dirty = changed(form, base);
+  const edit = (next: (f: TxForm) => TxForm) => {
+    setSaved(false);
+    setForm(next);
+  };
   const set = <K extends keyof TxForm>(key: K, value: TxForm[K]) =>
-    setForm((f) => ({ ...f, [key]: value }));
+    edit((f) => ({ ...f, [key]: value }));
+  const undo = () => {
+    setTried(false);
+    setError(null);
+    setForm(base);
+  };
 
   const save = async () => {
     setTried(true);
     if (Object.keys(errors).length) return;
     const patch = patchOf(t, form);
-    const initialKind = formOf(t).kind;
     setSaving(true);
     setError(null);
     try {
       if (Object.keys(patch).length) await updateTransaction(t.id, patch);
-      if (form.kind !== initialKind) await setKind(t.id, form.kind);
+      if (form.kind !== base.kind) await setKind(t.id, form.kind);
+      setBase(form);
+      setTried(false);
+      setSaving(false);
+      setSaved(true);
       onSaved();
     } catch (e) {
       setError(errorText(e));
@@ -106,7 +115,7 @@ export function TxEditForm({
             key={d}
             label={d === 'out' ? 'Saiu dinheiro' : 'Entrou dinheiro'}
             selected={form.direction === d}
-            onPress={() => setForm((f) => withDirection(f, d, all))}
+            onPress={() => edit((f) => withDirection(f, d, all))}
           />
         ))}
       </View>
@@ -149,11 +158,31 @@ export function TxEditForm({
       )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {saved && !dirty ? <Text style={styles.hint}>Alterações salvas.</Text> : null}
       <View style={styles.actions}>
-        <Button label="Cancelar" onPress={onCancel} disabled={saving} style={styles.action} />
-        <Button label="Salvar" primary onPress={save} busy={saving} style={styles.action} />
+        <Button label="Desfazer" onPress={undo} disabled={!dirty || saving} style={styles.action} />
+        <Button
+          label="Salvar"
+          primary
+          onPress={save}
+          busy={saving}
+          disabled={!dirty}
+          style={styles.action}
+        />
       </View>
     </View>
+  );
+}
+
+// forMerchant only matters with a new category, which already counts as a change.
+function changed(a: TxForm, b: TxForm): boolean {
+  return (
+    a.description !== b.description ||
+    a.date !== b.date ||
+    a.amount !== b.amount ||
+    a.direction !== b.direction ||
+    a.kind !== b.kind ||
+    a.categoryId !== b.categoryId
   );
 }
 
