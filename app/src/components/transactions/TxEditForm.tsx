@@ -160,12 +160,7 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {saved && !dirty ? <Text style={styles.hint}>Alterações salvas.</Text> : null}
       <View style={styles.actions}>
-        <Button
-          label="Desfazer"
-          onPress={undo}
-          disabled={!dirty || saving}
-          style={styles.action}
-        />
+        <Button label="Desfazer" onPress={undo} disabled={!dirty || saving} style={styles.action} />
         <Button
           label="Salvar"
           primary

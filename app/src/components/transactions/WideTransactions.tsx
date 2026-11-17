@@ -111,9 +111,7 @@ function DetailPanel({ page }: { page: TransactionsPage }) {
         {page.selected ? (
           <TxDetail key={page.selected.id} t={page.selected} onChanged={page.refreshMoney} />
         ) : (
-          <Text style={styles.empty}>
-            Clique numa linha para ver o detalhe, editar ou excluir.
-          </Text>
+          <Text style={styles.empty}>Clique numa linha para ver o detalhe, editar ou excluir.</Text>
         )}
       </ScrollView>
     </View>

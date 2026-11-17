@@ -288,7 +288,9 @@ async function checkScreens(page, tag) {
     await shot('transacoes-detalhe');
     if (await button('Editar').count()) flag('o detalhe ainda pede para apertar Editar');
     // Only the chosen category shows; the list opens from the dropdown.
-    if (await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).count()) {
+    if (
+      await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).count()
+    ) {
       flag('o detalhe ainda mostra todas as categorias');
     }
     await button('Categoria').click();
@@ -324,7 +326,10 @@ async function checkScreens(page, tag) {
       // A line far down the table is edited where it is: the panel follows the scroll.
       const size = page.viewportSize();
       await page.setViewportSize({ width: size.width, height: 560 });
-      const last = page.getByRole('button', { name: /^Aluguel/ }).filter({ visible: true }).first();
+      const last = page
+        .getByRole('button', { name: /^Aluguel/ })
+        .filter({ visible: true })
+        .first();
       await last.scrollIntoViewIfNeeded();
       await last.click();
       await page.waitForTimeout(300);
