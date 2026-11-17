@@ -16,6 +16,7 @@ import { Loadable } from '@/components/states';
 import { Transfers } from '@/components/Transfers';
 import { TxDetail } from '@/components/TxDetail';
 import { emptyListText, remaining } from '@/lib/transactions';
+import { tapAnywhere } from '@/lib/useCloseOnOutsideTap';
 import type { Transaction } from '@/lib/types';
 import type { Tab, TransactionsPage } from '@/lib/useTransactionsPage';
 import { colors } from '@/theme';
@@ -124,7 +125,7 @@ export function Sheet({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <Pressable style={styles.dimTap} onPress={onClose} accessibilityLabel="Fechar" />
-        <View style={[styles.sheet, { maxHeight: height * 0.9 }]}>
+        <View style={[styles.sheet, { maxHeight: height * 0.9 }]} onTouchStart={tapAnywhere}>
           <View style={styles.grip} />
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.sheetBody}>
             {t ? <TxDetail key={t.id} t={t} onChanged={onChanged} /> : null}

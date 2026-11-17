@@ -296,6 +296,14 @@ async function checkScreens(page, tag) {
     await button('Categoria').click();
     await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).waitFor();
     await shot('transacoes-editar-categoria');
+    // A click elsewhere closes the open list.
+    await seen('Esta linha é').click();
+    await page
+      .getByRole('menuitem', { name: 'Restaurantes' })
+      .filter({ visible: true })
+      .waitFor({ state: 'detached', timeout: 3000 })
+      .catch(() => flag('a lista de categorias não fecha ao clicar fora'));
+    await button('Categoria').click();
     await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).click();
     await seen('Valer também para as próximas deste estabelecimento').waitFor();
     await button('Salvar').click();

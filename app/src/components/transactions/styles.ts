@@ -83,8 +83,9 @@ export const styles = StyleSheet.create({
   menuItemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   split: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
   tableBox: { flex: 1, minWidth: 0 },
+  // Wide enough for the edit fields to breathe (date and amount side by side).
   panel: {
-    width: 300,
+    width: 400,
     borderLeftWidth: 1,
     borderLeftColor: colors.line,
     paddingLeft: 24,
