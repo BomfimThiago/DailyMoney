@@ -86,6 +86,8 @@ describe('HomeScreen on the phone', () => {
     await render(withCurrency(<HomeScreen />));
     expect(screen.getByText('8.500')).toBeTruthy();
     expect(screen.getByText(money('R$ 3.094,20'))).toBeTruthy();
+    // Investments are already inside Entradas and Gastos: no Investido taken out again.
+    expect(screen.queryByText('INVESTIDO')).toBeNull();
     expect(screen.getByText('Uber')).toBeTruthy();
     await fireEvent.press(screen.getByText('2 transferências para confirmar'));
     expect(router.navigate).toHaveBeenCalledWith({
@@ -152,6 +154,7 @@ describe('HomeScreen on a computer', () => {
     wide();
     await render(withCurrency(<HomeScreen />));
     expect(screen.getByText('SOBROU NO MÊS')).toBeTruthy();
+    expect(screen.queryByText('INVESTIDO')).toBeNull();
     expect(screen.getByText('RITMO DO MÊS')).toBeTruthy();
     expect(screen.getByText('DIVISÃO DOS GASTOS')).toBeTruthy();
     expect(screen.getByText('CALENDÁRIO DE GASTOS')).toBeTruthy();

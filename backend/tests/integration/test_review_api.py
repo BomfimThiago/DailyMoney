@@ -88,9 +88,9 @@ async def test_rejected_lines_stay_out_even_when_read_again(client: AsyncClient)
     await _decide(client, h, [t["id"] for t in items if t["id"] != salary["id"]], "approve")
 
     summary = await _get(client, h, f"/api/v1/transactions/summary?month={MONTH}")
-    # Only the salary was income; the rest still counts as approved.
+    # Without the salary only the resgate is income; the rest still counts as approved.
     brl = summary["currencies"][0]
-    assert (brl["income"], brl["spending"], summary["to_review"]) == ("0", "350.0000", 0)
+    assert (brl["income"], brl["spending"], summary["to_review"]) == ("300.0000", "1350.0000", 0)
     page = await _get(client, h, f"/api/v1/transactions?month={MONTH}&limit=200")
     assert salary["id"] not in [t["id"] for t in page["items"]]
 

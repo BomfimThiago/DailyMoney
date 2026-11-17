@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.accounts.models import Account
 from app.categories.models import Category, CategoryKind, CategoryRule
 from app.categories.services import category_service
-from app.categories.services.categorize import TRANSFER, merchant_key
+from app.categories.services.categorize import INVESTMENT, TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency
@@ -111,7 +111,8 @@ async def _change_amount(db: AsyncSession, tx: Transaction, amount: Decimal) -> 
     if (tx.amount < 0) != (amount < 0) and tx.category_id is not None:
         # Spending turned into income (or back): its category no longer fits.
         category = await db.get(Category, tx.category_id)
-        if category is not None and category.kind != CategoryKind.TRANSFER:
+        # Investimento fits both ways: putting money in and taking it out.
+        if category is not None and not _moves_money(category):
             tx.category_id = None
     tx.amount = amount.quantize(Decimal("0.0001"))
 
@@ -126,7 +127,11 @@ async def _change_category(
     category = await db.get(Category, category_id)
     if category is None or category.family_id != family_id:
         raise NotFoundError("Categoria não encontrada")
-    kind = TxKind.TRANSFER if category.kind == CategoryKind.TRANSFER else TxKind.REGULAR
+    kind = TxKind.REGULAR
+    if category.kind == CategoryKind.TRANSFER:
+        kind = TxKind.TRANSFER
+    elif category.system_key == INVESTMENT:
+        kind = TxKind.INVESTMENT
     if kind != TxKind.TRANSFER:
         await _unpair(db, tx)
     tx.kind = kind
@@ -139,6 +144,10 @@ async def _change_category(
                 constraint="uq_rule_family_merchant", set_={"category_id": category.id}
             )
         )
+
+
+def _moves_money(category: Category) -> bool:
+    return category.kind == CategoryKind.TRANSFER or category.system_key == INVESTMENT
 
 
 async def delete_transaction(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> None:
@@ -168,7 +177,8 @@ async def set_kind(
             other.kind = TxKind.TRANSFER
             other.category_id = tx.category_id
     elif kind == TxKind.INVESTMENT:
-        tx.category_id = None
+        investment_category = categories.get(INVESTMENT)
+        tx.category_id = investment_category.id if investment_category else None
     else:
         categorizer = await category_service.categorizer_for(db, family_id)
         name = categorizer.category_for(tx.description, tx.amount)

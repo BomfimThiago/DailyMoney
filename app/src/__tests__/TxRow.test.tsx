@@ -38,12 +38,16 @@ describe('TxRow', () => {
     );
   });
 
-  it('shows investments and transfers without a sign', async () => {
-    expect(await shown({ kind: 'investment', amount: '-1500.0000' })).toEqual({
-      sub: 'Aplicação · Nubank · 4 nov',
-      amount: 'R$ 1.500,00',
-    });
-    expect((await shown({ kind: 'investment', amount: '300.0000' })).sub).toMatch(/^Resgate/);
+  it('shows investments as spending or income in the Investimento category', async () => {
+    expect(
+      await shown({ kind: 'investment', amount: '-1500.0000', category_name: 'Investimento' }),
+    ).toEqual({ sub: 'Investimento · Nubank · 4 nov', amount: '-R$ 1.500,00' });
+    expect(
+      (await shown({ kind: 'investment', amount: '300.0000', category_name: null })).amount,
+    ).toBe('+R$ 300,00');
+  });
+
+  it('shows transfers without a sign', async () => {
     expect(await shown({ kind: 'transfer', amount: '-400.0000' })).toEqual({
       sub: 'Entre suas contas · Nubank · 4 nov',
       amount: 'R$ 400,00',

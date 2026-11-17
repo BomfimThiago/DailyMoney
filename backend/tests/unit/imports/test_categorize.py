@@ -35,3 +35,9 @@ def test_fallbacks_by_sign_and_transfer() -> None:
     assert c.category_for("Coisa estranha", Decimal("-5")) == "Outros"
     assert c.category_for("Coisa estranha", Decimal("5")) == "Renda"
     assert c.category_for("Mercadona", Decimal("-5"), is_transfer=True) == "Transferência"
+
+
+def test_investment_moves_go_to_investimento_both_ways() -> None:
+    c = Categorizer(rules={merchant_key("Aplicação RDB"): "Lazer"})
+    assert c.category_for("Aplicação RDB", Decimal("-1000"), is_investment=True) == "Investimento"
+    assert c.category_for("Resgate RDB", Decimal("300"), is_investment=True) == "Investimento"

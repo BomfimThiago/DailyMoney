@@ -157,7 +157,7 @@ function answer(url, method) {
   if (answered && p === '/transactions/transfers') {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
   }
-  if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular') {
+  if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular,investment') {
     const q = (url.searchParams.get('q') ?? '').toLowerCase();
     const items = fixtures.regular.items.filter((t) => t.description.toLowerCase().includes(q));
     return { status: 200, body: { total: items.length, items } };

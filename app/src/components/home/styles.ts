@@ -29,7 +29,6 @@ export const phone = StyleSheet.create({
   figureLabel: { fontFamily: fonts.medium, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
   figureValue: { fontFamily: fonts.regular, fontSize: 22, color: colors.ink },
   income: { color: colors.positive },
-  invest: { color: colors.invest },
   left: {
     flexDirection: 'row',
     justifyContent: 'space-between',

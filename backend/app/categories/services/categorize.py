@@ -10,6 +10,9 @@ import unicodedata
 from decimal import Decimal
 
 TRANSFER = "Transferência"
+# Money put into or taken out of an investment: it counts as spending or income too,
+# because what is redeemed and not reinvested ends up spent.
+INVESTMENT = "Investimento"
 INCOME = "Renda"
 OTHER = "Outros"
 
@@ -24,6 +27,7 @@ DEFAULT_CATEGORIES: list[tuple[str, str, str]] = [
     ("Assinaturas", "expense", "#4f9a9a"),
     (OTHER, "expense", "#9a98a6"),
     (INCOME, "income", "#5f9f6b"),
+    (INVESTMENT, "expense", "#3d5ac2"),
     (TRANSFER, "transfer", "#8a8799"),
 ]
 
@@ -109,9 +113,17 @@ class Categorizer:
     def __init__(self, rules: dict[str, str]) -> None:
         self.rules = rules
 
-    def category_for(self, description: str, amount: Decimal, is_transfer: bool = False) -> str:
+    def category_for(
+        self,
+        description: str,
+        amount: Decimal,
+        is_transfer: bool = False,
+        is_investment: bool = False,
+    ) -> str:
         if is_transfer:
             return TRANSFER
+        if is_investment:
+            return INVESTMENT
         rule = self.rules.get(merchant_key(description))
         if rule:
             return rule
