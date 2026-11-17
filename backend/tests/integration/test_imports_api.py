@@ -217,7 +217,7 @@ async def test_change_category_and_learn_rule(client: AsyncClient) -> None:
         client, h, up["id"], {"accounts": [{"currency": "BRL", "new_account": {"name": "Nu"}}]}
     )
     cats = {c["name"]: c["id"] for c in (await client.get("/api/v1/categories", headers=h)).json()}
-    assert len(cats) == 10
+    assert len(cats) == 11
     uber = next(
         t
         for t in (await client.get("/api/v1/transactions", headers=h)).json()["items"]

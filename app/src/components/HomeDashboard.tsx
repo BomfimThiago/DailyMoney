@@ -115,7 +115,6 @@ function Figures({
     <View style={styles.figures}>
       <Figure label="Entradas" value={plain(shown.income)} color={colors.positive} />
       <Figure label="Gastos" value={plain(shown.spending)} sub={sentence} divider />
-      <Figure label="Investido" value={plain(shown.invested)} color={colors.invest} divider />
       <Figure label="Sobrou no mês" value={money(shown.left, shown.currency)} divider wide />
     </View>
   );

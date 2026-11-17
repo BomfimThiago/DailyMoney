@@ -38,6 +38,9 @@ from app.transactions.services.transaction_service import to_out
 
 ZERO = Decimal("0")
 HISTORY_MONTHS = 6
+# The kinds that count as spending and income. Only money moving between the family's own
+# accounts (and what still waits to be confirmed) stays out.
+COUNTED = (TxKind.REGULAR, TxKind.INVESTMENT)
 
 
 async def _currencies(
@@ -63,16 +66,17 @@ async def month_summary(
             Transaction.family_id == family_id,
             APPROVED,
             Transaction.date.between(lo, hi),
-            Transaction.kind.in_([TxKind.REGULAR, TxKind.INVESTMENT]),
+            Transaction.kind.in_(COUNTED),
         )
     )
     sums: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
     for original, kind, raw, day in rows:
         s = sums[conv.currency(original)]
         amount = conv(raw, original, day)
-        if kind == TxKind.REGULAR:
-            s["income" if amount > 0 else "spending"] += abs(amount)
-        else:
+        # An investment move is spending or income like any other line (category
+        # Investimento); it is also added up apart, for the Investido figure.
+        s["income" if amount > 0 else "spending"] += abs(amount)
+        if kind == TxKind.INVESTMENT:
             s["taken_out" if amount > 0 else "put_in"] += abs(amount)
 
     out = []
@@ -87,7 +91,7 @@ async def month_summary(
                 invested=invested,
                 invested_in=s["put_in"],
                 invested_out=s["taken_out"],
-                left=s["income"] - s["spending"] - invested,
+                left=s["income"] - s["spending"],
             )
         )
     pending = await _count(db, family_id, APPROVED, Transaction.kind == TxKind.PENDING)
@@ -124,7 +128,7 @@ async def month_dashboard(
         .where(
             Transaction.family_id == family_id,
             APPROVED,
-            Transaction.kind == TxKind.REGULAR,
+            Transaction.kind.in_(COUNTED),
             Transaction.amount < 0,
             Transaction.date.between(prev_lo, hi),
         )

@@ -66,9 +66,16 @@ const regular = [
   tx(accounts.inter, 5, 'Aluguel', '-2800.00', 'regular', 'Casa'),
 ];
 const investments = [
-  tx(accounts.nubank, 20, 'Aplicação RDB', '-1500.00', 'investment'),
-  tx(accounts.inter, 10, 'Debito Online Td: "Prot.1 IPCA+ 2032"', '-800.00', 'investment'),
-  tx(accounts.nubank, 3, 'Resgate RDB', '300.00', 'investment'),
+  tx(accounts.nubank, 20, 'Aplicação RDB', '-1500.00', 'investment', 'Investimento'),
+  tx(
+    accounts.inter,
+    10,
+    'Debito Online Td: "Prot.1 IPCA+ 2032"',
+    '-800.00',
+    'investment',
+    'Investimento',
+  ),
+  tx(accounts.nubank, 3, 'Resgate RDB', '300.00', 'investment', 'Investimento'),
 ];
 const pending = [tx(accounts.nubank, 26, 'Pix enviado: Thiago Bomfim', '-400.00', 'pending')];
 
@@ -106,8 +113,10 @@ const daysIn = (offset) => {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0));
   return d.getUTCDate();
 };
+// Investments count as spending (aplicação) and income (resgate), like Thiago asked.
+const counted = [...regular, ...investments].sort((a, b) => b.date.localeCompare(a.date));
 const spent = [
-  ...regular.filter((t) => t.amount.startsWith('-')),
+  ...counted.filter((t) => t.amount.startsWith('-')),
   tx(accounts.nubank, 2, 'Padaria', '-60.00', 'regular', 'Outros'),
 ];
 const daily = Array.from({ length: daysIn(0) }, (_, i) =>
@@ -195,6 +204,7 @@ export const fixtures = {
       ['Transporte', '#6f8fb8', 19, 1],
       ['Assinaturas', '#4f9a9a', 6, 3],
       ['Outros', '#9a98a6', 8, 0],
+      ['Investimento', '#3d5ac2', 3, 0],
     ].map(([name, color, transaction_count, rule_count]) => ({
       id: `cat-${name}`,
       name,
@@ -245,8 +255,8 @@ export const fixtures = {
     currencies: [
       {
         currency: 'BRL',
-        income: '8500.00',
-        spending: '3405.80',
+        income: '8800.00',
+        spending: '5705.80',
         invested: '2000.00',
         invested_in: '2300.00',
         invested_out: '300.00',
@@ -447,5 +457,5 @@ export const fixtures = {
     total: regular.length + investments.length + pending.length,
     items: [...regular, ...investments, ...pending].sort((a, b) => b.date.localeCompare(a.date)),
   },
-  regular: { total: regular.length, items: regular },
+  regular: { total: counted.length, items: counted },
 };

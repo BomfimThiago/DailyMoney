@@ -152,7 +152,7 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
       ) : (
         <Text style={styles.hint}>
           {form.kind === 'investment'
-            ? 'Sai de Gastos e entradas e passa a contar em Investimentos.'
+            ? 'Conta no mês como gasto ou entrada, na categoria Investimento, e aparece também em Investimentos.'
             : 'Sai de Gastos e entradas; fica em Transferências.'}
         </Text>
       )}

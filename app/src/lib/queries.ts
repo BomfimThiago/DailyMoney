@@ -77,7 +77,7 @@ export function useRecent(month: string, enabled: boolean) {
   });
 }
 
-// Spending and income only, 50 at a time; on a computer also searched and filtered.
+// Spending and income (investments included, as Investimento), 50 at a time; on a computer also searched and filtered.
 export function useRegular(month: string, enabled: boolean, filters: TxFilters = {}) {
   const { currency } = useDisplayCurrency();
   return useInfiniteQuery({
@@ -85,7 +85,7 @@ export function useRegular(month: string, enabled: boolean, filters: TxFilters =
     queryFn: ({ pageParam }) =>
       listTransactions({
         month,
-        kinds: ['regular'],
+        kinds: ['regular', 'investment'],
         limit: PAGE,
         offset: pageParam,
         currency,

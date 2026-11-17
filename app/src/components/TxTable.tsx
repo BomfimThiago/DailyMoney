@@ -38,7 +38,8 @@ export function TxTable({
       {items.map((t, i) => {
         const newDay = i === 0 || items[i - 1].date !== t.date;
         const on = t.id === selectedId;
-        const income = isIncome(t.amount);
+        const invest = t.kind === 'investment';
+        const income = !invest && isIncome(t.amount);
         const amount = lineAmounts(t);
         return (
           <Fragment key={t.id}>
@@ -54,7 +55,9 @@ export function TxTable({
                 {t.description}
               </Text>
               <View style={[styles.colCat, styles.tag]}>
-                <View style={[styles.dot, income && styles.dotIncome]} />
+                <View
+                  style={[styles.dot, income && styles.dotIncome, invest && styles.dotInvest]}
+                />
                 <Text style={styles.tagText} numberOfLines={1}>
                   {t.category_name ?? 'Outros'}
                 </Text>
@@ -63,7 +66,14 @@ export function TxTable({
                 {t.account_name}
               </Text>
               <View style={styles.valueBox}>
-                <Text style={[styles.td, styles.value, income && styles.income]}>
+                <Text
+                  style={[
+                    styles.td,
+                    styles.value,
+                    income && styles.income,
+                    invest && styles.invest,
+                  ]}
+                >
                   {amount.shown}
                 </Text>
                 {amount.original ? <Text style={styles.original}>{amount.original}</Text> : null}
@@ -115,8 +125,10 @@ const styles = StyleSheet.create({
   td: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   muted: { color: colors.muted },
   income: { color: colors.positive },
+  invest: { color: colors.invest },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.dashed },
   dotIncome: { backgroundColor: colors.positive },
+  dotInvest: { backgroundColor: colors.invest },
   tagText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
 });

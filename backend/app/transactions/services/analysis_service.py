@@ -1,6 +1,7 @@
 """Análises: how spending moves over months, habits, weekdays, peaks and recurring charges.
 
-Only regular lines going out count (investments and own transfers are not spending).
+Every line going out counts, investments included (category Investimento); only money
+moving between the family's own accounts stays out.
 Values stay in each account's own currency, one analysis per currency, like Início, unless
 a currency is chosen: then every line is converted with its day's ECB rate.
 """
@@ -15,11 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.categories.models import Category
-from app.categories.services.categorize import merchant_key, merchant_part
+from app.categories.services.categorize import INVESTMENT, merchant_key, merchant_part
 from app.families.models import Currency
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
-from app.transactions.models import APPROVED, Transaction, TxKind
+from app.transactions.models import APPROVED, Transaction
 from app.transactions.schemas import (
     Analysis,
     CategoryChange,
@@ -30,7 +31,7 @@ from app.transactions.schemas import (
     Recurring,
 )
 from app.transactions.services.months import month_of, month_range, shift
-from app.transactions.services.overview_service import OTHER_CATEGORY, _currencies
+from app.transactions.services.overview_service import COUNTED, OTHER_CATEGORY, _currencies
 
 ZERO = Decimal("0")
 PLACES = Decimal("0.0001")
@@ -64,6 +65,11 @@ class Spend:
 
     def is_(self, key: str) -> bool:
         return (self.key or self.category) == key
+
+    def in_rhythm(self) -> bool:
+        """Day-to-day spending, what weekdays and peak days are about. Investments come in
+        big lumps that would hide it, like rent."""
+        return not (self.is_(HOUSING) or self.is_(INVESTMENT))
 
 
 def display_name(description: str) -> str:
@@ -186,7 +192,7 @@ def _weekdays(in_window: list[Spend], end: date) -> list[Decimal]:
     start = min(r.date for r in in_window)
     sums = [ZERO] * 7
     for r in in_window:
-        if not r.is_(HOUSING) and r.date <= end:
+        if r.in_rhythm() and r.date <= end:
             sums[r.date.weekday()] += r.amount
     days = [0] * 7
     day = start
@@ -199,7 +205,7 @@ def _weekdays(in_window: list[Spend], end: date) -> list[Decimal]:
 def _peaks(in_month: list[Spend]) -> list[PeakDay]:
     by_day: dict[date, list[Spend]] = defaultdict(list)
     for r in in_month:
-        if not r.is_(HOUSING):
+        if r.in_rhythm():
             by_day[r.date].append(r)
     peaks = []
     for day, group in by_day.items():
@@ -283,7 +289,7 @@ async def analysis(
         .where(
             Transaction.family_id == family_id,
             APPROVED,
-            Transaction.kind == TxKind.REGULAR,
+            Transaction.kind.in_(COUNTED),
             Transaction.amount < 0,
             Transaction.date.between(lo, hi),
         )
