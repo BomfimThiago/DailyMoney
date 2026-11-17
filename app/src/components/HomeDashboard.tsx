@@ -1,5 +1,6 @@
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { CardBillLink } from '@/components/cards/CardBills';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { Breakdown } from '@/components/home/Breakdown';
 import { Pace } from '@/components/home/Pace';
@@ -65,6 +66,7 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
       <Figures month={home.month} start={start} shown={shown} dash={dash} />
       <ReviewLink count={summary.to_review} />
       <PendingLink count={summary.pending_transfers} />
+      <CardBillLink />
       <Loadable
         isError={query.isError}
         loading={!dash}

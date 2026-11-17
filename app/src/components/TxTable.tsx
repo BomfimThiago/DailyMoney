@@ -53,6 +53,7 @@ export function TxTable({
             >
               <Text style={[styles.td, styles.colDesc]} numberOfLines={1}>
                 {t.description}
+                {t.installment ? <Text style={styles.installment}> {t.installment}</Text> : null}
               </Text>
               <View style={[styles.colCat, styles.tag]}>
                 <View
@@ -87,6 +88,7 @@ export function TxTable({
 }
 
 const styles = StyleSheet.create({
+  installment: { color: colors.muted },
   head: {
     flexDirection: 'row',
     gap: 12,

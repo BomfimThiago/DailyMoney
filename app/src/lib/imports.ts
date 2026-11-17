@@ -7,6 +7,7 @@ import type {
   BankRequest,
   BrazilFinish,
   BrazilStart,
+  CardBillsOverview,
   ConnectionsOverview,
   SyncResult,
   Category,
@@ -95,6 +96,8 @@ export function listTransactions(
     month?: string;
     kinds?: TxKind[];
     currency?: Currency;
+    // A card's bill (YYYY-MM): its purchases, whatever day they were made.
+    cardBill?: string;
   } & TxFilters = {},
 ) {
   const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
@@ -104,6 +107,7 @@ export function listTransactions(
     q: opts.q?.trim(),
     category_id: opts.categoryId,
     account_id: opts.accountId,
+    card_bill: opts.cardBill,
     currency: opts.currency,
   };
   for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
@@ -118,6 +122,10 @@ export function getSummary(month: string, currency: Currency) {
 
 export function getInvestments(month: string, currency: Currency) {
   return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
+}
+
+export function getCardBills(month: string, currency: Currency) {
+  return api<CardBillsOverview>(`/transactions/card-bills?month=${month}&currency=${currency}`);
 }
 
 export function getTransfers(month: string) {

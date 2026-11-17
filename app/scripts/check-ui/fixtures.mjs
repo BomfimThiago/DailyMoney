@@ -163,7 +163,58 @@ const family = {
   ],
 };
 
+// A Nubank card: this month's bill (purchases made last month, one split in 10), paid,
+// and next month's bill filling up.
+const card = {
+  id: 'acc-nu-card',
+  name: 'Nubank cartão',
+  bank: 'Nubank',
+  currency: 'BRL',
+  is_card: true,
+  member_id: 'mem-1',
+};
+const prev = ym(-1);
+const next = ym(1);
+const cardTx = (date, description, amount, category, bill, installment = null) => ({
+  ...tx(card, 1, description, amount, 'regular', category),
+  date,
+  card_bill: bill,
+  installment,
+});
+export const cardPurchases = {
+  [month]: [
+    cardTx(`${prev}-27`, 'Zara', '-389.90', 'Roupas', month),
+    cardTx(`${prev}-24`, 'Tok&Stok', '-249.00', 'Casa', month, '3/10'),
+    cardTx(`${prev}-19`, 'Posto Shell', '-210.00', 'Transporte', month),
+    cardTx(`${prev}-15`, 'Spotify', '-21.90', 'Assinaturas', month),
+    cardTx(`${prev}-11`, 'Decolar', '-612.00', 'Viagem', month, '2/6'),
+  ],
+  [next]: [
+    cardTx(day(9), 'Amazon', '-159.90', 'Compras', next),
+    cardTx(day(6), 'Tok&Stok', '-249.00', 'Casa', next, '4/10'),
+    cardTx(day(3), 'Decolar', '-612.00', 'Viagem', next, '3/6'),
+  ],
+};
+
 export const fixtures = {
+  '/transactions/card-bills': {
+    month,
+    bills_known: true,
+    cards: [
+      {
+        account_id: card.id,
+        account_name: card.name,
+        bank: card.bank,
+        currency: 'BRL',
+        bill: { month, total: '1482.80', count: 5 },
+        next: { month: next, total: '1020.90', count: 3 },
+        payments: [{ date: day(10), amount: '1482.80' }],
+        paid: '1482.80',
+        status: 'paid',
+        months: [next, month, prev],
+      },
+    ],
+  },
   '/auth/me': {
     id: 'user-1',
     email: 'pessoa@example.com',

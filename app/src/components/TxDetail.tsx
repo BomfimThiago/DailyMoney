@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Small } from '@/components/transactions/Review';
 import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
-import { fullDate, isIncome } from '@/lib/format';
+import { fullDate, isIncome, monthLabel } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
 import { ownerName } from '@/lib/people';
 import { useFamily } from '@/lib/queries';
@@ -34,6 +34,8 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
         <Fact label="Responsável" value={ownerName(t.member_id, members)} />
+        {t.card_bill ? <Fact label="Fatura" value={monthLabel(t.card_bill)} /> : null}
+        {t.installment ? <Fact label="Parcela" value={t.installment.replace('/', ' de ')} /> : null}
       </View>
       {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
 

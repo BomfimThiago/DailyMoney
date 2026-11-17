@@ -174,6 +174,10 @@ async def _sync_account(
         fmt = "pluggy"
         txs = await pluggy.list_transactions(account["uid"])
         rows, errors = pluggy.map_transactions(currency, account["is_card"], txs, since)
+        if account["is_card"]:
+            # Pluggy sends every purchase, not just the new ones: older lines learn their bill.
+            everything, _ = pluggy.map_transactions(currency, True, txs, date.min)
+            await import_service.fill_card_details(db, target.id, everything)
     rows, errors = _same_currency(rows, errors, currency)
     account["synced"] = True
     if not rows:

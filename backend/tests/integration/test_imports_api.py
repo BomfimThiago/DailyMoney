@@ -13,6 +13,7 @@ NUBANK = (
 )
 NUBANK_CARD = (
     "date,title,amount\n2026-10-06,Netflix.com,39.90\n2026-10-06,Pagamento recebido,-500.00\n"
+    "2026-10-07,Loja de Sofás - Parcela 3/10,120.00\n"
 )
 
 
@@ -149,6 +150,10 @@ async def test_card_bill_payment_is_paired_as_transfer(client: AsyncClient) -> N
     paid = next(t for t in items if t["description"] == "Pagamento de fatura")
     assert paid["kind"] == "transfer"
     assert paid["category_name"] == "Transferência"
+    # The card statement writes the installment in the description.
+    sofa = next(t for t in items if t["description"].startswith("Loja de Sofás"))
+    assert sofa["installment"] == "3/10"
+    assert next(t for t in items if t["description"] == "Netflix.com")["installment"] is None
 
 
 async def test_file_without_currency_asks_for_it(client: AsyncClient) -> None:

@@ -8,6 +8,7 @@ from app.families.models import Currency
 from app.transactions.models import TxKind
 from app.transactions.schemas import (
     Analysis,
+    CardBillsOverview,
     InvestmentOverview,
     KindUpdate,
     MonthDashboard,
@@ -20,7 +21,12 @@ from app.transactions.schemas import (
     TransactionUpdate,
     TransferOverview,
 )
-from app.transactions.services import analysis_service, overview_service, transaction_service
+from app.transactions.services import (
+    analysis_service,
+    card_service,
+    overview_service,
+    transaction_service,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -39,6 +45,8 @@ async def list_transactions(
     kind: Annotated[list[TxKind] | None, Query()] = None,
     category_id: uuid.UUID | None = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
+    # A card's bill (YYYY-MM): the purchases charged in it, whatever day they were made.
+    card_bill: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
     currency: ShowIn = None,
@@ -51,6 +59,7 @@ async def list_transactions(
         kinds=kind,
         category_id=category_id,
         q=q,
+        card_bill=card_bill,
         limit=limit,
         offset=offset,
         currency=currency,
@@ -92,6 +101,14 @@ async def investments(
 @router.get("/transfers", response_model=TransferOverview)
 async def transfers(user: CurrentUser, db: DbSession, month: Month) -> TransferOverview:
     return await overview_service.transfers(db, user.family_id, month)
+
+
+@router.get("/card-bills", response_model=CardBillsOverview)
+async def card_bills(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> CardBillsOverview:
+    """Each card's bill of the month (and whether it was paid) and the next one."""
+    return await card_service.card_bills(db, user.family_id, month, currency)
 
 
 @router.get("/review", response_model=ReviewQueue)

@@ -8,7 +8,7 @@ import { colors } from '@/theme';
 // Every signed-in page lives in one tab navigator, so pages stay mounted and switching
 // between them is instant instead of rebuilding the page (which blinked). On a wide
 // window they sit next to a sidebar instead of over bottom tabs. Enviar extrato,
-// Conexões, Categorias, Responsáveis and Ajustes have no bottom tab on a phone; they open from links on the screens.
+// Conexões, Cartões, Categorias, Responsáveis and Ajustes have no bottom tab on a phone; they open from links on the screens.
 export default function TabsLayout() {
   const wide = useWindowDimensions().width >= WIDE_MIN;
   return (
@@ -27,6 +27,7 @@ export default function TabsLayout() {
           <Tabs.Screen name="analises" />
           <Tabs.Screen name="investimentos" />
           <Tabs.Screen name="transacoes" />
+          <Tabs.Screen name="cartoes" />
           <Tabs.Screen name="categorias" />
           <Tabs.Screen name="responsaveis" />
           <Tabs.Screen name="upload" />

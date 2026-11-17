@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fixtures } from './fixtures.mjs';
+import { cardPurchases, fixtures } from './fixtures.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.OUT ?? path.join(os.tmpdir(), 'dailymoney-check-ui');
@@ -160,6 +160,10 @@ function answer(url, method) {
   }
   if (answered && p === '/transactions/transfers') {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
+  }
+  if (p === '/transactions' && url.searchParams.get('card_bill')) {
+    const items = cardPurchases[url.searchParams.get('card_bill')] ?? [];
+    return { status: 200, body: { total: items.length, items } };
   }
   if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular,investment') {
     const q = (url.searchParams.get('q') ?? '').toLowerCase();
@@ -490,6 +494,15 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Editar Ana' }).click();
     await seen('Excluir pessoa').waitFor();
     await shot('responsaveis-editar');
+    // Cartões: this month's bill (paid), the next one and the purchases with "3/10".
+    await page.goto(`${base}/cartoes`);
+    await seen('NUBANK CARTÃO').waitFor();
+    await seen('Tok&Stok').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('cartoes');
+    await page.getByTestId('segment-next').filter({ visible: true }).click();
+    await seen('Amazon').waitFor();
+    await shot('cartoes-proxima');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();

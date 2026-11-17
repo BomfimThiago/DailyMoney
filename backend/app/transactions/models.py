@@ -49,6 +49,7 @@ class Transaction(UUIDPk, CreatedAt, Base):
         Index("ix_transaction_family_date", "family_id", "date"),
         Index("ix_transaction_account_date", "account_id", "date"),
         Index("ix_transaction_family_review", "family_id", "review"),
+        Index("ix_transaction_account_bill", "account_id", "card_bill"),
     )
 
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("family.id", ondelete="CASCADE"))
@@ -82,6 +83,10 @@ class Transaction(UUIDPk, CreatedAt, Base):
         default=ReviewStatus.APPROVED,
         server_default=ReviewStatus.APPROVED.value,
     )
+    # Card purchases only, when the bank says it: the bill the purchase is charged in
+    # (YYYY-MM) and which installment this line is ("3/10").
+    card_bill: Mapped[str | None] = mapped_column(String(7))
+    installment: Mapped[str | None] = mapped_column(String(10))
 
 
 # Only approved lines count in figures, lists and analyses.

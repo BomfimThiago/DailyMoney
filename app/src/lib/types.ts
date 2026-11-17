@@ -56,6 +56,11 @@ export type InvestmentProduct = S['InvestmentProduct'];
 export type InvestmentMonth = S['InvestmentMonth'];
 export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
+
+// Credit card bills: the bill of a month (paid or not) and the next one, per card.
+export type CardBill = S['CardBill'];
+export type CardBills = S['CardBills'];
+export type CardBillsOverview = S['CardBillsOverview'];
 export type Transfer = S['TransferOut'];
 export type TransferOverview = S['TransferOverview'];
 export type Analysis = S['Analysis'];

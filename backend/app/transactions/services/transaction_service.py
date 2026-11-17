@@ -40,6 +40,7 @@ async def list_transactions(
     kinds: list[TxKind] | None = None,
     category_id: uuid.UUID | None = None,
     q: str | None = None,
+    card_bill: str | None = None,
     limit: int = 50,
     offset: int = 0,
     currency: Currency | None = None,
@@ -55,6 +56,8 @@ async def list_transactions(
         where.append(Transaction.kind.in_(kinds))
     if category_id is not None:
         where.append(Transaction.category_id == category_id)
+    if card_bill is not None:
+        where.append(Transaction.card_bill == card_bill)
     if q and (text := q.strip()):
         # The person's words are matched literally, so % and _ mean themselves.
         pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
@@ -254,6 +257,8 @@ def to_out(
         category_name=category_name,
         member_id=tx.member_id,
         review=tx.review,
+        card_bill=tx.card_bill,
+        installment=tx.installment,
     )
 
 

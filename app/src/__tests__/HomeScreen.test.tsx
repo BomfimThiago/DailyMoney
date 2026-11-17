@@ -5,7 +5,8 @@ import { router } from 'expo-router';
 import HomeScreen from '@/app/(tabs)/index';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useDashboard, useRecent, useSummary } from '@/lib/queries';
+import { useCardBills, useDashboard, useRecent, useSummary } from '@/lib/queries';
+import type { CardBills } from '@/lib/types';
 import { movement } from '@/testing/investments';
 import { withCurrency } from '@/testing/currency';
 import { dashboard, monthSummary } from '@/testing/home';
@@ -26,6 +27,7 @@ jest.mock('@/lib/queries', () => ({
   useSummary: jest.fn(),
   useRecent: jest.fn(),
   useDashboard: jest.fn(),
+  useCardBills: jest.fn(),
 }));
 
 const mockAuth = jest.mocked(useAuth);
@@ -71,7 +73,14 @@ beforeEach(() => {
   dash({
     data: { month: '2026-10', start: '2026-10-01', end: '2026-10-31', currencies: [dashboard()] },
   });
+  bills([]);
 });
+
+const bills = (cards: CardBills[]) =>
+  jest.mocked(useCardBills).mockReturnValue({
+    data: { month: '2026-11', bills_known: cards.length > 0, cards },
+    isError: false,
+  } as unknown as ReturnType<typeof useCardBills>);
 
 describe('HomeScreen session', () => {
   it('sends signed-out people to login', async () => {
@@ -101,6 +110,26 @@ describe('HomeScreen on the phone', () => {
     expect(router.push).toHaveBeenCalledWith('/upload');
     await fireEvent.press(screen.getByText('Sair'));
     expect(signOut).toHaveBeenCalled();
+  });
+
+  it("links to the card's bill when there is one", async () => {
+    bills([
+      {
+        account_id: 'a-card',
+        account_name: 'Nubank cartão',
+        bank: 'Nubank',
+        currency: 'BRL',
+        bill: { month: '2026-11', total: '450.00', count: 3 },
+        next: { month: '2026-12', total: '0', count: 0 },
+        payments: [],
+        paid: '0',
+        status: 'open',
+        months: ['2026-11'],
+      },
+    ]);
+    await render(withCurrency(<HomeScreen />));
+    await fireEvent.press(screen.getByText(/^Fatura de novembro: R\$\s450,00 · a pagar$/));
+    expect(router.navigate).toHaveBeenCalledWith('/cartoes');
   });
 
   it('switches currency', async () => {

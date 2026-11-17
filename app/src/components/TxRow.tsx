@@ -19,6 +19,11 @@ function kindLabel(t: Transaction): string | null {
   }
 }
 
+// "parcela 3/10" for a purchase split on the card.
+function installmentLabel(t: Transaction): string | null {
+  return t.installment ? `parcela ${t.installment}` : null;
+}
+
 function dotStyle(t: Transaction) {
   if (t.kind === 'investment') return styles.dotInvest;
   if (t.kind === 'transfer') return styles.dotTransfer;
@@ -54,7 +59,9 @@ export function TxRow({
           {t.description}
         </Text>
         <Text style={styles.sub} numberOfLines={1}>
-          {[kindLabel(t), t.account_name, dayMonth(t.date)].filter(Boolean).join(' · ')}
+          {[kindLabel(t), t.account_name, dayMonth(t.date), installmentLabel(t)]
+            .filter(Boolean)
+            .join(' · ')}
         </Text>
       </View>
       <View style={styles.amounts}>
