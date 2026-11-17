@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import type { Option } from '@/lib/transactions';
+import { useCloseOnOutsideTap } from '@/lib/useCloseOnOutsideTap';
 
 import { styles } from './styles';
 
@@ -23,8 +24,9 @@ export function FilterMenu({
     onChange(id);
     setOpen(false);
   };
+  const outside = useCloseOnOutsideTap(open, setOpen);
   return (
-    <View style={styles.menuBox}>
+    <View style={styles.menuBox} {...outside}>
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"

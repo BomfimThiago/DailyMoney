@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Category } from '@/lib/types';
+import { useCloseOnOutsideTap } from '@/lib/useCloseOnOutsideTap';
 import { colors, fonts } from '@/theme';
 
 // A dropdown of categories: takes one line however many categories the family has.
@@ -17,8 +18,9 @@ export function CategorySelect({
 }) {
   const [open, setOpen] = useState(false);
   const current = options.find((c) => c.id === value);
+  const outside = useCloseOnOutsideTap(open, setOpen);
   return (
-    <View>
+    <View {...outside}>
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
