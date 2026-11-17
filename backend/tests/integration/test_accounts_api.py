@@ -93,3 +93,72 @@ async def test_owner_from_another_family_or_missing_account_is_not_found(
         f"/api/v1/accounts/{account['id']}", json={"member_id": None}, headers=partner
     )
     assert r.status_code == 404
+
+
+async def _lines(client: AsyncClient, h: dict[str, str]) -> dict[str, str | None]:
+    page = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()
+    return {t["description"]: t["member_id"] for t in page["items"]}
+
+
+async def test_one_line_can_belong_to_someone_else(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import_nubank(client, h)
+    me = (await client.get("/api/v1/family", headers=h)).json()["members"][0]
+    ana = (await client.post("/api/v1/family/members", json={"name": "Ana"}, headers=h)).json()
+    page = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()
+    mercadona = next(t for t in page["items"] if "MERCADONA" in t["description"])
+
+    r = await client.patch(
+        f"/api/v1/transactions/{mercadona['id']}", json={"member_id": ana["id"]}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["member_id"] == ana["id"]
+    lines = await _lines(client, h)
+    assert lines["Compra no débito - MERCADONA"] == ana["id"]
+    assert lines["Compra no débito - PADARIA"] == me["id"]
+
+    # Editing something else leaves the owner alone; null gives the line to the household.
+    await client.patch(
+        f"/api/v1/transactions/{mercadona['id']}", json={"description": "Mercadona"}, headers=h
+    )
+    assert (await _lines(client, h))["Mercadona"] == ana["id"]
+    await client.patch(
+        f"/api/v1/transactions/{mercadona['id']}", json={"member_id": None}, headers=h
+    )
+    assert (await _lines(client, h))["Mercadona"] is None
+
+
+async def test_changing_the_account_owner_keeps_lines_given_to_someone_else(
+    client: AsyncClient,
+) -> None:
+    h = auth(await login(client))
+    await _import_nubank(client, h)
+    ana = (await client.post("/api/v1/family/members", json={"name": "Ana"}, headers=h)).json()
+    joao = (await client.post("/api/v1/family/members", json={"name": "João"}, headers=h)).json()
+    page = (await client.get("/api/v1/transactions?month=2026-10", headers=h)).json()
+    padaria = next(t for t in page["items"] if "PADARIA" in t["description"])
+    await client.patch(
+        f"/api/v1/transactions/{padaria['id']}", json={"member_id": joao["id"]}, headers=h
+    )
+    [account] = (await client.get("/api/v1/accounts", headers=h)).json()
+
+    await client.patch(
+        f"/api/v1/accounts/{account['id']}", json={"member_id": ana["id"]}, headers=h
+    )
+    lines = await _lines(client, h)
+    assert lines["Compra no débito - MERCADONA"] == ana["id"]
+    assert lines["Compra no débito - PADARIA"] == joao["id"]
+
+
+async def test_line_owner_from_another_family_is_not_found(client: AsyncClient) -> None:
+    thiago = auth(await login(client))
+    await _import_nubank(client, thiago)
+    partner = auth(await login(client, "token-partner-padded"))
+    stranger = (await client.get("/api/v1/family", headers=partner)).json()["members"][0]
+    page = (await client.get("/api/v1/transactions?month=2026-10", headers=thiago)).json()
+    r = await client.patch(
+        f"/api/v1/transactions/{page['items'][0]['id']}",
+        json={"member_id": stranger["id"]},
+        headers=thiago,
+    )
+    assert r.status_code == 404

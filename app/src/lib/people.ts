@@ -1,9 +1,31 @@
 import { api } from './api';
+import type { DotOption } from '@/components/DotSelect';
+
 import type { Account, Family, Member } from './types';
 
 // Responsáveis (from the old app): who each account belongs to. An account with no one
 // belongs to the whole household; its lines follow the account's owner.
 export const HOUSEHOLD = 'Casa';
+
+// The household has no member id; a dropdown needs one.
+export const HOUSEHOLD_ID = 'casa';
+
+// The choices of a Responsável dropdown: each person, then the household.
+export function ownerOptions(members: Member[]): DotOption[] {
+  return [
+    ...members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
+    { id: HOUSEHOLD_ID, name: HOUSEHOLD, color: null },
+  ];
+}
+
+// Dropdown id → the member id the API takes (null = household), and back.
+export function memberIdOf(choice: string): string | null {
+  return choice === HOUSEHOLD_ID ? null : choice;
+}
+
+export function choiceOf(memberId: string | null | undefined): string {
+  return memberId ?? HOUSEHOLD_ID;
+}
 
 export function getFamily() {
   return api<Family>('/family');
@@ -41,10 +63,6 @@ export function memberNameError(name: string, members: Member[], id?: string): s
     return 'Já existe um responsável com esse nome.';
   }
   return null;
-}
-
-export function ownerName(memberId: string | null | undefined, members: Member[]): string {
-  return members.find((m) => m.id === memberId)?.name ?? HOUSEHOLD;
 }
 
 export function accountCount(memberId: string, accounts: Account[]): string {

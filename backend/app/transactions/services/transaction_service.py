@@ -12,7 +12,7 @@ from app.categories.services import category_service
 from app.categories.services.categorize import INVESTMENT, TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
 from app.core.family_scope import get_in_family
-from app.families.models import Currency
+from app.families.models import Currency, Member
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import Converter, converter
 from app.imports.models import StatementImport
@@ -88,8 +88,13 @@ async def _get(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> Tran
 async def update_transaction(
     db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID, data: TransactionUpdate
 ) -> TransactionOut:
-    """The person corrects a line: description, date, amount and/or category."""
+    """The person corrects a line: description, date, amount, category and/or owner."""
     tx = await _get(db, family_id, tx_id)
+    # Null is a real choice (the household), so "sent" is told apart from "left out".
+    if "member_id" in data.model_fields_set:
+        if data.member_id is not None:
+            await get_in_family(db, Member, family_id, data.member_id, "Membro não encontrado")
+        tx.member_id = data.member_id
     if data.description is not None:
         tx.description = data.description
     if data.date is not None:

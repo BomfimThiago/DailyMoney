@@ -4,13 +4,10 @@ import { Text, View } from 'react-native';
 import { DotSelect, type DotOption } from '@/components/DotSelect';
 import { errorText } from '@/lib/api';
 import { accountDetails } from '@/lib/connections';
-import { HOUSEHOLD, setAccountOwner } from '@/lib/people';
+import { choiceOf, HOUSEHOLD, memberIdOf, ownerOptions, setAccountOwner } from '@/lib/people';
 import type { Account, Member } from '@/lib/types';
 
 import { styles } from './styles';
-
-// The household has no member id; the dropdown needs one.
-const HOUSEHOLD_ID = 'casa';
 
 // Each account and who it belongs to. Changing it also moves the account's lines.
 export function AccountOwners({
@@ -24,10 +21,7 @@ export function AccountOwners({
   narrow: boolean;
   onChanged: () => Promise<void> | void;
 }) {
-  const options: DotOption[] = [
-    ...members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
-    { id: HOUSEHOLD_ID, name: HOUSEHOLD, color: null },
-  ];
+  const options = ownerOptions(members);
   return (
     <View style={styles.section}>
       <Text style={styles.label}>CONTAS</Text>
@@ -74,7 +68,7 @@ function AccountRow({
   const [error, setError] = useState<string | null>(null);
 
   const pick = async (id: string) => {
-    const memberId = id === HOUSEHOLD_ID ? null : id;
+    const memberId = memberIdOf(id);
     if (memberId === account.member_id) return;
     setBusy(true);
     setError(null);
@@ -99,7 +93,7 @@ function AccountRow({
       </View>
       <View style={narrow ? styles.ownerNarrow : styles.owner}>
         <DotSelect
-          value={account.member_id ?? HOUSEHOLD_ID}
+          value={choiceOf(account.member_id)}
           options={options}
           onChange={pick}
           label={`Responsável por ${account.name}`}
