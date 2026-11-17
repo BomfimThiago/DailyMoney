@@ -49,6 +49,8 @@ class TransactionUpdate(BaseModel):
     date: date_ | None = None
     # Signed like the statement: negative is money leaving.
     amount: Annotated[Decimal, Field(max_digits=18, decimal_places=4)] | None = None
+    # Who the line belongs to; sent as null it goes to the whole household ("Casa").
+    member_id: uuid.UUID | None = None
 
 
 class KindUpdate(BaseModel):

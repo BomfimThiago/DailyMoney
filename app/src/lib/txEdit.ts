@@ -14,6 +14,8 @@ export interface TxForm {
   direction: Direction;
   kind: EditKind;
   categoryId: string | null;
+  // Who the line belongs to; null is the household ("Casa").
+  memberId: string | null;
   // "Valer também para as próximas deste estabelecimento".
   forMerchant: boolean;
 }
@@ -24,6 +26,7 @@ export interface TxPatch {
   amount?: string;
   category_id?: string;
   apply_to_merchant?: boolean;
+  member_id?: string | null;
 }
 
 export type FormErrors = Partial<Record<'description' | 'date' | 'amount', string>>;
@@ -37,6 +40,7 @@ export function formOf(t: Transaction): TxForm {
     direction: negative ? 'out' : 'in',
     kind: t.kind === 'pending' ? 'transfer' : t.kind,
     categoryId: t.category_id,
+    memberId: t.member_id ?? null,
     forMerchant: true,
   };
 }
@@ -119,6 +123,7 @@ export function patchOf(t: Transaction, form: TxForm): TxPatch {
     patch.category_id = form.categoryId;
     patch.apply_to_merchant = form.forMerchant;
   }
+  if (form.memberId !== (t.member_id ?? null)) patch.member_id = form.memberId;
   return patch;
 }
 

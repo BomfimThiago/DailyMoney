@@ -4421,6 +4421,18 @@
               }
             ],
             "title": "Amount"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
           }
         },
         "type": "object",

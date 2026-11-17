@@ -63,6 +63,26 @@ describe('TxDetail', () => {
     expect(screen.getByText('Casa')).toBeTruthy();
   });
 
+  it('gives the line to someone else, sending only the owner', async () => {
+    mockEdit.mockResolvedValue({} as Transaction);
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByLabelText('Responsável'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Ana' }));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(mockEdit).toHaveBeenCalledWith('tx-1', { member_id: 'm-ana' }));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('gives the line back to the household', async () => {
+    mockEdit.mockResolvedValue({} as Transaction);
+    await render(<TxDetail t={tx({ member_id: 'm-ana' })} onChanged={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText('Responsável'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Casa' }));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(mockEdit).toHaveBeenCalledWith('tx-1', { member_id: null }));
+  });
+
   it('opens with the summary and the fields ready to change, no Editar step', async () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
     expect(screen.getAllByText('Pão de Açúcar').length).toBeGreaterThan(0);
