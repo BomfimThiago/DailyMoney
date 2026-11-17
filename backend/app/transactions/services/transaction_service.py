@@ -169,6 +169,10 @@ async def set_kind(
     if kind != TxKind.TRANSFER:
         await _unpair(db, tx)
     tx.kind = kind
+    if tx.review == ReviewStatus.PENDING:
+        # Saying what a waiting line was is reviewing it; otherwise the answer stays out of
+        # every list and figure until a separate approval.
+        tx.review = ReviewStatus.APPROVED
     if kind == TxKind.TRANSFER:
         tx.category_id = transfer_category.id if transfer_category else None
         if tx.transfer_pair_id is None and (other := await _mirror(db, tx)) is not None:

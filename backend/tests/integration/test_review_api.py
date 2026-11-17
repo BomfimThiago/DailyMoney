@@ -148,3 +148,22 @@ async def test_decision_needs_lines_and_a_known_answer(client: AsyncClient) -> N
     for body in ({"ids": [], "decision": "approve"}, {"ids": [], "decision": "maybe"}):
         r = await client.post("/api/v1/transactions/review", json=body, headers=h)
         assert r.status_code == 422
+
+
+async def test_saying_what_a_waiting_line_was_approves_it(client: AsyncClient) -> None:
+    """Marking a line still in "Para revisar" as entre minhas contas is the person's review:
+    it leaves the queue and shows up in Transferências."""
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv")
+    queue = await _queue(client, h)
+    pix = next(t for t in queue if t["description"] == "Pix enviado - Fulano de Tal")
+
+    r = await client.put(
+        f"/api/v1/transactions/{pix['id']}/kind", json={"kind": "transfer"}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert (r.json()["kind"], r.json()["review"]) == ("transfer", "approved")
+
+    assert pix["id"] not in [t["id"] for t in await _queue(client, h)]
+    transfers = await _get(client, h, f"/api/v1/transactions/transfers?month={MONTH}")
+    assert [t["id"] for t in transfers["confirmed"]] == [pix["id"]]
