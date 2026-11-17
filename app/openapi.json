@@ -2058,6 +2058,59 @@
         }
       }
     },
+    "/api/v1/portfolio": {
+      "get": {
+        "tags": ["portfolio"],
+        "summary": "Portfolio",
+        "description": "The investments of the connected banks, in one currency (the family's by default).",
+        "operationId": "portfolio_api_v1_portfolio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -2292,6 +2345,21 @@
         "required": ["id", "bank_name", "note", "created_at"],
         "title": "BankRequestOut"
       },
+      "BankTotal": {
+        "properties": {
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["bank", "total"],
+        "title": "BankTotal"
+      },
       "Body_upload_api_v1_imports_post": {
         "properties": {
           "file": {
@@ -2475,6 +2543,36 @@
         },
         "type": "object",
         "title": "CategoryUpdate"
+      },
+      "ClassOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "share": {
+            "type": "string",
+            "title": "Share"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionOut"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": ["key", "label", "total", "share", "positions"],
+        "title": "ClassOut"
       },
       "ConfirmRequest": {
         "properties": {
@@ -2992,6 +3090,22 @@
         "required": ["name", "category", "count", "previous_count", "total"],
         "title": "Habit"
       },
+      "HistoryPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["date", "total"],
+        "title": "HistoryPoint"
+      },
       "ImportPreview": {
         "properties": {
           "id": {
@@ -3355,6 +3469,59 @@
         "required": ["kind"],
         "title": "KindUpdate"
       },
+      "LadderOut": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LadderStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "dated_total": {
+            "type": "string",
+            "title": "Dated Total"
+          },
+          "dated_count": {
+            "type": "integer",
+            "title": "Dated Count"
+          },
+          "undated_total": {
+            "type": "string",
+            "title": "Undated Total"
+          },
+          "undated_count": {
+            "type": "integer",
+            "title": "Undated Count"
+          }
+        },
+        "type": "object",
+        "required": ["steps", "dated_total", "dated_count", "undated_total", "undated_count"],
+        "title": "LadderOut"
+      },
+      "LadderStepOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["label", "year", "total", "count"],
+        "title": "LadderStepOut"
+      },
       "MagicLinkRequest": {
         "properties": {
           "email": {
@@ -3379,6 +3546,25 @@
         "type": "object",
         "required": ["token"],
         "title": "MagicLinkVerify"
+      },
+      "MaturingOut": {
+        "properties": {
+          "months": {
+            "type": "integer",
+            "title": "Months"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["months", "count", "total"],
+        "title": "MaturingOut"
       },
       "MeOut": {
         "properties": {
@@ -3619,6 +3805,207 @@
         "type": "object",
         "required": ["date", "amount", "merchants"],
         "title": "PeakDay"
+      },
+      "PortfolioOut": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "has_source": {
+            "type": "boolean",
+            "title": "Has Source"
+          },
+          "tracked": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassOut"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "banks": {
+            "items": {
+              "$ref": "#/components/schemas/BankTotal"
+            },
+            "type": "array",
+            "title": "Banks"
+          },
+          "maturing": {
+            "$ref": "#/components/schemas/MaturingOut"
+          },
+          "ladder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LadderOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "total",
+          "count",
+          "value_date",
+          "closed",
+          "has_source",
+          "tracked",
+          "classes",
+          "banks",
+          "maturing",
+          "ladder",
+          "history"
+        ],
+        "title": "PortfolioOut",
+        "description": "The investments of the connected banks, as the bank reported them on the last read."
+      },
+      "PositionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "gain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain"
+          },
+          "rate_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Label"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "value_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Value Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "bank",
+          "name",
+          "issuer",
+          "code",
+          "currency",
+          "balance",
+          "value",
+          "gain",
+          "rate_label",
+          "due_date",
+          "value_date"
+        ],
+        "title": "PositionOut"
       },
       "PreviewGroup": {
         "properties": {
@@ -4003,6 +4390,37 @@
         "type": "object",
         "required": ["access_token", "refresh_token"],
         "title": "TokenPair"
+      },
+      "TrackedOut": {
+        "properties": {
+          "invested": {
+            "type": "string",
+            "title": "Invested"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "gain": {
+            "type": "string",
+            "title": "Gain"
+          },
+          "gain_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain Pct"
+          }
+        },
+        "type": "object",
+        "required": ["invested", "value", "gain", "gain_pct"],
+        "title": "TrackedOut",
+        "description": "Only the positions whose amount put in is known."
       },
       "TransactionOut": {
         "properties": {

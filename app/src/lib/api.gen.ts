@@ -647,6 +647,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/portfolio': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Portfolio
+     * @description The investments of the connected banks, in one currency (the family's by default).
+     */
+    get: operations['portfolio_api_v1_portfolio_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/health': {
     parameters: {
       query?: never;
@@ -751,6 +771,13 @@ export interface components {
        */
       created_at: string;
     };
+    /** BankTotal */
+    BankTotal: {
+      /** Bank */
+      bank: string;
+      /** Total */
+      total: string;
+    };
     /** Body_upload_api_v1_imports_post */
     Body_upload_api_v1_imports_post: {
       /** File */
@@ -839,6 +866,19 @@ export interface components {
       name?: string | null;
       /** Color */
       color?: string | null;
+    };
+    /** ClassOut */
+    ClassOut: {
+      /** Key */
+      key: string;
+      /** Label */
+      label: string;
+      /** Total */
+      total: string;
+      /** Share */
+      share: string;
+      /** Positions */
+      positions: components['schemas']['PositionOut'][];
     };
     /** ConfirmRequest */
     ConfirmRequest: {
@@ -1018,6 +1058,16 @@ export interface components {
       /** Total */
       total: string;
     };
+    /** HistoryPoint */
+    HistoryPoint: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Total */
+      total: string;
+    };
     /** ImportPreview */
     ImportPreview: {
       /**
@@ -1158,6 +1208,30 @@ export interface components {
        */
       kind: 'regular' | 'investment' | 'transfer';
     };
+    /** LadderOut */
+    LadderOut: {
+      /** Steps */
+      steps: components['schemas']['LadderStepOut'][];
+      /** Dated Total */
+      dated_total: string;
+      /** Dated Count */
+      dated_count: number;
+      /** Undated Total */
+      undated_total: string;
+      /** Undated Count */
+      undated_count: number;
+    };
+    /** LadderStepOut */
+    LadderStepOut: {
+      /** Label */
+      label: string;
+      /** Year */
+      year: number;
+      /** Total */
+      total: string;
+      /** Count */
+      count: number;
+    };
     /** MagicLinkRequest */
     MagicLinkRequest: {
       /**
@@ -1170,6 +1244,15 @@ export interface components {
     MagicLinkVerify: {
       /** Token */
       token: string;
+    };
+    /** MaturingOut */
+    MaturingOut: {
+      /** Months */
+      months: number;
+      /** Count */
+      count: number;
+      /** Total */
+      total: string;
     };
     /** MeOut */
     MeOut: {
@@ -1270,6 +1353,64 @@ export interface components {
       amount: string;
       /** Merchants */
       merchants: string[];
+    };
+    /**
+     * PortfolioOut
+     * @description The investments of the connected banks, as the bank reported them on the last read.
+     */
+    PortfolioOut: {
+      currency: components['schemas']['Currency'];
+      /** Total */
+      total: string;
+      /** Count */
+      count: number;
+      /** Value Date */
+      value_date: string | null;
+      /** Closed */
+      closed: number;
+      /** Has Source */
+      has_source: boolean;
+      tracked: components['schemas']['TrackedOut'] | null;
+      /** Classes */
+      classes: components['schemas']['ClassOut'][];
+      /** Banks */
+      banks: components['schemas']['BankTotal'][];
+      maturing: components['schemas']['MaturingOut'];
+      ladder: components['schemas']['LadderOut'] | null;
+      /** History */
+      history: components['schemas']['HistoryPoint'][];
+    };
+    /** PositionOut */
+    PositionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Bank */
+      bank: string;
+      /** Name */
+      name: string;
+      /** Issuer */
+      issuer: string | null;
+      /** Code */
+      code: string | null;
+      currency: components['schemas']['Currency'];
+      /** Balance */
+      balance: string;
+      /** Value */
+      value: string;
+      /** Gain */
+      gain: string | null;
+      /** Rate Label */
+      rate_label: string | null;
+      /** Due Date */
+      due_date: string | null;
+      /**
+       * Value Date
+       * Format: date
+       */
+      value_date: string;
     };
     /** PreviewGroup */
     PreviewGroup: {
@@ -1433,6 +1574,20 @@ export interface components {
        * @default bearer
        */
       token_type: string;
+    };
+    /**
+     * TrackedOut
+     * @description Only the positions whose amount put in is known.
+     */
+    TrackedOut: {
+      /** Invested */
+      invested: string;
+      /** Value */
+      value: string;
+      /** Gain */
+      gain: string;
+      /** Gain Pct */
+      gain_pct: string | null;
     };
     /** TransactionOut */
     TransactionOut: {
@@ -2901,6 +3056,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransactionOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  portfolio_api_v1_portfolio_get: {
+    parameters: {
+      query?: {
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioOut'];
         };
       };
       /** @description Validation Error */

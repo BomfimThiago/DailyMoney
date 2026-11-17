@@ -14,6 +14,7 @@ from app.db import models as _models  # noqa: F401  (registers every model on Ba
 from app.db.session import SessionLocal
 from app.families.router import router as family_router
 from app.imports.router import router as imports_router
+from app.portfolio.router import router as portfolio_router
 from app.transactions.router import router as transactions_router
 
 app = FastAPI(
@@ -49,6 +50,7 @@ api.include_router(imports_router)
 api.include_router(banks_router)
 api.include_router(connections_router)
 api.include_router(transactions_router)
+api.include_router(portfolio_router)
 app.include_router(api)
 
 
