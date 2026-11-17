@@ -74,32 +74,49 @@ def _day(value: object, what: str) -> date:
     return when.astimezone(BRASILIA).date()
 
 
-def map_investment(inv: dict[str, Any]) -> Position:
+def _currency(inv: dict[str, Any]) -> Currency:
     try:
-        currency = Currency(str(inv.get("currencyCode") or "").upper())
+        return Currency(str(inv.get("currencyCode") or "").upper())
     except ValueError as exc:
         raise _Unreadable(f"moeda não suportada ({inv.get('currencyCode')})") from exc
+
+
+def _name(inv: dict[str, Any]) -> str:
+    return _text(inv.get("name")) or _text(inv.get("code")) or _text(inv.get("issuer")) or NO_NAME
+
+
+def _cents(value: Decimal | None) -> Decimal | None:
+    return None if value is None else value.quantize(CENTS)
+
+
+def _balance(inv: dict[str, Any]) -> Decimal:
     if inv.get("balance") is None:
         raise _Unreadable("sem saldo")
-    original = _opt_dec(inv.get("amountOriginal"), "valor aplicado")
+    return _dec(inv["balance"], "saldo").quantize(CENTS)
+
+
+def _upper(value: object, default: str | None = None) -> str | None:
+    text = _text(value)
+    return text.upper() if text else default
+
+
+def map_investment(inv: dict[str, Any]) -> Position:
+    due = inv.get("dueDate")
     return Position(
         external_id=str(inv["id"]),
-        name=_text(inv.get("name"))
-        or _text(inv.get("code"))
-        or _text(inv.get("issuer"))
-        or NO_NAME,
+        name=_name(inv),
         type=_text(inv.get("type")) or "OTHER",
         subtype=_text(inv.get("subtype")),
         issuer=_text(inv.get("issuer")),
         code=_text(inv.get("code")),
-        currency=currency,
-        balance=_dec(inv["balance"], "saldo").quantize(CENTS),
-        amount_original=original.quantize(CENTS) if original is not None else None,
+        currency=_currency(inv),
+        balance=_balance(inv),
+        amount_original=_cents(_opt_dec(inv.get("amountOriginal"), "valor aplicado")),
         rate=_opt_dec(inv.get("rate"), "taxa"),
-        rate_type=(_text(inv.get("rateType")) or "").upper() or None,
+        rate_type=_upper(inv.get("rateType")),
         fixed_annual_rate=_opt_dec(inv.get("fixedAnnualRate"), "taxa prefixada"),
-        due_date=_day(inv["dueDate"], "vencimento") if inv.get("dueDate") else None,
-        status=(_text(inv.get("status")) or "ACTIVE").upper(),
+        due_date=_day(due, "vencimento") if due else None,
+        status=_upper(inv.get("status"), "ACTIVE") or "ACTIVE",
         value_date=_day(inv.get("date"), "data do saldo"),
     )
 

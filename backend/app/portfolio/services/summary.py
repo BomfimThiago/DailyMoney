@@ -159,43 +159,46 @@ class Ladder:
     undated_count: int
 
 
+def _by_year(held: list[Held], first: int) -> dict[int, tuple[Decimal, int]]:
+    """Value and count maturing each year; a past due date counts in the first year."""
+    by_year: dict[int, tuple[Decimal, int]] = {}
+    for h in held:
+        if h.due_date is not None:
+            y = max(first, h.due_date.year)
+            total, count = by_year.get(y, (ZERO, 0))
+            by_year[y] = (total + h.value, count + 1)
+    return by_year
+
+
+def _step(by_year: dict[int, tuple[Decimal, int]], y: int, cap: int, last: int) -> Step:
+    years = [yy for yy in by_year if yy == y or (y == cap and yy > cap)]
+    return Step(
+        label=f"{y}+" if y == cap and last > cap else str(y),
+        year=y,
+        total=sum((by_year[yy][0] for yy in years), ZERO),
+        count=sum(by_year[yy][1] for yy in years),
+    )
+
+
 def maturity_ladder(held: list[Held], today: date, max_years: int = 8) -> Ladder | None:
     """How much of the portfolio (by today's value) matures each year, from this year to
     the last due date. Years with nothing in between stay at zero (the gap is
     information); past `max_years` steps, the rest joins the last one ("2034+"). A due
     date already past that still shows open counts in this year. None with no due date."""
     first = today.year
-    by_year: dict[int, tuple[Decimal, int]] = {}
-    undated, undated_count = ZERO, 0
-    for h in held:
-        if h.due_date is None:
-            undated += h.value
-            undated_count += 1
-            continue
-        y = max(first, h.due_date.year)
-        total, count = by_year.get(y, (ZERO, 0))
-        by_year[y] = (total + h.value, count + 1)
+    by_year = _by_year(held, first)
     if not by_year:
         return None
     last = max(by_year)
     cap = min(last, first + max_years - 1)
-    steps = []
-    for y in range(first, cap + 1):
-        years = [yy for yy in by_year if yy == y or (y == cap and yy > cap)]
-        steps.append(
-            Step(
-                label=f"{y}+" if y == cap and last > cap else str(y),
-                year=y,
-                total=sum((by_year[yy][0] for yy in years), ZERO),
-                count=sum(by_year[yy][1] for yy in years),
-            )
-        )
+    steps = [_step(by_year, y, cap, last) for y in range(first, cap + 1)]
+    undated = [h for h in held if h.due_date is None]
     return Ladder(
         steps=steps,
         dated_total=sum((s.total for s in steps), ZERO),
         dated_count=sum(s.count for s in steps),
-        undated_total=undated,
-        undated_count=undated_count,
+        undated_total=sum((h.value for h in undated), ZERO),
+        undated_count=len(undated),
     )
 
 

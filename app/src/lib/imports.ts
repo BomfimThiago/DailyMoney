@@ -17,6 +17,7 @@ import type {
   ImportPreview,
   ImportSummary,
   InvestmentOverview,
+  Portfolio,
   MonthDashboard,
   MonthSummary,
   ReviewQueue,
@@ -118,6 +119,10 @@ export function getSummary(month: string, currency: Currency) {
 
 export function getInvestments(month: string, currency: Currency) {
   return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
+}
+
+export function getPortfolio(currency: Currency) {
+  return api<Portfolio>(`/portfolio?currency=${currency}`);
 }
 
 export function getTransfers(month: string) {

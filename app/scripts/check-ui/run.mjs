@@ -254,12 +254,22 @@ async function checkScreens(page, tag) {
     // Bottom tabs on a phone, sidebar links on a computer: both carry the same test id.
     const tab = (name) => page.getByTestId(`tab-${name}`);
     await tab('Investimentos').click();
-    await seen('Seus produtos').waitFor();
     if (tag === 'computador') {
-      // Products and the month's movements side by side, no Produtos/Movimentos switch.
+      // The bank's portfolio on top; products and the month's movements side by side below.
+      await seen('SEUS INVESTIMENTOS').waitFor();
       await seen('Aplicação RDB').waitFor();
       await shot('investimentos');
+      await page
+        .getByText('SEUS PRODUTOS')
+        .filter({ visible: true })
+        .first()
+        .scrollIntoViewIfNeeded();
+      await shot('investimentos-extratos');
     } else {
+      await seen('Seus investimentos').waitFor();
+      await shot('investimentos-carteira');
+      await page.getByRole('tab', { name: 'Produtos' }).click();
+      await seen('Seus produtos').waitFor();
       await shot('investimentos-produtos');
       await page.getByRole('tab', { name: 'Movimentos' }).click();
       await shot('investimentos-movimentos');

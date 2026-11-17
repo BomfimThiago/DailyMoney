@@ -12,6 +12,7 @@ import {
   getConnections,
   getDashboard,
   getInvestments,
+  getPortfolio,
   getReviewQueue,
   getSummary,
   getTransfers,
@@ -107,6 +108,14 @@ export function useInvestments(month: string, enabled: boolean) {
     queryKey: ['money', 'investments', month, currency],
     queryFn: () => getInvestments(month, currency),
     enabled,
+  });
+}
+
+export function usePortfolio() {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'portfolio', currency],
+    queryFn: () => getPortfolio(currency),
   });
 }
 
