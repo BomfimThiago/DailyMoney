@@ -281,33 +281,33 @@ async function checkScreens(page, tag) {
       .click();
     const button = (name) =>
       page.getByRole('button', { name, exact: true }).filter({ visible: true });
-    await button('Editar').waitFor();
+    const fields = () => page.getByLabel('Descrição', { exact: true }).filter({ visible: true });
+    // Summary and fields together: no extra Editar step.
+    await fields().waitFor();
     await page.waitForTimeout(400); // the sheet fades in
     await shot('transacoes-detalhe');
-    // Only the chosen category shows; it changes from a list in Editar (like the old app).
-    if (await page.getByRole('radio', { name: 'Restaurantes' }).filter({ visible: true }).count()) {
+    if (await button('Editar').count()) flag('o detalhe ainda pede para apertar Editar');
+    // Only the chosen category shows; the list opens from the dropdown.
+    if (await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).count()) {
       flag('o detalhe ainda mostra todas as categorias');
     }
-    await button('Editar').click();
-    await page.getByLabel('Descrição', { exact: true }).filter({ visible: true }).waitFor();
-    await shot('transacoes-editar');
     await button('Categoria').click();
     await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).waitFor();
     await shot('transacoes-editar-categoria');
     await page.getByRole('menuitem', { name: 'Restaurantes' }).filter({ visible: true }).click();
     await seen('Valer também para as próximas deste estabelecimento').waitFor();
     await button('Salvar').click();
-    await button('Editar').waitFor();
+    await seen('Alterações salvas.').waitFor();
     if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
     // The question before deleting.
     await button('Excluir').click();
     await seen('Excluir esta transação?').waitFor();
     await shot('transacoes-excluir');
     await button('Cancelar').click();
-    await button('Editar').waitFor();
+    await fields().waitFor();
     if (tag === 'celular') {
       await page.getByRole('button', { name: 'Fechar', exact: true }).click();
-      await button('Editar')
+      await fields()
         .waitFor({ state: 'detached', timeout: 3000 })
         .catch(() => flag('a folha de detalhe não fechou'));
     } else {
@@ -321,6 +321,19 @@ async function checkScreens(page, tag) {
       await shot('transacoes-busca');
       await page.getByLabel('Buscar descrição').fill('');
       await seen('Uber').waitFor();
+      // A line far down the table is edited where it is: the panel follows the scroll.
+      const size = page.viewportSize();
+      await page.setViewportSize({ width: size.width, height: 560 });
+      const last = page.getByRole('button', { name: /^Aluguel/ }).filter({ visible: true }).first();
+      await last.scrollIntoViewIfNeeded();
+      await last.click();
+      await page.waitForTimeout(300);
+      const box = await fields().boundingBox();
+      if (!box || box.y < 0 || box.y + box.height > 560) {
+        flag('o detalhe não acompanha a rolagem da tabela');
+      }
+      await shot('transacoes-detalhe-rolado');
+      await page.setViewportSize(size);
     }
     await page.getByRole('tab', { name: /Transferências/ }).click();
     await seen('AGUARDANDO CONFIRMAR').waitFor();

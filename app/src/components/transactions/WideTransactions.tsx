@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
@@ -96,17 +96,28 @@ function Filters({ page }: { page: TransactionsPage }) {
   );
 }
 
+// The panel stays in view while the table scrolls (sticky on the web), so a line picked
+// far down is edited right where it is; a panel taller than the window scrolls by itself.
 function DetailPanel({ page }: { page: TransactionsPage }) {
+  const { height } = useWindowDimensions();
+  const follow =
+    Platform.OS === 'web'
+      ? ({ position: 'sticky', top: PANEL_GAP, maxHeight: height - 2 * PANEL_GAP } as object)
+      : null;
   return (
-    <View style={styles.panel}>
-      <Text style={styles.panelTitle}>DETALHE</Text>
-      {page.selected ? (
-        <TxDetail key={page.selected.id} t={page.selected} onChanged={page.refreshMoney} />
-      ) : (
-        <Text style={styles.empty}>
-          Clique numa linha para ver o detalhe, editar ou trocar a categoria.
-        </Text>
-      )}
+    <View style={[styles.panel, follow]}>
+      <ScrollView contentContainerStyle={styles.panelBody} keyboardShouldPersistTaps="handled">
+        <Text style={styles.panelTitle}>DETALHE</Text>
+        {page.selected ? (
+          <TxDetail key={page.selected.id} t={page.selected} onChanged={page.refreshMoney} />
+        ) : (
+          <Text style={styles.empty}>
+            Clique numa linha para ver o detalhe, editar ou excluir.
+          </Text>
+        )}
+      </ScrollView>
     </View>
   );
 }
+
+const PANEL_GAP = 16;
