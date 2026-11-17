@@ -1,0 +1,45 @@
+import { StyleSheet } from 'react-native';
+
+import { colors, fonts } from '@/theme';
+
+export const styles = StyleSheet.create({
+  page: { marginTop: 24, gap: 32 },
+  section: { gap: 10 },
+  label: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
+  note: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },
+  list: { borderWidth: 1, borderColor: colors.line, borderRadius: 14 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 56,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  rowFirst: { borderTopWidth: 0 },
+  accountRow: { alignItems: 'flex-start' },
+  editing: {
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    gap: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.line,
+  },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  main: { flex: 1, minWidth: 0 },
+  name: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
+  sub: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 2 },
+  link: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted, paddingVertical: 4 },
+  owner: { width: 180 },
+  ownerNarrow: { width: 140 },
+  add: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  addInput: { flex: 1 },
+  addButton: { paddingVertical: 10, paddingHorizontal: 14 },
+  actions: { flexDirection: 'row', gap: 8 },
+  action: { flex: 1, paddingVertical: 10 },
+  remove: { alignSelf: 'flex-start', paddingVertical: 4 },
+  removeText: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
+  error: { fontFamily: fonts.regular, fontSize: 12, color: colors.danger },
+});

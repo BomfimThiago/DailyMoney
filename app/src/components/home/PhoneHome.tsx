@@ -55,6 +55,14 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
               <Text style={styles.signOutText}>Categorias</Text>
             </Pressable>
             <Pressable
+              onPress={() => router.navigate('/responsaveis')}
+              testID="link-responsaveis"
+              style={styles.signOut}
+              accessibilityRole="link"
+            >
+              <Text style={styles.signOutText}>Responsáveis</Text>
+            </Pressable>
+            <Pressable
               onPress={() => router.navigate('/ajustes')}
               testID="link-ajustes"
               style={styles.signOut}

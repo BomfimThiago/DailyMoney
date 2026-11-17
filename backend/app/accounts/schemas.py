@@ -14,3 +14,8 @@ class AccountOut(BaseModel):
     currency: Currency
     is_card: bool
     member_id: uuid.UUID | None
+
+
+class AccountUpdate(BaseModel):
+    # Who the account belongs to; null means the whole household.
+    member_id: uuid.UUID | None
