@@ -155,3 +155,24 @@ export function historyLine(h: ImportSummary): string {
     .filter(Boolean)
     .join(' · ');
 }
+
+// Envios anteriores > Desfazer: what goes away with a sent statement.
+export function undoNote(h: ImportSummary): string {
+  if (h.lines === 0) return 'As transações dele já foram apagadas; sai só da lista.';
+  const lines = plural(
+    h.lines,
+    '1 transação que veio dele',
+    (n) => `${n} transações que vieram dele`,
+  );
+  return `Sai o envio e ${lines}, mesmo as que esperam revisão. Não dá para voltar atrás.`;
+}
+
+// The upload screen while a file reads a sent statement again.
+export function rereadNote(old: ImportSummary): string {
+  const lines = plural(
+    old.lines,
+    'a transação dele é trocada',
+    (n) => `as ${n} transações dele são trocadas`,
+  );
+  return `Lendo de novo ${old.filename}. Ao importar, ${lines} pelo que este arquivo trouxer; se cancelar, nada muda.`;
+}

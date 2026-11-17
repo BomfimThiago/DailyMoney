@@ -42,6 +42,7 @@ export type GroupCounts = S['GroupCounts'];
 export type PreviewGroup = S['PreviewGroup'];
 export type ImportPreview = S['ImportPreview'];
 export type ImportSummary = S['ImportSummary'];
+export type ImportUndone = S['ImportUndone'];
 
 // Stricter than the schema: either an existing account or a new one, never both.
 export type AccountChoice =
@@ -58,5 +59,10 @@ export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
 export type Transfer = S['TransferOut'];
 export type TransferOverview = S['TransferOverview'];
+export type MovementRow = S['MovementRow'];
+export type MovementGroup = S['MovementGroup'];
+export type MovementsOverview = S['MovementsOverview'];
+export type PurgeOverview = S['PurgeOverview'];
+export type PurgeResult = S['PurgeResult'];
 export type Analysis = S['Analysis'];
 export type CurrencyAnalysis = S['CurrencyAnalysis'];

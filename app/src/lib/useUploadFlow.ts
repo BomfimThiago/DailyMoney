@@ -19,7 +19,11 @@ type Setters = {
 
 // Changing an account or the start date asks the server for a new preview. Only the
 // answer to the latest change counts; older answers arrive too late.
-function useAdjustments(preview: ImportPreview | null, { setPreview, setError }: Setters) {
+function useAdjustments(
+  preview: ImportPreview | null,
+  replacing: ImportSummary | null,
+  { setPreview, setError }: Setters,
+) {
   const [choices, setChoices] = useState<Choices>({});
   const [since, setSince] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,7 +35,7 @@ function useAdjustments(preview: ImportPreview | null, { setPreview, setError }:
     const latest = () => id === request.current;
     setRefreshing(true);
     try {
-      const result = await refreshPreview(preview.id, accountIds(next), nextSince);
+      const result = await refreshPreview(preview.id, accountIds(next), nextSince, replacing?.id);
       if (latest()) setPreview(result);
     } catch (e) {
       if (latest()) setError(errorText(e));
@@ -71,7 +75,9 @@ export function useUploadFlow() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<ImportSummary | null>(null);
-  const adjust = useAdjustments(preview, { setPreview, setError });
+  // A statement sent before that this file reads again (Envios anteriores > Reler).
+  const [replacing, setReplacing] = useState<ImportSummary | null>(null);
+  const adjust = useAdjustments(preview, replacing, { setPreview, setError });
   // A new import changes every money screen, not just the lists here.
   const refreshMoney = useRefreshMoney();
 
@@ -82,15 +88,17 @@ export function useUploadFlow() {
     setPreview(null);
     setError(null);
     setDone(null);
+    setReplacing(null);
     start({});
   }, [start]);
 
-  const read = async (picked: PickedFile, currency?: Currency) => {
+  const read = async (picked: PickedFile, currency?: Currency, replaces?: ImportSummary | null) => {
     reset();
     setFile(picked);
+    setReplacing(replaces ?? null);
     setReading(true);
     try {
-      const result = await uploadStatement(picked, currency);
+      const result = await uploadStatement(picked, currency, replaces?.id);
       setPreview(result);
       start(initialChoices(result));
     } catch (e) {
@@ -104,7 +112,7 @@ export function useUploadFlow() {
     if (!file || !preview) return;
     // The first try created an empty import; close it before sending again.
     cancelImport(preview.id).catch(() => undefined);
-    await read(file, currency);
+    await read(file, currency, replacing);
   };
 
   const cancel = async () => {
@@ -119,7 +127,7 @@ export function useUploadFlow() {
     setError(null);
     try {
       const body = confirmBody(preview.groups, adjust.choices);
-      const summary = await confirmImport(preview.id, body, adjust.since);
+      const summary = await confirmImport(preview.id, body, adjust.since, replacing?.id);
       reset();
       setDone(summary);
       refreshMoney();
@@ -133,6 +141,7 @@ export function useUploadFlow() {
   return {
     ...adjust,
     preview,
+    replacing,
     reading,
     importing,
     error,

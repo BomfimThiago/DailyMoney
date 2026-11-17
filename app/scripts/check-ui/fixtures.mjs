@@ -149,6 +149,7 @@ const importDone = (filename, format, bank, imported, duplicates, d) => ({
   created_at: `${day(d)}T12:00:00Z`,
   finished_at: `${day(d)}T12:00:05Z`,
   to_review: 0,
+  lines: imported,
 });
 
 const family = {
@@ -429,6 +430,39 @@ export const fixtures = {
     })),
     movements: investments,
   },
+  // Transferências > Conferência: the card bill closed, R$ 400 went to an account not in
+  // the app.
+  '/transactions/movements': {
+    month,
+    groups: [
+      {
+        currency: 'BRL',
+        rows: [
+          {
+            name: 'Transferência',
+            color: '#8a8799',
+            went_out: '2600.00',
+            came_in: '2200.00',
+            net: '-400.00',
+            count: 5,
+          },
+          {
+            name: 'Pagamento de cartão',
+            color: '#6f8fb8',
+            went_out: '1850.00',
+            came_in: '1850.00',
+            net: '0.00',
+            count: 2,
+          },
+        ],
+        went_out: '4450.00',
+        came_in: '4050.00',
+        net: '-400.00',
+        result: 'out',
+      },
+    ],
+  },
+  '/transactions/purge': { transactions: 312, to_review: 12, imports: 5, banks: 2 },
   '/transactions/transfers': {
     month,
     pending,

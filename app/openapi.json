@@ -988,6 +988,53 @@
         }
       }
     },
+    "/api/v1/imports/{import_id}/undo": {
+      "post": {
+        "tags": ["imports"],
+        "summary": "Undo",
+        "description": "Takes a sent statement back, with every line that came from it.",
+        "operationId": "undo_api_v1_imports__import_id__undo_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportUndone"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/bank-requests": {
       "get": {
         "tags": ["banks"],
@@ -1500,6 +1547,51 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": ["transactions"],
+        "summary": "Delete All",
+        "description": "Deletes every transaction; `expected` is the number the person confirmed.",
+        "operationId": "delete_all_api_v1_transactions_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "expected",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Expected"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurgeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/transactions/summary": {
@@ -1811,6 +1903,95 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/transactions/movements": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Movements",
+        "description": "Money that only changed place in the month, and whether it all came back.",
+        "operationId": "movements_api_v1_transactions_movements_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "examples": ["2026-10"],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MovementsOverview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/purge": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Purge Overview",
+        "description": "What deleting every transaction would take away.",
+        "operationId": "purge_overview_api_v1_transactions_purge_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurgeOverview"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/transactions/review": {
@@ -2308,6 +2489,18 @@
                 "type": "null"
               }
             ]
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
           }
         },
         "type": "object",
@@ -2497,6 +2690,18 @@
               }
             ],
             "title": "Since"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
           }
         },
         "type": "object",
@@ -3183,6 +3388,11 @@
             "type": "integer",
             "title": "To Review",
             "default": 0
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines",
+            "default": 0
           }
         },
         "type": "object",
@@ -3201,6 +3411,17 @@
           "finished_at"
         ],
         "title": "ImportSummary"
+      },
+      "ImportUndone": {
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          }
+        },
+        "type": "object",
+        "required": ["removed"],
+        "title": "ImportUndone"
       },
       "InvestmentMonth": {
         "properties": {
@@ -3572,6 +3793,103 @@
         "required": ["month", "currencies", "pending_transfers"],
         "title": "MonthSummary"
       },
+      "MovementGroup": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MovementRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "went_out": {
+            "type": "string",
+            "title": "Went Out"
+          },
+          "came_in": {
+            "type": "string",
+            "title": "Came In"
+          },
+          "net": {
+            "type": "string",
+            "title": "Net"
+          },
+          "result": {
+            "type": "string",
+            "enum": ["closed", "out", "in"],
+            "title": "Result"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "rows", "went_out", "came_in", "net", "result"],
+        "title": "MovementGroup"
+      },
+      "MovementRow": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "went_out": {
+            "type": "string",
+            "title": "Went Out"
+          },
+          "came_in": {
+            "type": "string",
+            "title": "Came In"
+          },
+          "net": {
+            "type": "string",
+            "title": "Net"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["name", "color", "went_out", "came_in", "net", "count"],
+        "title": "MovementRow"
+      },
+      "MovementsOverview": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/MovementGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          }
+        },
+        "type": "object",
+        "required": ["month", "groups"],
+        "title": "MovementsOverview"
+      },
       "NewAccount": {
         "properties": {
           "name": {
@@ -3682,6 +4000,18 @@
               }
             ],
             "title": "Since"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces"
           }
         },
         "type": "object",
@@ -3741,6 +4071,40 @@
           "kind"
         ],
         "title": "PreviewRow"
+      },
+      "PurgeOverview": {
+        "properties": {
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review"
+          },
+          "imports": {
+            "type": "integer",
+            "title": "Imports"
+          },
+          "banks": {
+            "type": "integer",
+            "title": "Banks"
+          }
+        },
+        "type": "object",
+        "required": ["transactions", "to_review", "imports", "banks"],
+        "title": "PurgeOverview"
+      },
+      "PurgeResult": {
+        "properties": {
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          }
+        },
+        "type": "object",
+        "required": ["removed"],
+        "title": "PurgeResult"
       },
       "Recurring": {
         "properties": {

@@ -8,6 +8,7 @@ import {
   useRefreshMoney,
   useRegular,
   useReviewQueue,
+  useMovements,
   useTransfers,
 } from './queries';
 import { reviewItems } from './review';
@@ -57,6 +58,7 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
   const filters = { q, categoryId, accountId };
   const regular = useRegular(month, true, wide ? filters : {});
   const transfers = useTransfers(month, true);
+  const movements = useMovements(month, tab === 'transferencias');
   const review = useReviewQueue(true);
   const categories = useCategories(wide);
   const accounts = useAccounts(wide);
@@ -66,6 +68,7 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
     setTab,
     month,
     setMonth,
+    movements,
     search,
     setSearch,
     categoryId,

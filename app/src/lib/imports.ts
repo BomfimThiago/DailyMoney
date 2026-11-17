@@ -16,9 +16,13 @@ import type {
   Currency,
   ImportPreview,
   ImportSummary,
+  ImportUndone,
   InvestmentOverview,
   MonthDashboard,
   MonthSummary,
+  MovementsOverview,
+  PurgeOverview,
+  PurgeResult,
   ReviewQueue,
   ReviewResult,
   Transaction,
@@ -35,7 +39,8 @@ export interface PickedFile {
   file?: File;
 }
 
-export function uploadStatement(file: PickedFile, defaultCurrency?: Currency) {
+// `replaces`: reading again a statement sent before (its lines go when this one is imported).
+export function uploadStatement(file: PickedFile, defaultCurrency?: Currency, replaces?: string) {
   const form = new FormData();
   if (file.file) {
     form.append('file', file.file, file.name);
@@ -49,6 +54,7 @@ export function uploadStatement(file: PickedFile, defaultCurrency?: Currency) {
     form.append('file', part as unknown as Blob);
   }
   if (defaultCurrency) form.append('default_currency', defaultCurrency);
+  if (replaces) form.append('replaces', replaces);
   return api<ImportPreview>('/imports', { method: 'POST', body: form });
 }
 
@@ -56,18 +62,44 @@ export function refreshPreview(
   id: string,
   accounts: Partial<Record<Currency, string | null>>,
   since: string | null,
+  replaces?: string,
 ) {
   return api<ImportPreview>(`/imports/${id}/preview`, {
     method: 'POST',
-    body: JSON.stringify({ accounts, since }),
+    body: JSON.stringify({ accounts, since, replaces: replaces ?? null }),
   });
 }
 
-export function confirmImport(id: string, accounts: AccountChoice[], since: string | null) {
+export function confirmImport(
+  id: string,
+  accounts: AccountChoice[],
+  since: string | null,
+  replaces?: string,
+) {
   return api<ImportSummary>(`/imports/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify({ accounts, since }),
+    body: JSON.stringify({ accounts, since, replaces: replaces ?? null }),
   });
+}
+
+// Takes a sent statement back, with every line that came from it.
+export function undoImport(id: string) {
+  return api<ImportUndone>(`/imports/${id}/undo`, { method: 'POST' });
+}
+
+// What "Apagar todas as transações" would take away.
+export function getPurgeOverview() {
+  return api<PurgeOverview>('/transactions/purge');
+}
+
+// `expected` is the number the person confirmed: if it changed, nothing is deleted.
+export function deleteAllTransactions(expected: number) {
+  return api<PurgeResult>(`/transactions?expected=${expected}`, { method: 'DELETE' });
+}
+
+// Money that only changed place in the month, and whether it all came back.
+export function getMovements(month: string, currency: Currency) {
+  return api<MovementsOverview>(`/transactions/movements?month=${month}&currency=${currency}`);
 }
 
 export function cancelImport(id: string) {

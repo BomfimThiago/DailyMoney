@@ -14,6 +14,7 @@ import {
   getInvestments,
   getReviewQueue,
   getSummary,
+  getMovements,
   getTransfers,
   listBankRequests,
   listAccounts,
@@ -106,6 +107,16 @@ export function useInvestments(month: string, enabled: boolean) {
   return useQuery({
     queryKey: ['money', 'investments', month, currency],
     queryFn: () => getInvestments(month, currency),
+    enabled,
+  });
+}
+
+// Money that only changed place in the month, in the chosen currency.
+export function useMovements(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'movements', month, currency],
+    queryFn: () => getMovements(month, currency),
     enabled,
   });
 }

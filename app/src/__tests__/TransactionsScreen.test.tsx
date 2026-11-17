@@ -27,6 +27,7 @@ const mockRefreshMoney = jest.fn();
 jest.mock('@/lib/queries', () => ({
   useRegular: jest.fn(),
   useTransfers: jest.fn(),
+  useMovements: () => ({ data: undefined }),
   useCategories: jest.fn(),
   useAccounts: jest.fn(),
   useReviewQueue: jest.fn(),

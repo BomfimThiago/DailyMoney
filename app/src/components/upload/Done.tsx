@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
 
-import { Button, Card, SectionTitle, ui } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import type { ImportSummary } from '@/lib/types';
-import { doneNote, doneTitle, historyLine } from '@/lib/upload';
+import { doneNote, doneTitle } from '@/lib/upload';
 
 import { styles } from './styles';
 
@@ -31,26 +31,5 @@ export function Done({ summary, onAgain }: { summary: ImportSummary; onAgain: ()
         )}
       </View>
     </Card>
-  );
-}
-
-export function History({ items }: { items: ImportSummary[] }) {
-  if (!items.length) return null;
-  return (
-    <View style={styles.history}>
-      <SectionTitle>Envios anteriores</SectionTitle>
-      <View style={ui.rowList}>
-        {items.slice(0, 10).map((h, i) => (
-          <View key={h.id} style={[ui.row, i === 0 && ui.rowFirst]}>
-            <View style={ui.rowMain}>
-              <Text style={ui.rowTitle} numberOfLines={1}>
-                {h.filename}
-              </Text>
-              <Text style={ui.rowSub}>{historyLine(h)}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
   );
 }

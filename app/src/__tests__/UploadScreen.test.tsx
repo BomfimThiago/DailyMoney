@@ -10,7 +10,13 @@ import { rowLabel } from '@/components/upload/PreviewRows';
 import { pickAndRead } from '@/components/upload/UploadFlow';
 import { ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { cancelImport, confirmImport, refreshPreview, uploadStatement } from '@/lib/imports';
+import {
+  cancelImport,
+  confirmImport,
+  refreshPreview,
+  undoImport,
+  uploadStatement,
+} from '@/lib/imports';
 import { useAccounts, useImports } from '@/lib/queries';
 import type { Account, ImportPreview, PreviewRow } from '@/lib/types';
 import { useUploadFlow } from '@/lib/useUploadFlow';
@@ -39,6 +45,7 @@ jest.mock('@/lib/queries', () => ({
   useRefreshMoney: () => mockRefreshMoney,
 }));
 jest.mock('@/lib/imports', () => ({
+  undoImport: jest.fn(),
   uploadStatement: jest.fn(),
   refreshPreview: jest.fn(),
   confirmImport: jest.fn(),
@@ -54,6 +61,7 @@ const mockUpload = jest.mocked(uploadStatement);
 const mockRefresh = jest.mocked(refreshPreview);
 const mockConfirm = jest.mocked(confirmImport);
 const mockCancel = jest.mocked(cancelImport);
+const mockUndo = jest.mocked(undoImport);
 
 const nubank: Account = {
   id: 'a1',
@@ -137,6 +145,7 @@ describe('UploadScreen', () => {
     expect(mockUpload).toHaveBeenCalledWith(
       { name: 'extrato.csv', uri: 'file:///extrato.csv', mimeType: 'text/csv', file: undefined },
       undefined,
+      undefined,
     );
     expect(screen.getByText('Nubank · BRL · 1 ago a 10 nov')).toBeTruthy();
     expect(screen.getByText('Padaria')).toBeTruthy();
@@ -146,7 +155,7 @@ describe('UploadScreen', () => {
     mockRefresh.mockResolvedValueOnce(preview({ ...first, filename: 'extrato.csv' }));
     await fireEvent.press(screen.getByText('Últimos 3 meses'));
     await waitFor(() =>
-      expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: 'a1' }, '2026-08-12'),
+      expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: 'a1' }, '2026-08-12', undefined),
     );
     expect(screen.getByText(/só entra o que é de 12\/08\/2026 em diante/)).toBeTruthy();
 
@@ -157,6 +166,7 @@ describe('UploadScreen', () => {
       'imp-1',
       [{ currency: 'BRL', account_id: 'a1' }],
       '2026-08-12',
+      undefined,
     );
     expect(screen.getByText('extrato.csv · 1 já existiam')).toBeTruthy();
     expect(mockRefreshMoney).toHaveBeenCalled();
@@ -207,6 +217,7 @@ describe('UploadScreen', () => {
         'imp-1',
         [{ currency: 'BRL', new_account: { name: 'Conta da casa' } }],
         null,
+        undefined,
       ),
     );
   });
@@ -215,11 +226,15 @@ describe('UploadScreen', () => {
     mockRefresh.mockImplementation(() => Promise.resolve(preview()));
     await openFile(preview());
     await fireEvent.press(screen.getByText('Nubank'));
-    await waitFor(() => expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: 'a1' }, null));
+    await waitFor(() =>
+      expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: 'a1' }, null, undefined),
+    );
     expect(screen.queryByLabelText('Nome da nova conta em BRL')).toBeNull();
 
     await fireEvent.press(screen.getByText('Nova conta'));
-    await waitFor(() => expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: null }, null));
+    await waitFor(() =>
+      expect(mockRefresh).toHaveBeenLastCalledWith('imp-1', { BRL: null }, null, undefined),
+    );
     expect(screen.getByLabelText('Nome da nova conta em BRL').props.value).toBe('Nubank');
     // Pressing it again keeps the name being typed.
     await fireEvent.changeText(screen.getByLabelText('Nome da nova conta em BRL'), 'Outra');
@@ -286,6 +301,7 @@ describe('UploadScreen', () => {
     expect(mockUpload).toHaveBeenLastCalledWith(
       expect.objectContaining({ name: 'wise.csv' }),
       'EUR',
+      undefined,
     );
   });
 
@@ -355,6 +371,54 @@ describe('UploadScreen', () => {
     expect(droppedFile({ dataTransfer: null })).toBeNull();
     expect(droppedFile({ dataTransfer: { files: [] } as unknown as DataTransfer })).toBeNull();
     expect(Platform.OS).not.toBe('web');
+  });
+
+  it('reads a sent statement again and replaces its lines on import', async () => {
+    const old = summary({ id: 'old', filename: 'nu-out.csv', lines: 4 });
+    mockImports.mockReturnValue({ data: [old] } as unknown as ReturnType<typeof useImports>);
+    await render(<UploadScreen />);
+    expect(screen.getByText('nu-out.csv')).toBeTruthy();
+
+    picked('nu-out.csv');
+    mockUpload.mockResolvedValueOnce(preview({ filename: 'nu-out.csv' }));
+    await fireEvent.press(screen.getByText('Reler o arquivo'));
+    await screen.findByText(/Lendo de novo nu-out.csv/);
+    expect(
+      screen.getByText(/as 4 transações dele são trocadas pelo que este arquivo trouxer/),
+    ).toBeTruthy();
+    expect(mockUpload).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'nu-out.csv' }),
+      undefined,
+      'old',
+    );
+
+    mockConfirm.mockResolvedValueOnce(summary());
+    await fireEvent.press(screen.getByText('Importar 3 transações'));
+    await screen.findByText('1 transação importada');
+    expect(mockConfirm).toHaveBeenCalledWith('imp-1', expect.any(Array), null, 'old');
+    expect(screen.queryByText(/Lendo de novo/)).toBeNull();
+  });
+
+  it('takes a sent statement back after asking', async () => {
+    const old = summary({ id: 'old', filename: 'nu-out.csv', lines: 4 });
+    mockImports.mockReturnValue({ data: [old] } as unknown as ReturnType<typeof useImports>);
+    await render(<UploadScreen />);
+    await fireEvent.press(screen.getByText('Desfazer'));
+    expect(screen.getByText(/Sai o envio e 4 transações que vieram dele/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Manter'));
+    expect(screen.queryByText(/Sai o envio/)).toBeNull();
+    expect(mockUndo).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByText('Desfazer'));
+    mockUndo.mockRejectedValueOnce(new ApiError(409, 'Este envio não foi importado'));
+    await fireEvent.press(screen.getByText('Desfazer envio'));
+    await screen.findByText('Este envio não foi importado');
+
+    mockUndo.mockResolvedValueOnce({ removed: 4 });
+    await fireEvent.press(screen.getByText('Desfazer envio'));
+    await waitFor(() => expect(mockRefreshMoney).toHaveBeenCalled());
+    expect(mockUndo).toHaveBeenLastCalledWith('old');
+    expect(screen.queryByText(/Sai o envio/)).toBeNull();
   });
 
   it('labels a preview line by what will happen to it', () => {
