@@ -22,7 +22,8 @@ export const styles = StyleSheet.create({
   moreText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
 
   wideContent: { paddingHorizontal: 36, paddingTop: 28, paddingBottom: 48 },
-  wideColumn: { width: '100%', maxWidth: 1108 },
+  // Transações uses the whole width: the table takes ~80%, the detail panel ~20%.
+  wideColumn: { width: '100%' },
   toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -82,10 +83,11 @@ export const styles = StyleSheet.create({
   menuItemOn: { backgroundColor: colors.ink },
   menuItemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   split: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
-  tableBox: { flex: 1, minWidth: 0 },
-  // Wide enough for the edit fields to breathe (date and amount side by side).
+  tableBox: { flex: 4, minWidth: 0 },
+  // ~20% of the width, but never so narrow that date and amount stop fitting side by side.
   panel: {
-    width: 400,
+    flex: 1,
+    minWidth: 340,
     borderLeftWidth: 1,
     borderLeftColor: colors.line,
     paddingLeft: 24,
