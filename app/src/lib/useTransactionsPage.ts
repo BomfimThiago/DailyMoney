@@ -33,12 +33,14 @@ import {
   rangeOf,
 } from './transactions';
 
-export type Tab = 'lista' | 'transferencias' | 'revisar';
+export type Tab = 'lista' | 'revisar';
 
-const LINKED: Tab[] = ['transferencias', 'revisar'];
+// Links from Início: ?aba=revisar opens the lines waiting for review; ?aba=transferencias
+// (transfers waiting to be confirmed) opens the list with internal transfers shown.
+type Link = 'revisar' | 'transferencias';
 
-function linkedTab(aba: string | undefined): Tab | null {
-  return LINKED.find((t) => t === aba) ?? null;
+function linkOf(aba: string | undefined): Link | null {
+  return aba === 'revisar' || aba === 'transferencias' ? aba : null;
 }
 
 // The value once it has stayed the same for a while: search as the person types,
@@ -55,14 +57,20 @@ export function useDebounced<T>(value: T, ms: number): T {
 // The screen stays mounted between tabs, so a link from Início with ?aba= must switch
 // here; adjusting state while rendering is React's pattern for following a prop.
 export function useTabFromLink(aba: string | undefined) {
-  const [tab, setTab] = useState<Tab>(linkedTab(aba) ?? 'lista');
+  const first = linkOf(aba);
+  const [tab, setTab] = useState<Tab>(first === 'revisar' ? 'revisar' : 'lista');
+  const [withTransfers, setWithTransfers] = useState(first === 'transferencias');
   const [seenAba, setSeenAba] = useState(aba);
   if (aba !== seenAba) {
     setSeenAba(aba);
-    const linked = linkedTab(aba);
-    if (linked) setTab(linked);
+    const linked = linkOf(aba);
+    if (linked === 'revisar') setTab('revisar');
+    if (linked === 'transferencias') {
+      setTab('lista');
+      setWithTransfers(true);
+    }
   }
-  return [tab, setTab] as const;
+  return { tab, setTab, withTransfers, setWithTransfers };
 }
 
 // A filter that also groups the totals by its own dimension once it is picked: filter by
@@ -150,11 +158,10 @@ function usePeriod() {
 // Transações is a page to study the money: whatever the filters leave on screen is also
 // added up (entradas, saídas, by day, and by category, Responsável or account).
 export function useTransactionsPage(aba: string | undefined) {
-  const [tab, setTab] = useTabFromLink(aba);
+  const { tab, setTab, withTransfers, setWithTransfers } = useTabFromLink(aba);
   const period = usePeriod();
   const f = useFilters();
   const [sort, setSort] = useState<TxSort>('date');
-  const [withTransfers, setWithTransfers] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const view: ListView = {
     month: period.listMonth,
@@ -200,6 +207,8 @@ export function useTransactionsPage(aba: string | undefined) {
     totals,
     days: dayTotals(totals.data?.currencies[0]),
     transfers,
+    // Lines that may be transfers, waiting for the person to say what they were.
+    toConfirm: transfers.data?.pending.length ?? 0,
     review,
     categories: categoryOptions(categories.data),
     accounts: accountOptions(accounts.data),

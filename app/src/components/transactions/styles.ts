@@ -37,7 +37,6 @@ export const styles = StyleSheet.create({
     zIndex: 10,
   },
   segmentBox: { width: 360 },
-  segmentBoxThree: { width: 500 },
   filters: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -98,9 +97,12 @@ export const styles = StyleSheet.create({
     maxWidth: 220,
   },
   menuButtonShort: { maxWidth: 150 },
+  // Its label grows with "· 2 a confirmar" and must read whole.
+  switchButton: { maxWidth: 360 },
   menuButtonOn: { backgroundColor: colors.ink, borderColor: colors.ink },
   menuText: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
   menuTextOn: { color: colors.page },
+  toConfirm: { color: colors.pendingText },
   menu: {
     position: 'absolute',
     top: 42,
@@ -135,7 +137,6 @@ export const styles = StyleSheet.create({
   },
   panelBody: { gap: 12, paddingBottom: 8 },
   panelTitle: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
-  transfersBox: { maxWidth: 640 },
 
   dim: { flex: 1, backgroundColor: colors.dim },
   dimTap: { flex: 1 },

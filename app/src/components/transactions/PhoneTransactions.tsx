@@ -21,13 +21,18 @@ export function PhoneTransactions({ page }: { page: TransactionsPage }) {
         <View style={styles.column}>
           <View style={styles.head}>
             <Text style={styles.title}>Transações</Text>
-            {page.tab !== 'lista' || page.period === 'month' ? (
+            {page.tab === 'revisar' || page.period === 'month' ? (
               <MonthNav month={page.month} onChange={page.setMonth} compact />
             ) : null}
           </View>
           <CurrencyChips style={styles.currencies} />
           <TabSegment page={page} />
           {page.tab === 'lista' ? <Filters page={page} wide={false} /> : null}
+          {page.tab === 'lista' ? (
+            <View style={styles.top}>
+              <TransfersBody page={page} />
+            </View>
+          ) : null}
           {page.tab === 'lista' ? <Totals page={page} wide={false} /> : null}
           {page.tab === 'lista' ? (
             <ListBody page={page}>
@@ -52,10 +57,8 @@ export function PhoneTransactions({ page }: { page: TransactionsPage }) {
                 </View>
               )}
             </ListBody>
-          ) : page.tab === 'revisar' ? (
-            <ReviewBody page={page} wide={false} />
           ) : (
-            <TransfersBody page={page} />
+            <ReviewBody page={page} wide={false} />
           )}
         </View>
       </ScrollView>

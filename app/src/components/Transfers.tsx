@@ -1,48 +1,25 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { SectionTitle } from '@/components/ui';
 import { errorText } from '@/lib/api';
-import { dayMonth, isIncome, money, monthLabel } from '@/lib/format';
+import { dayMonth, isIncome, money } from '@/lib/format';
 import { setKind } from '@/lib/imports';
-import { transferLine } from '@/lib/transactions';
-import type { Transaction, Transfer, TransferOverview, TxKind } from '@/lib/types';
+import type { Transaction, TransferOverview, TxKind } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
-// Transações > Transferências: lines waiting for the person to say what they were, then the
-// month's confirmed moves between the family's own accounts.
-export function Transfers({
-  data,
-  month,
-  onChanged,
-}: {
-  data: TransferOverview;
-  month: string;
-  onChanged: () => void;
-}) {
+// Shown above the list while "Transferências internas" is on: the lines that look like
+// money between the family's own accounts but whose other side wasn't found, each with
+// buttons to say what it was. The confirmed ones are in the list itself.
+export function Transfers({ data, onChanged }: { data: TransferOverview; onChanged: () => void }) {
+  if (!data.pending.length) return null;
   return (
-    <View>
-      <Text style={[styles.empty, styles.top]}>
-        Dinheiro entre contas suas. Não conta como gasto nem como entrada.
-      </Text>
-
-      {data.pending.length ? (
-        <>
-          <Text style={styles.pendingTitle}>AGUARDANDO CONFIRMAR</Text>
-          <View style={styles.cards}>
-            {data.pending.map((t) => (
-              <PendingCard key={t.id} t={t} onDone={onChanged} />
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <SectionTitle>Confirmadas em {monthLabel(month).split(' ')[0].toLowerCase()}</SectionTitle>
-      {data.confirmed.length === 0 ? (
-        <Text style={styles.empty}>Nenhuma transferência neste mês.</Text>
-      ) : (
-        data.confirmed.map((t, i) => <TransferRow key={t.id} t={t} first={i === 0} />)
-      )}
+    <View style={styles.box}>
+      <Text style={styles.pendingTitle}>AGUARDANDO CONFIRMAR</Text>
+      <View style={styles.cards}>
+        {data.pending.map((t) => (
+          <PendingCard key={t.id} t={t} onDone={onChanged} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -135,35 +112,13 @@ function ActionButton({
   );
 }
 
-function TransferRow({ t, first }: { t: Transfer; first: boolean }) {
-  const line = transferLine(t);
-  return (
-    <View style={[styles.row, first && styles.first]}>
-      <View style={styles.main}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {line.title}
-        </Text>
-        <Text style={styles.rowSub} numberOfLines={1}>
-          {line.sub}
-        </Text>
-      </View>
-      <View style={styles.right}>
-        <Text style={styles.rowValue}>{money(t.amount, t.currency)}</Text>
-        {line.arrived ? <Text style={styles.rowSub}>{line.arrived}</Text> : null}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  top: { marginTop: 16 },
-  empty: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },
+  box: { marginBottom: 16 },
   pendingTitle: {
     fontFamily: fonts.semibold,
     fontSize: 12,
     letterSpacing: 0.7,
     color: colors.pendingText,
-    marginTop: 24,
     marginBottom: 10,
   },
   cards: { gap: 10 },
@@ -198,17 +153,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   error: { fontFamily: fonts.regular, fontSize: 13, color: colors.danger },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.line,
-  },
-  first: { borderTopWidth: 0 },
   main: { flex: 1, minWidth: 0, gap: 3 },
-  right: { alignItems: 'flex-end', gap: 3 },
   rowTitle: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
   rowSub: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   rowValue: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },

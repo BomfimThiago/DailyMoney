@@ -22,22 +22,25 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
           <View style={styles.headRight}>
             <CurrencyChips />
             {page.tab === 'lista' ? <PeriodMenu page={page} /> : null}
-            {page.tab !== 'lista' || page.period === 'month' ? (
+            {page.tab === 'revisar' || page.period === 'month' ? (
               <MonthNav month={page.month} onChange={page.setMonth} compact />
             ) : (
               <RangeFields page={page} />
             )}
           </View>
         </View>
-        <View style={styles.toolbar}>
-          <View style={[styles.segmentBox, showsReview(page) && styles.segmentBoxThree]}>
-            <TabSegment page={page} wide />
+        {showsReview(page) ? (
+          <View style={styles.toolbar}>
+            <View style={styles.segmentBox}>
+              <TabSegment page={page} />
+            </View>
           </View>
-        </View>
+        ) : null}
         {page.tab === 'lista' ? <Filters page={page} wide /> : null}
         {page.tab === 'lista' ? (
           <View style={styles.split}>
             <View style={styles.tableBox}>
+              <TransfersBody page={page} />
               <Totals page={page} wide />
               <ListBody page={page}>
                 {(items) => (
@@ -58,16 +61,12 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
             </View>
             <DetailPanel page={page} />
           </View>
-        ) : page.tab === 'revisar' ? (
+        ) : (
           <View style={styles.split}>
             <View style={styles.tableBox}>
               <ReviewBody page={page} wide />
             </View>
             <DetailPanel page={page} />
-          </View>
-        ) : (
-          <View style={styles.transfersBox}>
-            <TransfersBody page={page} />
           </View>
         )}
       </View>

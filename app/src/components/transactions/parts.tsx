@@ -23,30 +23,18 @@ import { colors } from '@/theme';
 
 import { styles } from './styles';
 
-// "Para revisar" only shows while imported lines wait for approval (or while open).
+// "Para revisar" only shows while imported lines wait for approval (or while open); with
+// nothing to review there is just the list, and no tabs.
 export function showsReview(page: TransactionsPage): boolean {
   return (page.review.data?.total ?? 0) > 0 || page.tab === 'revisar';
 }
 
-// On a phone three tabs don't fit with the long names, so they get short ones.
-export function TabSegment({ page, wide = false }: { page: TransactionsPage; wide?: boolean }) {
-  const three = showsReview(page);
-  const short = three && !wide;
+export function TabSegment({ page }: { page: TransactionsPage }) {
+  if (!showsReview(page)) return null;
   const options: { value: Tab; label: string; badge?: number }[] = [
-    { value: 'lista', label: short ? 'Lista' : 'Gastos e entradas' },
-    {
-      value: 'transferencias',
-      label: 'Transferências',
-      badge: page.transfers.data?.pending.length ?? 0,
-    },
+    { value: 'lista', label: 'Gastos e entradas' },
+    { value: 'revisar', label: 'Para revisar', badge: page.review.data?.total ?? 0 },
   ];
-  if (three) {
-    options.push({
-      value: 'revisar',
-      label: short ? 'Revisar' : 'Para revisar',
-      badge: page.review.data?.total ?? 0,
-    });
-  }
   return <Segment options={options} value={page.tab} onChange={page.setTab} />;
 }
 
@@ -91,19 +79,10 @@ export function MoreButton({ page }: { page: TransactionsPage }) {
   );
 }
 
+// While internal transfers are shown, the ones waiting to be confirmed come first.
 export function TransfersBody({ page }: { page: TransactionsPage }) {
-  const { transfers } = page;
-  return (
-    <Loadable
-      isError={transfers.isError}
-      loading={!transfers.data}
-      value={transfers.data}
-      empty=""
-      textStyle={[styles.empty, styles.top]}
-    >
-      {(data) => <Transfers data={data} month={page.month} onChanged={page.refreshMoney} />}
-    </Loadable>
-  );
+  if (!page.withTransfers || !page.transfers.data) return null;
+  return <Transfers data={page.transfers.data} onChanged={page.refreshMoney} />;
 }
 
 // Phone: the detail slides up from the bottom; tapping outside closes it. The edit form

@@ -1,5 +1,5 @@
 // What the transactions page derives from its answers, kept apart from the page for tests.
-import { dayMonth, money } from './format';
+import { money } from './format';
 import type { TxSort } from './imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from './people';
 import { parseDate } from './txEdit';
@@ -11,7 +11,6 @@ import type {
   Member,
   Transaction,
   TransactionPage,
-  Transfer,
   TxKind,
 } from './types';
 
@@ -154,7 +153,7 @@ export function dayTotals(t: CurrencyTotals | undefined): Record<string, string>
   return out;
 }
 
-// Transfers have their own tab, so they are not a category to filter the list by.
+// Transfers show with their own switch, so they are not a category to filter the list by.
 export function categoryOptions(categories: Category[] | undefined): Option[] {
   return (categories ?? [])
     .filter((c) => c.kind !== 'transfer')
@@ -244,20 +243,4 @@ export function groupRows(
 export function emptyListText(filtered: boolean, period: PeriodKind = 'month'): string {
   if (filtered) return 'Nada encontrado com esses filtros.';
   return period === 'month' ? 'Nenhum gasto ou entrada neste mês.' : 'Nenhum gasto ou entrada.';
-}
-
-const TRANSFER_SUB: Record<Transfer['kind'], (t: Transfer) => string> = {
-  exchange: (t) => `Câmbio · ${dayMonth(t.date)}`,
-  pair: (t) => `${dayMonth(t.date)} · as duas pontas encontradas`,
-  single: (t) => `${dayMonth(t.date)} · ${t.description}`,
-};
-
-// A matched transfer: "Wise → Nubank", when and how it was found, and what arrived in the
-// other currency after an exchange.
-export function transferLine(t: Transfer): { title: string; sub: string; arrived: string | null } {
-  return {
-    title: `${t.from_account ?? 'outra conta'} → ${t.to_account ?? 'outra conta'}`,
-    sub: TRANSFER_SUB[t.kind](t),
-    arrived: t.to_amount && t.to_currency ? money(t.to_amount, t.to_currency) : null,
-  };
 }

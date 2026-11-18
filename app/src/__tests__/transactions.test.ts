@@ -19,7 +19,6 @@ import {
   totalsFigures,
   pagedItems,
   remaining,
-  transferLine,
 } from '@/lib/transactions';
 import type {
   Account,
@@ -28,7 +27,6 @@ import type {
   GroupTotal,
   Member,
   Transaction,
-  Transfer,
 } from '@/lib/types';
 import { useDebounced, useTabFromLink } from '@/lib/useTransactionsPage';
 
@@ -165,45 +163,20 @@ describe('transaction page hooks', () => {
         initialProps: { aba: undefined as string | undefined },
       },
     );
-    expect(result.current[0]).toBe('lista');
+    expect(result.current.tab).toBe('lista');
+    expect(result.current.withTransfers).toBe(false);
     await rerender({ aba: 'outra' });
-    expect(result.current[0]).toBe('lista');
+    expect(result.current.withTransfers).toBe(false);
+    await rerender({ aba: 'revisar' });
+    expect(result.current.tab).toBe('revisar');
+    // Transfers are in the list now: the link opens it with them shown.
     await rerender({ aba: 'transferencias' });
-    expect(result.current[0]).toBe('transferencias');
+    expect(result.current.tab).toBe('lista');
+    expect(result.current.withTransfers).toBe(true);
     const opened = await renderHook(() => useTabFromLink('transferencias'));
-    expect(opened.result.current[0]).toBe('transferencias');
-  });
-});
-
-describe('transferLine', () => {
-  const t: Transfer = {
-    id: 't1',
-    date: '2026-11-08',
-    description: 'Pix',
-    from_account: 'Nubank',
-    to_account: null,
-    amount: '100.0000',
-    currency: 'BRL',
-    to_amount: null,
-    to_currency: null,
-    kind: 'single',
-  };
-
-  it('names both ends and says how it was found', () => {
-    expect(transferLine(t)).toEqual({
-      title: 'Nubank → outra conta',
-      sub: '8 nov · Pix',
-      arrived: null,
-    });
-    expect(transferLine({ ...t, from_account: null, kind: 'pair' }).sub).toBe(
-      '8 nov · as duas pontas encontradas',
-    );
-  });
-
-  it('shows what arrived after an exchange', () => {
-    const line = transferLine({ ...t, kind: 'exchange', to_amount: '18.0000', to_currency: 'EUR' });
-    expect(line.sub).toBe('Câmbio · 8 nov');
-    expect(line.arrived).toMatch(/18,00/);
+    expect(opened.result.current.withTransfers).toBe(true);
+    const review = await renderHook(() => useTabFromLink('revisar'));
+    expect(review.result.current.tab).toBe('revisar');
   });
 });
 
