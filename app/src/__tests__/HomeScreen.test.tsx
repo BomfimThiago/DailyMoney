@@ -103,7 +103,7 @@ describe('HomeScreen session', () => {
 describe('HomeScreen on the phone', () => {
   it('shows the month figures, pending transfers and the latest lines', async () => {
     await render(withCurrency(<HomeScreen />));
-    expect(screen.getByText('8.500')).toBeTruthy();
+    expect(screen.getByText(money('R$ 8.500,00'))).toBeTruthy();
     expect(screen.getByText(money('R$ 3.094,20'))).toBeTruthy();
     // Investments are already inside Entradas and Gastos: no Investido taken out again.
     expect(screen.queryByText('INVESTIDO')).toBeNull();
@@ -157,7 +157,7 @@ describe('HomeScreen on the phone', () => {
   it('switches currency', async () => {
     await render(withCurrency(<HomeScreen />));
     await fireEvent.press(screen.getByText('EUR'));
-    expect(screen.getByText('1.200')).toBeTruthy();
+    expect(screen.getByText(money('€ 1.200,00'))).toBeTruthy();
     expect(api).toHaveBeenCalledWith('/family', {
       method: 'PATCH',
       body: JSON.stringify({ display_currency: 'EUR' }),
@@ -227,7 +227,7 @@ describe('HomeScreen on a computer', () => {
     expect(screen.getByLabelText(/^1: /)).toBeTruthy();
     expect(screen.getByLabelText('2: sem gastos')).toBeTruthy();
     await fireEvent.press(screen.getByText('EUR'));
-    expect(screen.getByText('1.200')).toBeTruthy();
+    expect(screen.getByText(money('€ 1.200,00'))).toBeTruthy();
   });
 
   it('points to the imported lines waiting for review', async () => {

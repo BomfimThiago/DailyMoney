@@ -7,7 +7,7 @@ import { MonthNav } from '@/components/nav';
 import { Loadable } from '@/components/states';
 import { TxRow } from '@/components/TxRow';
 import { Button, SectionTitle } from '@/components/ui';
-import { money, plain } from '@/lib/format';
+import { money } from '@/lib/format';
 import { hasNoAccounts } from '@/lib/home';
 import { useDashboard, useRecent } from '@/lib/queries';
 import type { CurrencySummary, TransactionPage } from '@/lib/types';
@@ -93,8 +93,8 @@ function MonthFigures({ shown }: { shown: CurrencySummary | null }) {
   return (
     <>
       <View style={styles.numbers}>
-        <Figure label="Entradas" value={plain(shown.income)} tone="income" />
-        <Figure label="Gastos" value={plain(shown.spending)} divider />
+        <Figure label="Entradas" value={money(shown.income, shown.currency)} tone="income" />
+        <Figure label="Gastos" value={money(shown.spending, shown.currency)} divider />
       </View>
       <View style={styles.left}>
         <Text style={styles.leftLabel}>Sobrou no mês</Text>

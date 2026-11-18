@@ -19,7 +19,7 @@ import {
   paceSentence,
   TWO_COLUMNS,
 } from '@/lib/dashboard';
-import { money, plain } from '@/lib/format';
+import { money } from '@/lib/format';
 import { hasNoAccounts } from '@/lib/home';
 import { useDashboard } from '@/lib/queries';
 import type { CurrencyDashboard, CurrencySummary, MonthSummary } from '@/lib/types';
@@ -133,8 +133,12 @@ function Figures({
       : null;
   return (
     <View style={styles.figures}>
-      <Figure label="Entradas" value={plain(shown.income)} color={colors.positive} />
-      <Figure label="Gastos" value={plain(shown.spending)} sub={sentence} divider />
+      <Figure
+        label="Entradas"
+        value={money(shown.income, shown.currency)}
+        color={colors.positive}
+      />
+      <Figure label="Gastos" value={money(shown.spending, shown.currency)} sub={sentence} divider />
       <Figure label="Sobrou no mês" value={money(shown.left, shown.currency)} divider wide />
     </View>
   );
