@@ -99,6 +99,24 @@ describe('Categorias', () => {
     await waitFor(() => expect(editCategory).toHaveBeenCalledWith('c1', { color: '#c7795a' }));
   });
 
+  it('changes the kind and follows the category to its new list', async () => {
+    jest.mocked(editCategory).mockResolvedValue({ ...mercado, kind: 'transfer' });
+    await render(<CategoriesScreen />);
+    expect(screen.getByText(/Trocar para movimentação tira/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('kind-transfer'));
+    await waitFor(() => expect(editCategory).toHaveBeenCalledWith('c1', { kind: 'transfer' }));
+    expect(mockRefresh).toHaveBeenCalled();
+    expect(screen.getByTestId('segment-transfer').props.accessibilityState).toEqual({
+      selected: true,
+    });
+  });
+
+  it('does nothing when the same kind is picked', async () => {
+    await render(<CategoriesScreen />);
+    await fireEvent.press(screen.getByTestId('kind-expense'));
+    expect(editCategory).not.toHaveBeenCalled();
+  });
+
   it('forgets a learned merchant', async () => {
     jest.mocked(deleteCategoryRule).mockResolvedValue();
     await render(<CategoriesScreen />);

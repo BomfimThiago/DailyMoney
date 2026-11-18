@@ -6,6 +6,7 @@ export const member = builder<Member>(() => ({
   id: 'm-thiago',
   name: 'Thiago',
   color: '#8a8799',
+  kind: 'me',
   user_id: 'u-thiago',
 }));
 

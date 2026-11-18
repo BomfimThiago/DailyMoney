@@ -30,7 +30,7 @@ jest.mock('@/lib/people', () => ({
 }));
 
 const thiago = member();
-const ana = member({ id: 'm-ana', name: 'Ana', color: '#c7795a', user_id: null });
+const ana = member({ id: 'm-ana', name: 'Ana', color: '#c7795a', kind: 'spouse', user_id: null });
 const nubank = account();
 const caixa = account({
   id: 'a-caixa',
@@ -63,7 +63,7 @@ describe('Responsáveis', () => {
   it('lists the people and who owns each account', async () => {
     await render(<OwnersScreen />);
     expect(screen.getByText('Thiago (você)')).toBeTruthy();
-    expect(screen.getByText('1 conta')).toBeTruthy();
+    expect(screen.getByText('Eu · 1 conta')).toBeTruthy();
     expect(screen.getByLabelText('Responsável por Nubank')).toBeTruthy();
     // The account without an owner belongs to the household.
     expect(screen.getAllByText('Casa').length).toBeGreaterThan(0);
@@ -89,14 +89,30 @@ describe('Responsáveis', () => {
   it('adds a person and refuses a repeated name', async () => {
     jest.mocked(addMember).mockResolvedValue(member({ id: 'm-joao', name: 'João' }));
     await render(<OwnersScreen />);
+    await fireEvent.press(screen.getByTestId('add-person'));
     await fireEvent.changeText(screen.getByLabelText('Nome da pessoa'), 'ana');
     await fireEvent.press(screen.getByText('Adicionar'));
     expect(screen.getByText('Já existe um responsável com esse nome.')).toBeTruthy();
     expect(addMember).not.toHaveBeenCalled();
 
     await fireEvent.changeText(screen.getByLabelText('Nome da pessoa'), 'João');
+    await fireEvent.press(screen.getByTestId('who-spouse'));
+    await fireEvent.press(screen.getByTestId('color-#c7795a'));
     await fireEvent.press(screen.getByText('Adicionar'));
-    await waitFor(() => expect(addMember).toHaveBeenCalledWith('João'));
+    await waitFor(() =>
+      expect(addMember).toHaveBeenCalledWith({ name: 'João', kind: 'spouse', color: '#c7795a' }),
+    );
+    expect(screen.getByTestId('add-person')).toBeTruthy();
+  });
+
+  it('says who each person is and changes it', async () => {
+    jest.mocked(editMember).mockResolvedValue(ana);
+    await render(<OwnersScreen />);
+    expect(screen.getByText('Eu · 1 conta')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Editar Ana'));
+    await fireEvent.press(screen.getByTestId('who-family'));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(editMember).toHaveBeenCalledWith('m-ana', { kind: 'family' }));
   });
 
   it('renames a person', async () => {

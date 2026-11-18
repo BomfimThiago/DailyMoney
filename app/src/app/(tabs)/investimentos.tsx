@@ -1,3 +1,4 @@
+import { Link } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
@@ -83,7 +84,10 @@ function WideInvestments({
             <MonthNav month={month} onChange={setMonth} compact />
           </View>
         </View>
-        <Text style={wide.section}>Carteira no banco</Text>
+        <View style={wide.sectionRow}>
+          <Text style={wide.section}>Carteira no banco</Text>
+          <BanksLink />
+        </View>
         <Loadable {...portfolio}>{(p) => <WidePortfolio p={p} twoColumns={twoColumns} />}</Loadable>
         <Text style={[wide.section, wide.sectionGap]}>Aplicações e resgates dos extratos</Text>
         <Loadable {...load}>
@@ -91,6 +95,15 @@ function WideInvestments({
         </Loadable>
       </View>
     </ScrollView>
+  );
+}
+
+// Where the portfolio comes from: the connected banks (the old app's "Bancos conectados").
+function BanksLink() {
+  return (
+    <Link href="/conexoes" style={styles.banksLink} testID="banks-link">
+      Bancos conectados ›
+    </Link>
   );
 }
 
@@ -168,7 +181,10 @@ function PhoneInvestments({ month, setMonth, load, portfolio }: PageProps) {
             onChange={setTab}
           />
           {tab === 'carteira' ? (
-            <Loadable {...portfolio}>{(p) => <PhonePortfolio p={p} />}</Loadable>
+            <>
+              <Loadable {...portfolio}>{(p) => <PhonePortfolio p={p} />}</Loadable>
+              <BanksLink />
+            </>
           ) : (
             <Loadable {...load}>
               {(v) =>

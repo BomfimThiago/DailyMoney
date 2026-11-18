@@ -72,3 +72,27 @@ async def test_invalid_family_update_rejected(client: AsyncClient) -> None:
     assert (
         await client.post("/api/v1/family/members", json=bad_color, headers=h)
     ).status_code == 422
+
+
+async def test_member_says_who_they_are(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    me = (await client.get("/api/v1/family", headers=h)).json()["members"][0]
+    assert me["kind"] == "me"
+
+    r = await client.post(
+        "/api/v1/family/members",
+        json={"name": "Ana", "kind": "spouse", "color": "#5f8f7b"},
+        headers=h,
+    )
+    assert r.status_code == 201, r.text
+    ana = r.json()
+    assert (ana["kind"], ana["color"]) == ("spouse", "#5f8f7b")
+
+    r = await client.patch(
+        f"/api/v1/family/members/{ana['id']}", json={"kind": "family"}, headers=h
+    )
+    assert r.json()["kind"] == "family"
+    r = await client.post("/api/v1/family/members", json={"name": "Bia"}, headers=h)
+    assert r.json()["kind"] == "other"
+    r = await client.patch(f"/api/v1/family/members/{ana['id']}", json={"kind": "boss"}, headers=h)
+    assert r.status_code == 422

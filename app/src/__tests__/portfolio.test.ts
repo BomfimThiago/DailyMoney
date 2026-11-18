@@ -2,18 +2,21 @@ import { describe, expect, it } from '@jest/globals';
 
 import {
   banksLine,
+  classSub,
   emptyText,
   finding,
   gainSub,
   gainText,
   historyPoints,
   historyRange,
+  ladderFinding,
   ladderHeights,
   maturingSub,
   percent,
   positionNote,
   positionSub,
   shade,
+  sourceNote,
   totalSub,
   undatedText,
 } from '@/lib/portfolio';
@@ -62,10 +65,61 @@ describe('portfolio texts', () => {
   it('describes each position', () => {
     expect(positionSub(position())).toBe('Nubank · 110% do CDI · vence 15/03/2027');
     expect(positionSub(position({ rate_label: null, due_date: null }))).toBe('Nubank');
+    expect(
+      positionSub(position({ code: 'LCI123', issuer: 'Banco Exemplo Sul', due_date: null })),
+    ).toBe('LCI123 · Nubank · Banco Exemplo Sul · 110% do CDI');
+    // Not the issuer already in the name, nor the bank itself, nor a code equal to the name.
+    expect(
+      positionSub(
+        position({
+          name: 'BOVA11',
+          code: 'BOVA11',
+          issuer: 'Nubank S.A.',
+          rate_label: null,
+          due_date: null,
+        }),
+      ),
+    ).toBe('Nubank');
+    expect(
+      positionSub(position({ issuer: 'Banco Exemplo', rate_label: null, due_date: null })),
+    ).toBe('Nubank');
     expect(nb(positionNote(position(), 'BRL'))).toBe('+R$ 100,00 rendeu');
     const usd = position({ gain: null, currency: 'USD', balance: '20.0000' });
     expect(nb(positionNote(usd, 'BRL'))).toBe('US$ 20,00');
     expect(positionNote(position({ gain: null }), 'BRL')).toBeNull();
+  });
+
+  it('describes each type, the peak year and where the balances come from', () => {
+    const p = portfolio();
+    expect(classSub(p.classes[1])).toBe('27% da carteira · 1 investimento');
+    expect(nb(ladderFinding(p))).toMatch(
+      /^O maior volume volta em 2027: R\$ 1\.100,00 em 1 título\.$/,
+    );
+    expect(ladderFinding(emptyPortfolio())).toBeNull();
+    expect(
+      nb(
+        ladderFinding(
+          portfolio({
+            ladder: {
+              steps: [
+                { label: '2027', year: 2027, total: '100', count: 1 },
+                { label: '2031+', year: 2031, total: '900', count: 2 },
+              ],
+              dated_total: '1000',
+              dated_count: 3,
+              undated_total: '0',
+              undated_count: 0,
+            },
+          }),
+        ),
+      ),
+    ).toBe('O maior volume volta de 2031 em diante: R$ 900,00 em 2 títulos.');
+    expect(sourceNote(p)).toBe(
+      'Saldo líquido (já sem IR e taxas) informado pelos bancos em 16/11, atualizado a cada sincronização.',
+    );
+    expect(sourceNote(emptyPortfolio())).toMatch(
+      /^Saldo líquido \(já sem IR e taxas\) informado pelos bancos,/,
+    );
   });
 
   it('shades the classes and stops at the lightest', () => {

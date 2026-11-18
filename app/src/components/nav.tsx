@@ -193,10 +193,13 @@ export function Segment<T extends string>({
   options,
   value,
   onChange,
+  testPrefix = 'segment',
 }: {
   options: { value: T; label: string; badge?: number }[];
   value: T;
   onChange: (v: T) => void;
+  // Two segments on one screen need different test ids.
+  testPrefix?: string;
 }) {
   return (
     <View style={styles.segment} accessibilityRole="tablist">
@@ -206,7 +209,7 @@ export function Segment<T extends string>({
           <Pressable
             key={o.value}
             onPress={() => onChange(o.value)}
-            testID={`segment-${o.value}`}
+            testID={`${testPrefix}-${o.value}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             style={[styles.segItem, on && styles.segItemOn]}

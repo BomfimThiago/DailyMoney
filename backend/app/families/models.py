@@ -17,6 +17,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base, CreatedAt, UUIDPk
 
 
+class MemberKind(enum.StrEnum):
+    ME = "me"
+    SPOUSE = "spouse"
+    FAMILY = "family"
+    OTHER = "other"
+
+
 class Currency(enum.StrEnum):
     BRL = "BRL"
     USD = "USD"
@@ -63,6 +70,12 @@ class Member(UUIDPk, CreatedAt, Base):
     )
     name: Mapped[str] = mapped_column(String(80))
     color: Mapped[str] = mapped_column(String(7), default="#8a8799")
+    # Who the person is to the household: eu, cônjuge, família, outro.
+    kind: Mapped[MemberKind] = mapped_column(
+        Enum(MemberKind, name="member_kind", values_callable=lambda e: [m.value for m in e]),
+        default=MemberKind.OTHER,
+        server_default=MemberKind.OTHER.value,
+    )
     # A member may exist only as a label on transactions, without a login of their own.
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("app_user.id", ondelete="SET NULL"), unique=True

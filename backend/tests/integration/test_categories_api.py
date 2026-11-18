@@ -142,3 +142,50 @@ async def test_other_family_category_is_not_found(client: AsyncClient) -> None:
     assert (
         await client.get(f"/api/v1/categories/{mine['id']}/rules", headers=other)
     ).status_code == 404
+
+
+async def _summary(client: AsyncClient, h: dict[str, str]) -> dict[str, Any]:
+    r = await client.get("/api/v1/transactions/summary?month=2026-10", headers=h)
+    assert r.status_code == 200, r.text
+    data: dict[str, Any] = r.json()
+    return data
+
+
+async def test_changing_the_kind_moves_its_lines_out_of_and_back_into_the_totals(
+    client: AsyncClient,
+) -> None:
+    h = auth(await login(client))
+    await _import(client, h, CSV, "nu.csv", "Nubank")
+    mercado = _named(await _categories(client, h), "Mercado")
+    before = await _summary(client, h)
+
+    r = await client.patch(
+        f"/api/v1/categories/{mercado['id']}", json={"kind": "transfer"}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["kind"] == "transfer"
+    r = await client.get(f"/api/v1/transactions?category_id={mercado['id']}", headers=h)
+    assert {t["kind"] for t in r.json()["items"]} == {"transfer"}
+    moved = await _summary(client, h)
+    assert moved != before
+
+    r = await client.patch(
+        f"/api/v1/categories/{mercado['id']}", json={"kind": "expense"}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    r = await client.get(f"/api/v1/transactions?category_id={mercado['id']}", headers=h)
+    assert {t["kind"] for t in r.json()["items"]} == {"regular"}
+    assert await _summary(client, h) == before
+
+
+async def test_changing_spending_to_income_keeps_the_lines_counted(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, CSV, "nu.csv", "Nubank")
+    mercado = _named(await _categories(client, h), "Mercado")
+    r = await client.patch(
+        f"/api/v1/categories/{mercado['id']}", json={"kind": "income"}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["kind"] == "income"
+    r = await client.get(f"/api/v1/transactions?category_id={mercado['id']}", headers=h)
+    assert {t["kind"] for t in r.json()["items"]} == {"regular"}

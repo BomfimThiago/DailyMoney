@@ -11,7 +11,7 @@ from app.categories.services import category_service
 from app.core.config import settings
 from app.core.exceptions import ForbiddenError, UnauthorizedError
 from app.core.security import create_access_token, hash_token, new_refresh_token
-from app.families.models import Family, Member, User
+from app.families.models import Family, Member, MemberKind, User
 
 # How long a refresh token already traded in is still accepted.
 REFRESH_REUSE_SECONDS = 60
@@ -66,7 +66,7 @@ async def _create_user_with_family(
     )
     db.add(user)
     await db.flush()
-    db.add(Member(family_id=family.id, name=first_name, user_id=user.id))
+    db.add(Member(family_id=family.id, name=first_name, user_id=user.id, kind=MemberKind.ME))
     category_service.seed_defaults(db, family.id)
     return user
 

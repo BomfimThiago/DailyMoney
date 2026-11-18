@@ -44,7 +44,7 @@ async def update_family(db: AsyncSession, family_id: uuid.UUID, data: FamilyUpda
 async def add_member(db: AsyncSession, family_id: uuid.UUID, data: MemberCreate) -> Member:
     family = await get_family(db, family_id)
     color = data.color or MEMBER_PALETTE[len(family.members) % len(MEMBER_PALETTE)]
-    member = Member(family_id=family_id, name=data.name.strip(), color=color)
+    member = Member(family_id=family_id, name=data.name.strip(), color=color, kind=data.kind)
     db.add(member)
     await _flush_unique_name(db)
     return member
@@ -58,6 +58,8 @@ async def update_member(
         member.name = data.name.strip()
     if data.color is not None:
         member.color = data.color
+    if data.kind is not None:
+        member.kind = data.kind
     await _flush_unique_name(db)
     return member
 
