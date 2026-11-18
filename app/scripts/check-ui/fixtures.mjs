@@ -455,6 +455,23 @@ export const fixtures = {
         previous_daily: previousDaily,
         categories: shares('category_name'),
         accounts: shares('account_name'),
+        // Nubank is Pessoa's, Inter belongs to the household.
+        people: Object.entries(
+          spent.reduce((acc, t) => {
+            const who = t.account_name === 'Nubank' ? 'Pessoa' : 'Casa';
+            return { ...acc, [who]: (acc[who] ?? 0) - Number(t.amount) };
+          }, {}),
+        )
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, amount]) => ({ name, amount: amount.toFixed(2) })),
+        banks: shares('account_name'),
+        income_categories: [
+          { name: 'Renda', amount: '8000.00' },
+          { name: 'Outros', amount: '500.00' },
+          { name: 'Investimento', amount: '300.00' },
+        ],
+        previous_income: '8200.00',
+        previous_spending: '6100.00',
       },
       {
         currency: 'EUR',
@@ -462,6 +479,11 @@ export const fixtures = {
         previous_daily: previousDaily.map(() => '0.00'),
         categories: [{ name: 'Outros', amount: '120.00' }],
         accounts: [{ name: 'Wise EUR', amount: '120.00' }],
+        people: [{ name: 'Casa', amount: '120.00' }],
+        banks: [{ name: 'Wise', amount: '120.00' }],
+        income_categories: [],
+        previous_income: '0.00',
+        previous_spending: '0.00',
       },
     ],
   },

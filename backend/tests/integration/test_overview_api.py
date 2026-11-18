@@ -277,6 +277,50 @@ async def test_dashboard_spending_by_day_category_and_account(client: AsyncClien
     assert sum(float(v) for v in empty["currencies"][0]["daily"]) == 0
 
 
+async def test_dashboard_compares_with_the_month_before(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, DASHBOARD, "nu.csv", "Nubank")
+
+    [october] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10"))[
+        "currencies"
+    ]
+    assert (october["previous_income"], october["previous_spending"]) == ("0", "80.0000")
+    # Where the month's money came from, for the flow chart.
+    assert october["income_categories"] == [{"name": "Renda", "amount": "5000.0000"}]
+
+    [november] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-11"))[
+        "currencies"
+    ]
+    assert november["previous_income"] == "5000.0000"
+    assert november["previous_spending"] == "1400.0000"
+
+
+async def test_dashboard_spending_by_person_and_by_bank(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, DASHBOARD, "nu.csv", "Nubank")
+    await _import(client, h, INTER, "inter.csv", "Inter")
+    await _import(client, h, OTHER_BANK_SPENDING, "nu2.csv", "Nubank Ana")
+    ana = (await client.post("/api/v1/family/members", json={"name": "Ana"}, headers=h)).json()
+    accounts = (await client.get("/api/v1/accounts", headers=h)).json()
+    second = next(a for a in accounts if a["name"] == "Nubank Ana")
+    await client.patch(f"/api/v1/accounts/{second['id']}", json={"member_id": ana["id"]}, headers=h)
+    inter = next(a for a in accounts if a["name"] == "Inter")
+    await client.patch(f"/api/v1/accounts/{inter['id']}", json={"member_id": None}, headers=h)
+
+    [brl] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10"))["currencies"]
+    assert brl["people"] == [
+        {"name": "Thiago", "amount": "1400.0000"},
+        {"name": "Ana", "amount": "60.0000"},
+    ]
+    banks = {b["name"]: b["amount"] for b in brl["banks"]}
+    assert sum(float(v) for v in banks.values()) == 1460
+
+
+OTHER_BANK_SPENDING = (
+    "Data,Valor,Identificador,Descrição\n07/10/2026,-60.00,o-1,Compra no débito - PADARIA\n"
+)
+
+
 ANALYSIS = (
     "Data,Valor,Identificador,Descrição\n"
     "01/10/2026,5000.00,a-1,Transferência recebida - ACME\n"

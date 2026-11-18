@@ -8,22 +8,31 @@ import type { CurrencyDashboard } from '@/lib/types';
 
 import { dash as styles } from './styles';
 
-type By = 'categoria' | 'conta';
+type By = 'categoria' | 'pessoa' | 'banco' | 'conta';
 
-export function Breakdown({ dash }: { dash: CurrencyDashboard }) {
+const OPTIONS: {
+  by: By;
+  label: string;
+  rows: (d: CurrencyDashboard) => CurrencyDashboard['categories'];
+}[] = [
+  { by: 'categoria', label: 'Categoria', rows: (d) => d.categories },
+  { by: 'pessoa', label: 'Pessoa', rows: (d) => d.people },
+  { by: 'banco', label: 'Banco', rows: (d) => d.banks },
+  { by: 'conta', label: 'Conta', rows: (d) => d.accounts },
+];
+
+export function Breakdown({ dash, half = true }: { dash: CurrencyDashboard; half?: boolean }) {
   const [by, setBy] = useState<By>('categoria');
-  const rows = shareBars(topShares(by === 'categoria' ? dash.categories : dash.accounts));
+  const chosen = OPTIONS.find((o) => o.by === by) ?? OPTIONS[0];
+  const rows = shareBars(topShares(chosen.rows(dash)));
   return (
-    <View style={[styles.card, styles.half]}>
-      <View style={styles.cardHead}>
+    <View style={[styles.card, half && styles.half]}>
+      <View style={[styles.cardHead, styles.wrap]}>
         <Text style={styles.cardTitle}>DIVISÃO DOS GASTOS</Text>
         <View style={styles.chips} accessibilityRole="radiogroup">
-          <Chip
-            label="Categoria"
-            selected={by === 'categoria'}
-            onPress={() => setBy('categoria')}
-          />
-          <Chip label="Conta" selected={by === 'conta'} onPress={() => setBy('conta')} />
+          {OPTIONS.map((o) => (
+            <Chip key={o.by} label={o.label} selected={by === o.by} onPress={() => setBy(o.by)} />
+          ))}
         </View>
       </View>
       {rows.length === 0 ? <Text style={styles.muted}>Nenhum gasto neste mês.</Text> : null}

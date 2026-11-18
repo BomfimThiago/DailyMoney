@@ -1099,6 +1099,31 @@ export interface components {
       categories: components['schemas']['SpendingShare'][];
       /** Accounts */
       accounts: components['schemas']['SpendingShare'][];
+      /**
+       * People
+       * @default []
+       */
+      people: components['schemas']['SpendingShare'][];
+      /**
+       * Banks
+       * @default []
+       */
+      banks: components['schemas']['SpendingShare'][];
+      /**
+       * Income Categories
+       * @default []
+       */
+      income_categories: components['schemas']['SpendingShare'][];
+      /**
+       * Previous Income
+       * @default 0
+       */
+      previous_income: string;
+      /**
+       * Previous Spending
+       * @default 0
+       */
+      previous_spending: string;
     };
     /** CurrencySummary */
     CurrencySummary: {

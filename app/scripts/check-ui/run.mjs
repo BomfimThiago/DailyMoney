@@ -349,6 +349,13 @@ async function checkScreens(page, tag) {
     await page.getByText(tag === 'celular' ? 'Últimos movimentos' : 'RITMO DO MÊS').waitFor();
     await page.waitForLoadState('networkidle');
     await shot('inicio');
+    // Further down Início: the spending split by person and the month's flow.
+    await page.getByRole('radio', { name: 'Pessoa' }).filter({ visible: true }).first().click();
+    const flow = page.getByText('FLUXO DO MÊS').filter({ visible: true }).first();
+    await flow.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await shot('inicio-fluxo');
+    await page.getByRole('radio', { name: 'Categoria' }).filter({ visible: true }).first().click();
 
     // Tabs stay mounted, so the same text can exist on a hidden tab: wait for the visible one.
     const seen = (text) => page.getByText(text).filter({ visible: true }).first();
