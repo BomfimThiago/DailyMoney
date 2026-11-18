@@ -164,7 +164,115 @@ const family = {
   ],
 };
 
+// The bank's own portfolio (Pluggy). Synthetic: no real balances.
+const year = Number(month.slice(0, 4));
+const position = (o) => ({
+  issuer: null,
+  code: null,
+  currency: 'BRL',
+  gain: null,
+  rate_label: null,
+  due_date: null,
+  value_date: day(16),
+  ...o,
+  balance: o.value,
+});
+const portfolio = {
+  currency: 'BRL',
+  total: '48230.5500',
+  count: 6,
+  value_date: day(16),
+  closed: 1,
+  has_source: true,
+  tracked: { invested: '36000.00', value: '39830.5500', gain: '3830.5500', gain_pct: '10.6' },
+  classes: [
+    {
+      key: 'fixed',
+      label: 'Renda fixa',
+      total: '27110.3000',
+      share: '0.5621',
+      positions: [
+        position({
+          id: 'p1',
+          bank: 'Inter',
+          name: 'CDB Inter Liquidez Diária',
+          value: '12480.1200',
+          gain: '980.1200',
+          rate_label: '100% do CDI',
+        }),
+        position({
+          id: 'p2',
+          bank: 'Nubank',
+          name: 'RDB Nubank',
+          value: '9630.1800',
+          gain: '630.1800',
+          rate_label: '105% do CDI',
+          due_date: `${year + 1}-03-15`,
+        }),
+        position({
+          id: 'p3',
+          bank: 'Inter',
+          name: 'LCI Banco Inter',
+          value: '5000.0000',
+          gain: '320.0000',
+          rate_label: '92% do CDI',
+          due_date: `${year + 2}-08-01`,
+        }),
+      ],
+    },
+    {
+      key: 'treasury',
+      label: 'Tesouro Direto',
+      total: '12720.2500',
+      share: '0.2637',
+      positions: [
+        position({
+          id: 'p4',
+          bank: 'Inter',
+          name: 'Tesouro IPCA+ 2035',
+          value: '12720.2500',
+          gain: '1900.2500',
+          rate_label: 'IPCA + 6,4% a.a.',
+          due_date: `${year + 9}-05-15`,
+        }),
+      ],
+    },
+    {
+      key: 'etf',
+      label: 'ETFs',
+      total: '8400.0000',
+      share: '0.1742',
+      positions: [
+        position({ id: 'p5', bank: 'Inter', name: 'BOVA11', code: 'BOVA11', value: '5100.0000' }),
+        position({ id: 'p6', bank: 'Inter', name: 'IVVB11', code: 'IVVB11', value: '3300.0000' }),
+      ],
+    },
+  ],
+  banks: [
+    { bank: 'Inter', total: '38600.3700' },
+    { bank: 'Nubank', total: '9630.1800' },
+  ],
+  maturing: { months: 12, count: 1, total: '9630.1800' },
+  ladder: {
+    steps: [0, 1, 2, 3, 4, 5, 6, 7].map((o) => ({
+      label: o === 7 ? `${year + o}+` : String(year + o),
+      year: year + o,
+      total: { 1: '9630.1800', 2: '5000.0000', 7: '12720.2500' }[o] ?? '0',
+      count: o === 1 || o === 2 || o === 7 ? 1 : 0,
+    })),
+    dated_total: '27350.4300',
+    dated_count: 3,
+    undated_total: '20880.1200',
+    undated_count: 3,
+  },
+  history: Array.from({ length: 12 }, (_, i) => ({
+    date: `${ym(i - 11)}-16`,
+    total: i === 11 ? '48230.5500' : String(39000 + i * 790 + (i % 3) * 260),
+  })),
+};
+
 export const fixtures = {
+  '/portfolio': portfolio,
   '/auth/me': {
     id: 'user-1',
     email: 'pessoa@example.com',

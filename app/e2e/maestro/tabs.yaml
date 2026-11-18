@@ -22,6 +22,10 @@ appId: com.bomfimthiago.dailymoney
       id: segment-produtos
     timeout: 15000
 - waitForAnimationToEnd
+- takeScreenshot: 02-investimentos-carteira
+- tapOn:
+    id: segment-produtos
+- waitForAnimationToEnd
 - takeScreenshot: 02-investimentos-produtos
 - tapOn:
     id: segment-movimentos

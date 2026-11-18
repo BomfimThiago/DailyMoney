@@ -34,8 +34,8 @@ export function ReadFromStatements() {
   return (
     <View style={styles.note}>
       <Text style={styles.noteText}>
-        Por enquanto mostramos quanto você colocou e tirou, lido dos extratos. Saldo atual e
-        rendimento aparecem quando o banco estiver conectado.
+        Aqui é quanto você colocou e tirou, lido dos extratos. O saldo de hoje e quanto rendeu vêm
+        do banco conectado, na carteira.
       </Text>
     </View>
   );

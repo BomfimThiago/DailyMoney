@@ -12,9 +12,13 @@ import {
   getConnections,
   getDashboard,
   getInvestments,
+  getLatestMonth,
+  getLineCurrencies,
+  getPortfolio,
   getReviewQueue,
   getSummary,
   getMovements,
+  getTotals,
   getTransfers,
   listBankRequests,
   listAccounts,
@@ -26,6 +30,7 @@ import {
 } from './imports';
 import { useDisplayCurrency } from './displayCurrency';
 import { getFamily } from './people';
+import type { ListView } from './transactions';
 
 // Server data for the money screens. Every key starts with "money" so one invalidation
 // after an import or a reclassified transaction refreshes all tabs, which stay mounted.
@@ -79,26 +84,46 @@ export function useRecent(month: string, enabled: boolean) {
   });
 }
 
-// Spending and income (investments included, as Investimento), 50 at a time; on a computer also searched and filtered.
-export function useRegular(month: string, enabled: boolean, filters: TxFilters = {}) {
+// Spending and income (investments included, as Investimento), 50 at a time, searched and
+// filtered; which kinds and the order come with the view (lib/transactions.ts).
+export function useRegular(view: ListView, enabled: boolean, filters: TxFilters = {}) {
   const { currency } = useDisplayCurrency();
   return useInfiniteQuery({
-    queryKey: ['money', 'regular', month, filters, currency],
+    queryKey: ['money', 'regular', view, filters, currency],
     queryFn: ({ pageParam }) =>
-      listTransactions({
-        month,
-        kinds: ['regular', 'investment'],
-        limit: PAGE,
-        offset: pageParam,
-        currency,
-        ...filters,
-      }),
+      listTransactions({ ...view, limit: PAGE, offset: pageParam, currency, ...filters }),
     initialPageParam: 0,
     getNextPageParam: (last, pages) => {
       const loaded = pages.reduce((n, p) => n + p.items.length, 0);
       return loaded < last.total ? loaded : undefined;
     },
     enabled,
+  });
+}
+
+// Entradas, saídas, groups and days of every line the list shows with the same filters.
+// The order doesn't change a total, so it stays out of the key.
+export function useTotals(view: ListView, enabled: boolean, filters: TxFilters = {}) {
+  const { currency } = useDisplayCurrency();
+  const { month, kinds } = view;
+  return useQuery({
+    queryKey: ['money', 'totals', month, kinds, filters, currency],
+    queryFn: () => getTotals({ month, kinds, currency, ...filters }),
+    enabled,
+    // Changing a filter keeps the old figures until the new ones arrive, without a blink.
+    placeholderData: (previous) => previous,
+  });
+}
+
+export function useLatestMonth(enabled: boolean) {
+  return useQuery({ queryKey: ['money', 'latest-month'], queryFn: getLatestMonth, enabled });
+}
+
+// One line in the three currencies; under "money" so editing its amount refreshes it.
+export function useLineCurrencies(id: string) {
+  return useQuery({
+    queryKey: ['money', 'line-currencies', id],
+    queryFn: () => getLineCurrencies(id),
   });
 }
 
@@ -118,6 +143,14 @@ export function useMovements(month: string, enabled: boolean) {
     queryKey: ['money', 'movements', month, currency],
     queryFn: () => getMovements(month, currency),
     enabled,
+  });
+}
+
+export function usePortfolio() {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'portfolio', currency],
+    queryFn: () => getPortfolio(currency),
   });
 }
 

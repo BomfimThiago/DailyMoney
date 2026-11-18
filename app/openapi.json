@@ -1399,6 +1399,56 @@
         ],
         "parameters": [
           {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["date", "description", "-description", "amount", "-amount"],
+              "type": "string",
+              "default": "date",
+              "title": "Sort"
+            }
+          },
+          {
             "name": "account_id",
             "in": "query",
             "required": false,
@@ -1430,6 +1480,40 @@
                 }
               ],
               "title": "Month"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
             }
           },
           {
@@ -1469,6 +1553,23 @@
             }
           },
           {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -1486,30 +1587,24 @@
             }
           },
           {
-            "name": "limit",
+            "name": "direction",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
+              "anyOf": [
+                {
+                  "enum": ["in", "out"],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
             }
           },
           {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "currency",
+            "name": "account_currency",
             "in": "query",
             "required": false,
             "schema": {
@@ -1521,7 +1616,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Currency"
+              "title": "Account Currency"
             }
           }
         ],
@@ -1592,6 +1687,253 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/transactions/totals": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Totals",
+        "operationId": "totals_api_v1_transactions_totals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          },
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TxKind"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": ["in", "out"],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "name": "account_currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionTotals"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/latest-month": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Latest Month",
+        "operationId": "latest_month_api_v1_transactions_latest_month_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestMonth"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/transactions/summary": {
@@ -2090,6 +2432,52 @@
         }
       }
     },
+    "/api/v1/transactions/{tx_id}/currencies": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "In Every Currency",
+        "operationId": "in_every_currency_api_v1_transactions__tx_id__currencies_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tx_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tx Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineCurrencies"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions/{tx_id}": {
       "patch": {
         "tags": ["transactions"],
@@ -2222,6 +2610,59 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransactionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portfolio": {
+      "get": {
+        "tags": ["portfolio"],
+        "summary": "Portfolio",
+        "description": "The investments of the connected banks, in one currency (the family's by default).",
+        "operationId": "portfolio_api_v1_portfolio_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioOut"
                 }
               }
             }
@@ -2473,6 +2914,21 @@
         "required": ["id", "bank_name", "note", "created_at"],
         "title": "BankRequestOut"
       },
+      "BankTotal": {
+        "properties": {
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["bank", "total"],
+        "title": "BankTotal"
+      },
       "Body_upload_api_v1_imports_post": {
         "properties": {
           "file": {
@@ -2669,6 +3125,36 @@
         "type": "object",
         "title": "CategoryUpdate"
       },
+      "ClassOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "share": {
+            "type": "string",
+            "title": "Share"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionOut"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": ["key", "label", "total", "share", "positions"],
+        "title": "ClassOut"
+      },
       "ConfirmRequest": {
         "properties": {
           "accounts": {
@@ -2847,6 +3333,24 @@
         "enum": ["BRL", "USD", "EUR"],
         "title": "Currency"
       },
+      "CurrencyAmount": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "amount", "rate"],
+        "title": "CurrencyAmount"
+      },
       "CurrencyAnalysis": {
         "properties": {
           "currency": {
@@ -3004,6 +3508,86 @@
         ],
         "title": "CurrencySummary"
       },
+      "CurrencyTotals": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "income": {
+            "type": "string",
+            "title": "Income"
+          },
+          "spending": {
+            "type": "string",
+            "title": "Spending"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Accounts"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DayTotal"
+            },
+            "type": "array",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "income",
+          "spending",
+          "balance",
+          "count",
+          "categories",
+          "members",
+          "accounts",
+          "days"
+        ],
+        "title": "CurrencyTotals"
+      },
+      "DayTotal": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["date", "total"],
+        "title": "DayTotal"
+      },
       "FamilyOut": {
         "properties": {
           "id": {
@@ -3150,6 +3734,41 @@
         "type": "object",
         "title": "GroupCounts"
       },
+      "GroupTotal": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "income": {
+            "type": "string",
+            "title": "Income"
+          },
+          "spending": {
+            "type": "string",
+            "title": "Spending"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "income", "spending", "count"],
+        "title": "GroupTotal"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -3196,6 +3815,22 @@
         "type": "object",
         "required": ["name", "category", "count", "previous_count", "total"],
         "title": "Habit"
+      },
+      "HistoryPoint": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["date", "total"],
+        "title": "HistoryPoint"
       },
       "ImportPreview": {
         "properties": {
@@ -3576,6 +4211,107 @@
         "required": ["kind"],
         "title": "KindUpdate"
       },
+      "LadderOut": {
+        "properties": {
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/LadderStepOut"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "dated_total": {
+            "type": "string",
+            "title": "Dated Total"
+          },
+          "dated_count": {
+            "type": "integer",
+            "title": "Dated Count"
+          },
+          "undated_total": {
+            "type": "string",
+            "title": "Undated Total"
+          },
+          "undated_count": {
+            "type": "integer",
+            "title": "Undated Count"
+          }
+        },
+        "type": "object",
+        "required": ["steps", "dated_total", "dated_count", "undated_total", "undated_count"],
+        "title": "LadderOut"
+      },
+      "LadderStepOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["label", "year", "total", "count"],
+        "title": "LadderStepOut"
+      },
+      "LatestMonth": {
+        "properties": {
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          }
+        },
+        "type": "object",
+        "required": ["month"],
+        "title": "LatestMonth"
+      },
+      "LineCurrencies": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "rate_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Date"
+          },
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyAmount"
+            },
+            "type": "array",
+            "title": "Amounts"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "rate_date", "amounts"],
+        "title": "LineCurrencies",
+        "description": "A line in BRL, EUR and USD, converted with the ECB rate of its day."
+      },
       "MagicLinkRequest": {
         "properties": {
           "email": {
@@ -3600,6 +4336,25 @@
         "type": "object",
         "required": ["token"],
         "title": "MagicLinkVerify"
+      },
+      "MaturingOut": {
+        "properties": {
+          "months": {
+            "type": "integer",
+            "title": "Months"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["months", "count", "total"],
+        "title": "MaturingOut"
       },
       "MeOut": {
         "properties": {
@@ -3937,6 +4692,207 @@
         "type": "object",
         "required": ["date", "amount", "merchants"],
         "title": "PeakDay"
+      },
+      "PortfolioOut": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Date"
+          },
+          "closed": {
+            "type": "integer",
+            "title": "Closed"
+          },
+          "has_source": {
+            "type": "boolean",
+            "title": "Has Source"
+          },
+          "tracked": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TrackedOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "classes": {
+            "items": {
+              "$ref": "#/components/schemas/ClassOut"
+            },
+            "type": "array",
+            "title": "Classes"
+          },
+          "banks": {
+            "items": {
+              "$ref": "#/components/schemas/BankTotal"
+            },
+            "type": "array",
+            "title": "Banks"
+          },
+          "maturing": {
+            "$ref": "#/components/schemas/MaturingOut"
+          },
+          "ladder": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LadderOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryPoint"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "total",
+          "count",
+          "value_date",
+          "closed",
+          "has_source",
+          "tracked",
+          "classes",
+          "banks",
+          "maturing",
+          "ladder",
+          "history"
+        ],
+        "title": "PortfolioOut",
+        "description": "The investments of the connected banks, as the bank reported them on the last read."
+      },
+      "PositionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuer"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "gain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain"
+          },
+          "rate_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Label"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "value_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Value Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "bank",
+          "name",
+          "issuer",
+          "code",
+          "currency",
+          "balance",
+          "value",
+          "gain",
+          "rate_label",
+          "due_date",
+          "value_date"
+        ],
+        "title": "PositionOut"
       },
       "PreviewGroup": {
         "properties": {
@@ -4368,6 +5324,37 @@
         "required": ["access_token", "refresh_token"],
         "title": "TokenPair"
       },
+      "TrackedOut": {
+        "properties": {
+          "invested": {
+            "type": "string",
+            "title": "Invested"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "gain": {
+            "type": "string",
+            "title": "Gain"
+          },
+          "gain_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gain Pct"
+          }
+        },
+        "type": "object",
+        "required": ["invested", "value", "gain", "gain_pct"],
+        "title": "TrackedOut",
+        "description": "Only the positions whose amount put in is known."
+      },
       "TransactionOut": {
         "properties": {
           "id": {
@@ -4497,6 +5484,25 @@
         "type": "object",
         "required": ["total", "items"],
         "title": "TransactionPage"
+      },
+      "TransactionTotals": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotals"
+            },
+            "type": "array",
+            "title": "Currencies"
+          }
+        },
+        "type": "object",
+        "required": ["count", "currencies"],
+        "title": "TransactionTotals",
+        "description": "What the list shows with the same filters, added up (every page, not just one)."
       },
       "TransactionUpdate": {
         "properties": {

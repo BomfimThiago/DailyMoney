@@ -18,6 +18,9 @@ import type {
   ImportSummary,
   ImportUndone,
   InvestmentOverview,
+  LatestMonth,
+  LineCurrencies,
+  Portfolio,
   MonthDashboard,
   MonthSummary,
   MovementsOverview,
@@ -27,6 +30,7 @@ import type {
   ReviewResult,
   Transaction,
   TransactionPage,
+  TransactionTotals,
   TransferOverview,
   TxKind,
 } from './types';
@@ -118,29 +122,65 @@ export interface TxFilters {
   q?: string;
   categoryId?: string | null;
   accountId?: string | null;
+  // A member's id, or "casa" for the lines of the whole household.
+  memberId?: string | null;
+  // Gastos ("out") or entradas ("in").
+  direction?: 'in' | 'out' | null;
+  // Lines of accounts in this currency.
+  accountCurrency?: Currency | null;
+  // A free period instead of a month: from/to days, "YYYY-MM-DD", both inclusive.
+  dateFrom?: string | null;
+  dateTo?: string | null;
 }
 
-export function listTransactions(
-  opts: {
-    limit?: number;
-    offset?: number;
-    month?: string;
-    kinds?: TxKind[];
-    currency?: Currency;
-  } & TxFilters = {},
-) {
-  const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
+// "date" is by day, newest first; the others sort the whole list by that column.
+export type TxSort = 'date' | 'description' | '-description' | 'amount' | '-amount';
+
+type ListQuery = {
+  month?: string | null;
+  kinds?: TxKind[];
+  currency?: Currency;
+  sort?: TxSort;
+} & TxFilters;
+
+// The filters of the list as query parameters; the totals take exactly the same ones.
+function listParams(opts: ListQuery, q = new URLSearchParams()): URLSearchParams {
   const optional = {
-    offset: opts.offset ? String(opts.offset) : undefined,
     month: opts.month,
     q: opts.q?.trim(),
     category_id: opts.categoryId,
     account_id: opts.accountId,
+    member: opts.memberId,
+    direction: opts.direction,
+    account_currency: opts.accountCurrency,
+    date_from: opts.dateFrom,
+    date_to: opts.dateTo,
     currency: opts.currency,
+    sort: opts.sort === 'date' ? null : opts.sort,
   };
   for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
   for (const k of opts.kinds ?? []) q.append('kind', k);
-  return api<TransactionPage>(`/transactions?${q.toString()}`);
+  return q;
+}
+
+export function listTransactions(opts: { limit?: number; offset?: number } & ListQuery = {}) {
+  const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
+  if (opts.offset) q.set('offset', String(opts.offset));
+  return api<TransactionPage>(`/transactions?${listParams(opts, q).toString()}`);
+}
+
+// Entradas and saídas of everything the list shows with these filters, and by group.
+export function getTotals(opts: ListQuery) {
+  return api<TransactionTotals>(`/transactions/totals?${listParams(opts).toString()}`);
+}
+
+// The newest month with spending or income, for opening Transações where the data is.
+export function getLatestMonth() {
+  return api<LatestMonth>('/transactions/latest-month');
+}
+
+export function getLineCurrencies(id: string) {
+  return api<LineCurrencies>(`/transactions/${id}/currencies`);
 }
 
 // With a currency, every amount comes converted into it (ECB rate of each line's day).
@@ -150,6 +190,10 @@ export function getSummary(month: string, currency: Currency) {
 
 export function getInvestments(month: string, currency: Currency) {
   return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
+}
+
+export function getPortfolio(currency: Currency) {
+  return api<Portfolio>(`/portfolio?currency=${currency}`);
 }
 
 export function getTransfers(month: string) {
