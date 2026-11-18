@@ -230,6 +230,22 @@ describe('HomeScreen on a computer', () => {
     expect(screen.getByText(money('€ 1.200,00'))).toBeTruthy();
   });
 
+  it('opens Transações with exactly the lines of a breakdown row', async () => {
+    wide();
+    await render(withCurrency(<HomeScreen />));
+    await fireEvent.press(screen.getByLabelText('Ver transações: Mercado'));
+    const [[link]] = jest.mocked(router.navigate).mock.calls as unknown as [
+      [{ pathname: string; params: Record<string, string> }],
+    ];
+    expect(link.pathname).toBe('/transacoes');
+    expect(link.params).toMatchObject({
+      filtro: 'categoria',
+      ids: JSON.stringify(['cat-mercado']),
+      excluir: '0',
+    });
+    expect(link.params.mes).toMatch(/^\d{4}-\d{2}$/);
+  });
+
   it('points to the imported lines waiting for review', async () => {
     wide();
     summary({ data: monthSummary({ to_review: 5 }) });

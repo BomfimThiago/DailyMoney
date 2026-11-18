@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react-n
 import { useLocalSearchParams } from 'expo-router';
 
 import TransactionsScreen from '@/app/(tabs)/transacoes';
+import { drillParams } from '@/lib/drill';
 import { useAuth } from '@/lib/auth';
 import { decideReview } from '@/lib/imports';
 import {
@@ -176,14 +177,14 @@ beforeEach(() => {
 
 const NO_FILTERS = {
   q: '',
-  categoryId: null,
-  accountId: null,
-  memberId: null,
+  picks: {},
   direction: null,
   accountCurrency: null,
   dateFrom: null,
   dateTo: null,
 };
+
+const only = (...ids: string[]) => ({ ids, exclude: false });
 
 const lastView = () => {
   const calls = mockRegular.mock.calls;
@@ -319,16 +320,17 @@ describe('TransactionsScreen on a computer', () => {
 
     await fireEvent.press(screen.getByText('Categoria ▾'));
     expect(screen.queryByText('Transferência')).toBeNull();
-    await fireEvent.press(screen.getByRole('menuitem', { name: 'Transporte' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transporte' }));
     expect(screen.getByText('Categoria: Transporte ▾')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Categoria: Transporte ▾'));
     await fireEvent.press(screen.getByText('Conta ▾'));
-    await fireEvent.press(screen.getByRole('menuitem', { name: 'Nubank' }));
-    expect(lastFilters()).toEqual({ ...NO_FILTERS, q: 'uber', categoryId: 'c1', accountId: 'a1' });
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Nubank' }));
+    const both = { category: only('c1'), account: only('a1') };
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, q: 'uber', picks: both });
     expect(lastTotals()[2]).toEqual(lastFilters());
 
-    await fireEvent.press(screen.getByText('Conta: Nubank ▾'));
     await fireEvent.press(screen.getByText('Todas'));
-    expect(lastFilters()).toEqual({ ...NO_FILTERS, q: 'uber', categoryId: 'c1' });
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, q: 'uber', picks: { category: only('c1') } });
   });
 
   it('says when filters find nothing', async () => {
@@ -336,7 +338,7 @@ describe('TransactionsScreen on a computer', () => {
     regular({ data: { pages: [{ total: 0, items: [] }], pageParams: [0] } } as Partial<Regular>);
     await render(<TransactionsScreen />);
     await fireEvent.press(screen.getByText('Conta ▾'));
-    await fireEvent.press(screen.getByRole('menuitem', { name: 'Nubank' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Nubank' }));
     expect(screen.getByText('Nada encontrado com esses filtros.')).toBeTruthy();
   });
 
@@ -352,8 +354,9 @@ describe('TransactionsScreen on a computer', () => {
     expect(screen.getByText('Moradia')).toBeTruthy();
 
     await fireEvent.press(screen.getByText('Responsável ▾'));
-    await fireEvent.press(screen.getByRole('menuitem', { name: 'Casa' }));
-    expect(lastTotals()[2]).toEqual({ ...NO_FILTERS, memberId: 'casa' });
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Casa' }));
+    expect(lastTotals()[2]).toEqual({ ...NO_FILTERS, picks: { member: only('casa') } });
+    await fireEvent.press(screen.getByText('Responsável: Casa ▾'));
     expect(screen.getByText('TOTAL DO QUE ESTÁ FILTRADO')).toBeTruthy();
     // Picking a Responsável groups by Responsável; the chips switch it back.
     expect(screen.getByRole('radio', { name: 'Responsável' }).props.accessibilityState).toEqual({
@@ -405,9 +408,9 @@ describe('TransactionsScreen on the phone: study the month', () => {
     await render(<TransactionsScreen />);
     expect(screen.getByTestId('totals')).toBeTruthy();
     await fireEvent.press(screen.getByText('Categoria ▾'));
-    await fireEvent.press(screen.getByRole('menuitem', { name: 'Transporte' }));
-    expect(lastFilters()).toEqual({ ...NO_FILTERS, categoryId: 'c1' });
-    expect(lastTotals()[2]).toEqual({ ...NO_FILTERS, categoryId: 'c1' });
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transporte' }));
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, picks: { category: only('c1') } });
+    expect(lastTotals()[2]).toEqual({ ...NO_FILTERS, picks: { category: only('c1') } });
   });
 });
 
@@ -519,5 +522,77 @@ describe('TransactionsScreen: what the old app had', () => {
     await fireEvent.press(screen.getByRole('menuitem', { name: 'Maiores gastos' }));
     expect(lastView().sort).toBe('amount');
     expect(screen.queryByText('+R$\u00a08.476,10')).toBeNull();
+  });
+});
+
+describe('TransactionsScreen: several values, shown or hidden', () => {
+  it('ticks several categories and hides them instead of showing them', async () => {
+    wide();
+    mockCategories.mockReturnValue({
+      data: [
+        { id: 'c1', name: 'Transporte', kind: 'expense' },
+        { id: 'c3', name: 'Moradia', kind: 'expense' },
+      ],
+    } as ReturnType<typeof useCategories>);
+    mockAccounts.mockReturnValue({
+      data: [
+        { id: 'a1', name: 'Nubank', bank: 'Nubank' },
+        { id: 'a2', name: 'Inter', bank: 'Inter' },
+      ],
+    } as ReturnType<typeof useAccounts>);
+    await render(<TransactionsScreen />);
+    await fireEvent.press(screen.getByText('Categoria ▾'));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Moradia' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transporte' }));
+    expect(screen.getByText('Categoria: Moradia +1 ▾')).toBeTruthy();
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, picks: { category: only('c3', 'c1') } });
+
+    await fireEvent.press(screen.getByRole('radio', { name: 'Esconder' }));
+    expect(screen.getByText('Categoria: exceto Moradia +1 ▾')).toBeTruthy();
+    expect(lastFilters()).toEqual({
+      ...NO_FILTERS,
+      picks: { category: { ids: ['c3', 'c1'], exclude: true } },
+    });
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Moradia' }));
+    expect(screen.getByText('Categoria: exceto Transporte ▾')).toBeTruthy();
+
+    // With accounts in two banks, Banco is a filter too.
+    await fireEvent.press(screen.getByText('Banco ▾'));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Inter' }));
+    expect(lastFilters()?.picks?.bank).toEqual(only('Inter'));
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
+    expect(lastFilters()).toEqual(NO_FILTERS);
+  });
+
+  it('opens "Demais" from Início: the month\'s spending except the top rows', async () => {
+    wide();
+    mockParams.mockReturnValue({ ...drillParams('2026-08', 'categoria', ['c1'], true, '1') });
+    await render(<TransactionsScreen />);
+    expect(lastView().month).toBe('2026-08');
+    expect(lastFilters()).toEqual({
+      ...NO_FILTERS,
+      direction: 'out',
+      picks: { category: { ids: ['c1'], exclude: true } },
+    });
+    expect(screen.getByText('Categoria: exceto Transporte ▾')).toBeTruthy();
+    expect(screen.getByText('Tipo: Gastos ▾')).toBeTruthy();
+  });
+
+  it('opens a person from Início grouped by Responsável, once per tap', async () => {
+    wide();
+    mockParams.mockReturnValue({ ...drillParams('2026-08', 'pessoa', ['m1'], false, '1') });
+    const view = await render(<TransactionsScreen />);
+    expect(lastFilters()?.picks).toEqual({ member: only('m1') });
+    expect(screen.getByRole('radio', { name: 'Responsável' }).props.accessibilityState).toEqual({
+      selected: true,
+    });
+    // The person clears the filters; the same link does not come back by itself.
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
+    await view.rerender(<TransactionsScreen />);
+    expect(lastFilters()).toEqual(NO_FILTERS);
+    // A new tap on Início (new "n") opens it again.
+    mockParams.mockReturnValue({ ...drillParams('2026-08', 'pessoa', ['m1'], false, '2') });
+    await view.rerender(<TransactionsScreen />);
+    expect(lastFilters()?.picks).toEqual({ member: only('m1') });
   });
 });

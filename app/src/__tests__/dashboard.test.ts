@@ -67,12 +67,16 @@ describe('dashboard math', () => {
     expect(niceMax(0)).toEqual({ max: 100, step: 50 });
   });
 
-  it('keeps the biggest shares and sums the rest', () => {
-    const items = ['a', 'b', 'c', 'd'].map((name, i) => ({ name, amount: String(40 - i * 10) }));
+  it('keeps the biggest shares and sums the rest, which opens as "all but the top"', () => {
+    const items = ['a', 'b', 'c', 'd'].map((name, i) => ({
+      key: `k-${name}`,
+      name,
+      amount: String(40 - i * 10),
+    }));
     expect(topShares(items, 3)).toEqual([
-      { name: 'a', amount: 40 },
-      { name: 'b', amount: 30 },
-      { name: 'Demais', amount: 30 },
+      { name: 'a', amount: 40, ids: ['k-a'], exclude: false },
+      { name: 'b', amount: 30, ids: ['k-b'], exclude: false },
+      { name: 'Demais', amount: 30, ids: ['k-a', 'k-b'], exclude: true },
     ]);
     expect(topShares(items)).toHaveLength(4);
   });

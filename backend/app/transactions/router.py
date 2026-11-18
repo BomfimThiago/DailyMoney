@@ -44,13 +44,6 @@ Month = Annotated[str, Query(pattern=r"^\d{4}-\d{2}$", examples=["2026-10"])]
 # Show every amount in this currency (each line converted with its day's ECB rate).
 # Without it, amounts stay in each account's own currency.
 ShowIn = Annotated[Currency | None, Query()]
-# A Responsável: a member's id, or "casa" for the lines of the whole household.
-MemberFilter = Annotated[
-    str | None,
-    Query(
-        pattern=r"^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
-    ),
-]
 
 
 class PeriodError(AppError):
@@ -58,24 +51,53 @@ class PeriodError(AppError):
     code = "INVALID_PERIOD"
 
 
+class FilterError(AppError):
+    status_code = 422
+    code = "INVALID_FILTER"
+
+
 Direction = transaction_service.Direction
 Sort = Annotated[transaction_service.Sort, Query()]
+# Each dimension takes several values to show only them, and exclude_* to hide them.
+Values = Annotated[list[str] | None, Query()]
 
 
-def _member(value: str | None) -> uuid.UUID | str | None:
-    if value is None or value == transaction_service.HOUSEHOLD:
-        return value
-    return uuid.UUID(value)
+def _values(raw: list[str] | None, empty: str | None = None) -> tuple[uuid.UUID | str, ...]:
+    """Ids as sent, with the word for "none" (no category, the household) kept as is."""
+    out: list[uuid.UUID | str] = []
+    for value in raw or []:
+        if empty is not None and value == empty:
+            out.append(value)
+            continue
+        try:
+            out.append(uuid.UUID(value))
+        except ValueError:
+            raise FilterError("Filtro inválido.") from None
+    return tuple(out)
+
+
+def _banks(raw: list[str] | None) -> tuple[str, ...]:
+    if any(not b or len(b) > 100 for b in raw or []):
+        raise FilterError("Filtro inválido.")
+    return tuple(raw or [])
 
 
 async def _filters(
-    account_id: uuid.UUID | None = None,
     month: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
     date_from: date | None = None,
     date_to: date | None = None,
     kind: Annotated[list[TxKind] | None, Query()] = None,
-    category_id: uuid.UUID | None = None,
-    member: MemberFilter = None,
+    # A category's id, or "none" for the lines with no category.
+    category_id: Values = None,
+    exclude_category_id: Values = None,
+    # A Responsável: a member's id, or "casa" for the lines of the whole household.
+    member: Values = None,
+    exclude_member: Values = None,
+    account_id: Values = None,
+    exclude_account_id: Values = None,
+    # A bank by its name, as the accounts have it.
+    bank: Values = None,
+    exclude_bank: Values = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     # "out": only money leaving (gastos); "in": only money arriving (entradas).
     direction: Direction | None = None,
@@ -86,14 +108,17 @@ async def _filters(
 ) -> transaction_service.Filters:
     if date_from and date_to and date_from > date_to:
         raise PeriodError("A data inicial é depois da final.")
+    pick = transaction_service.Pick
+    none, casa = transaction_service.NO_CATEGORY_KEY, transaction_service.HOUSEHOLD
     return transaction_service.Filters(
-        account_id=account_id,
         month=month,
         date_from=date_from,
         date_to=date_to,
         kinds=kind,
-        category_id=category_id,
-        member=_member(member),
+        categories=pick(_values(category_id, none), _values(exclude_category_id, none)),
+        members=pick(_values(member, casa), _values(exclude_member, casa)),
+        accounts=pick(_values(account_id), _values(exclude_account_id)),
+        banks=pick(_banks(bank), _banks(exclude_bank)),
         q=q,
         direction=direction,
         account_currency=account_currency,

@@ -34,7 +34,8 @@ from app.transactions.schemas import (
     TransferOverview,
 )
 from app.transactions.services.months import month_of, month_range, shift
-from app.transactions.services.transaction_service import to_out
+from app.transactions.services.transaction_service import HOUSEHOLD as HOUSEHOLD_KEY
+from app.transactions.services.transaction_service import NO_CATEGORY, NO_CATEGORY_KEY, to_out
 
 ZERO = Decimal("0")
 HISTORY_MONTHS = 6
@@ -111,18 +112,29 @@ async def _count(db: AsyncSession, family_id: uuid.UUID, *where: object) -> int:
 OTHER_CATEGORY = "Outros"
 HOUSEHOLD = "Casa"
 
-_Sums = dict[Currency, dict[str, Decimal]]
+# A group of spending: the value Transações filters it by, and the name shown.
+_Group = tuple[str, str]
+_Shares = dict[Currency, dict[_Group, Decimal]]
 
 
-def _sums() -> _Sums:
+def _groups() -> _Shares:
     return defaultdict(lambda: defaultdict(lambda: ZERO))
 
 
-def _shares(sums: dict[str, Decimal]) -> list[SpendingShare]:
+def _shares(sums: dict[_Group, Decimal]) -> list[SpendingShare]:
     return [
-        SpendingShare(name=name, amount=amount)
-        for name, amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0]))
+        SpendingShare(key=key, name=name, amount=amount)
+        for (key, name), amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0][1]))
     ]
+
+
+_CASA: _Group = (HOUSEHOLD_KEY, HOUSEHOLD)
+
+
+def _category(category_id: uuid.UUID | None, name: str | None) -> _Group:
+    if category_id is None or name is None:
+        return (NO_CATEGORY_KEY, NO_CATEGORY)
+    return (str(category_id), name)
 
 
 async def month_dashboard(
@@ -139,14 +151,18 @@ async def month_dashboard(
             Transaction.currency,
             Transaction.date,
             Transaction.amount,
+            Account.id,
             Account.name,
             Account.bank,
+            Transaction.category_id,
             Category.name,
+            Transaction.member_id,
             Member.name,
         )
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .outerjoin(Member, Member.id == func.coalesce(Transaction.member_id, Account.member_id))
+        # The line's own Responsável, the same one Transações filters by (none = Casa).
+        .outerjoin(Member, Member.id == Transaction.member_id)
         .where(
             Transaction.family_id == family_id,
             APPROVED,
@@ -160,8 +176,10 @@ async def month_dashboard(
         lambda: [ZERO] * ((prev_hi - prev_lo).days + 1)
     )
     prev_income: dict[Currency, Decimal] = defaultdict(lambda: ZERO)
-    by_category, by_account, by_person, by_bank, income = (_sums() for _ in range(5))
-    for original, day, raw, account_name, bank, category_name, person in rows:
+    by_category, by_account, by_person, by_bank, income = (_groups() for _ in range(5))
+    for row in rows:
+        (original, day, raw, account_id, account_name, bank) = row[:6]
+        category_id, category, member_id, person = row[6:]
         currency = conv.currency(original)
         amount = conv(raw, original, day)
         if day < lo:
@@ -171,14 +189,14 @@ async def month_dashboard(
                 previous[currency][(day - prev_lo).days] -= amount
             continue
         if amount > 0:
-            income[currency][category_name or OTHER_CATEGORY] += amount
+            income[currency][_category(category_id, category)] += amount
             continue
         spent = -amount
         daily[currency][(day - lo).days] += spent
-        by_category[currency][category_name or OTHER_CATEGORY] += spent
-        by_account[currency][account_name] += spent
-        by_person[currency][person or HOUSEHOLD] += spent
-        by_bank[currency][bank] += spent
+        by_category[currency][_category(category_id, category)] += spent
+        by_account[currency][(str(account_id), account_name)] += spent
+        by_person[currency][(str(member_id), person) if member_id else _CASA] += spent
+        by_bank[currency][(bank, bank)] += spent
 
     return MonthDashboard(
         month=month,

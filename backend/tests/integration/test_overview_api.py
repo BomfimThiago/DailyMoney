@@ -268,10 +268,13 @@ async def test_dashboard_spending_by_day_category_and_account(client: AsyncClien
     assert daily[2] == 250 and daily[4] == 1000 and daily[19] == 150 and sum(daily) == 1400
     assert previous[27] == 80 and sum(previous) == 80
     assert sum(float(c["amount"]) for c in brl["categories"]) == 1400
-    assert brl["categories"][0] == {"name": "Investimento", "amount": "1000.0000"}
+    top = brl["categories"][0]
+    assert (top["name"], top["amount"]) == ("Investimento", "1000.0000")
     amounts = [float(c["amount"]) for c in brl["categories"]]
     assert amounts == sorted(amounts, reverse=True)
-    assert brl["accounts"] == [{"name": "Nubank", "amount": "1400.0000"}]
+    [nubank] = brl["accounts"]
+    accounts = (await client.get("/api/v1/accounts", headers=h)).json()
+    assert nubank == {"key": accounts[0]["id"], "name": "Nubank", "amount": "1400.0000"}
 
     empty = await _get(client, h, "/api/v1/transactions/dashboard?month=2026-12")
     assert sum(float(v) for v in empty["currencies"][0]["daily"]) == 0
@@ -286,7 +289,9 @@ async def test_dashboard_compares_with_the_month_before(client: AsyncClient) -> 
     ]
     assert (october["previous_income"], october["previous_spending"]) == ("0", "80.0000")
     # Where the month's money came from, for the flow chart.
-    assert october["income_categories"] == [{"name": "Renda", "amount": "5000.0000"}]
+    assert [(c["name"], c["amount"]) for c in october["income_categories"]] == [
+        ("Renda", "5000.0000")
+    ]
 
     [november] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-11"))[
         "currencies"
@@ -308,11 +313,13 @@ async def test_dashboard_spending_by_person_and_by_bank(client: AsyncClient) -> 
     await client.patch(f"/api/v1/accounts/{inter['id']}", json={"member_id": None}, headers=h)
 
     [brl] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10"))["currencies"]
+    me = (await _get(client, h, "/api/v1/family"))["members"][0]
     assert brl["people"] == [
-        {"name": "Thiago", "amount": "1400.0000"},
-        {"name": "Ana", "amount": "60.0000"},
+        {"key": me["id"], "name": "Thiago", "amount": "1400.0000"},
+        {"key": ana["id"], "name": "Ana", "amount": "60.0000"},
     ]
     banks = {b["name"]: b["amount"] for b in brl["banks"]}
+    assert all(b["key"] == b["name"] for b in brl["banks"])
     assert sum(float(v) for v in banks.values()) == 1460
 
 

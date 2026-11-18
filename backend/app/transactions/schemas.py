@@ -174,6 +174,9 @@ class MonthSummary(BaseModel):
 
 
 class SpendingShare(BaseModel):
+    # What Transações filters this group by: a category, member or account id, a bank's
+    # name, "none" (no category) or "casa" (the household).
+    key: str
     name: str
     amount: Decimal
 
@@ -184,7 +187,7 @@ class CurrencyDashboard(BaseModel):
     daily: list[Decimal]
     # The same for the month before, to compare the pace day by day.
     previous_daily: list[Decimal]
-    # Biggest first. Lines with no category count as "Outros".
+    # Biggest first. Lines with no category count as "Sem categoria".
     categories: list[SpendingShare]
     accounts: list[SpendingShare]
     # By whoever the line belongs to ("Casa" when nobody), and by the account's bank.

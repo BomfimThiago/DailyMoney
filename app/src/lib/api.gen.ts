@@ -1904,6 +1904,8 @@ export interface components {
     };
     /** SpendingShare */
     SpendingShare: {
+      /** Key */
+      key: string;
       /** Name */
       name: string;
       /** Amount */
@@ -3122,13 +3124,18 @@ export interface operations {
         offset?: number;
         currency?: components['schemas']['Currency'] | null;
         sort?: 'date' | 'description' | '-description' | 'amount' | '-amount';
-        account_id?: string | null;
         month?: string | null;
         date_from?: string | null;
         date_to?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
-        category_id?: string | null;
-        member?: string | null;
+        category_id?: string[] | null;
+        exclude_category_id?: string[] | null;
+        member?: string[] | null;
+        exclude_member?: string[] | null;
+        account_id?: string[] | null;
+        exclude_account_id?: string[] | null;
+        bank?: string[] | null;
+        exclude_bank?: string[] | null;
         q?: string | null;
         direction?: ('in' | 'out') | null;
         account_currency?: components['schemas']['Currency'] | null;
@@ -3195,13 +3202,18 @@ export interface operations {
     parameters: {
       query?: {
         currency?: components['schemas']['Currency'] | null;
-        account_id?: string | null;
         month?: string | null;
         date_from?: string | null;
         date_to?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
-        category_id?: string | null;
-        member?: string | null;
+        category_id?: string[] | null;
+        exclude_category_id?: string[] | null;
+        member?: string[] | null;
+        exclude_member?: string[] | null;
+        account_id?: string[] | null;
+        exclude_account_id?: string[] | null;
+        bank?: string[] | null;
+        exclude_bank?: string[] | null;
         q?: string | null;
         direction?: ('in' | 'out') | null;
         account_currency?: components['schemas']['Currency'] | null;

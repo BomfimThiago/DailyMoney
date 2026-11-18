@@ -83,15 +83,30 @@ export function niceMax(value: number): { max: number; step: number } {
   return { max: Math.ceil(value / step) * step, step };
 }
 
+export type ShareRow = {
+  name: string;
+  amount: number;
+  // What the row is in Transações: these values, or ("Demais") everything but them.
+  ids: string[];
+  exclude: boolean;
+};
+
 // Top entries plus the rest summed into one line, so the list stays short.
-export function topShares<T extends { name: string; amount: string }>(
+export function topShares<T extends { key: string; name: string; amount: string }>(
   items: T[],
   keep = 6,
-): { name: string; amount: number }[] {
-  const rows = items.map((i) => ({ name: i.name, amount: Number(i.amount) }));
+): ShareRow[] {
+  const rows = items.map((i) => ({
+    name: i.name,
+    amount: Number(i.amount),
+    ids: [i.key],
+    exclude: false,
+  }));
   if (rows.length <= keep) return rows;
+  const shown = rows.slice(0, keep - 1);
   const rest = rows.slice(keep - 1).reduce((s, r) => s + r.amount, 0);
-  return [...rows.slice(0, keep - 1), { name: 'Demais', amount: rest }];
+  const hidden = shown.flatMap((r) => r.ids);
+  return [...shown, { name: 'Demais', amount: rest, ids: hidden, exclude: true }];
 }
 
 // "Até o dia 12: R$ 1.234,00 em gastos, 13% a menos que outubro no mesmo dia."
@@ -132,7 +147,7 @@ export function gridValues(max: number, step: number): number[] {
 }
 
 // Share of each line in the spending, and its bar width against the biggest one.
-export function shareBars(rows: { name: string; amount: number }[]) {
+export function shareBars<R extends { name: string; amount: number }>(rows: R[]) {
   const total = rows.reduce((s, r) => s + r.amount, 0);
   const top = rows[0]?.amount ?? 0;
   return rows.map((r) => ({

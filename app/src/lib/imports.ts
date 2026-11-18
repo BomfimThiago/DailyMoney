@@ -118,12 +118,24 @@ export function listAccounts() {
   return api<Account[]>('/accounts');
 }
 
+// Several values of one dimension to show, or, with "exclude", to hide.
+export type TxPick = { ids: string[]; exclude: boolean };
+type PickDim = 'category' | 'member' | 'account' | 'bank';
+
+// The query parameter of each dimension; hiding uses it with "exclude_" in front.
+const PICK_PARAMS: Record<PickDim, string> = {
+  category: 'category_id',
+  member: 'member',
+  account: 'account_id',
+  bank: 'bank',
+};
+
 export interface TxFilters {
   q?: string;
-  categoryId?: string | null;
+  // One account (a card's bill); the list's menus use picks instead.
   accountId?: string | null;
-  // A member's id, or "casa" for the lines of the whole household.
-  memberId?: string | null;
+  // Categoria ("none" = no category), Responsável ("casa" = the household), Conta, Banco.
+  picks?: Partial<Record<PickDim, TxPick>>;
   // Gastos ("out") or entradas ("in").
   direction?: 'in' | 'out' | null;
   // Lines of accounts in this currency.
@@ -150,9 +162,7 @@ function listParams(opts: ListQuery, q = new URLSearchParams()): URLSearchParams
   const optional = {
     month: opts.month,
     q: opts.q?.trim(),
-    category_id: opts.categoryId,
     account_id: opts.accountId,
-    member: opts.memberId,
     direction: opts.direction,
     account_currency: opts.accountCurrency,
     date_from: opts.dateFrom,
@@ -163,6 +173,10 @@ function listParams(opts: ListQuery, q = new URLSearchParams()): URLSearchParams
   };
   for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
   for (const k of opts.kinds ?? []) q.append('kind', k);
+  for (const [dim, pick] of Object.entries(opts.picks ?? {}) as [PickDim, TxPick][]) {
+    const key = (pick.exclude ? 'exclude_' : '') + PICK_PARAMS[dim];
+    for (const id of pick.ids) q.append(key, id);
+  }
   return q;
 }
 

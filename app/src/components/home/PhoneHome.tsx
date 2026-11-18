@@ -139,7 +139,7 @@ function Cards({ month, shown }: { month: string; shown: CurrencySummary }) {
   return (
     <View style={styles.cards}>
       <Comparison month={month} shown={shown} dash={dash} />
-      <Breakdown dash={dash} half={false} />
+      <Breakdown month={month} dash={dash} half={false} />
       <Flow dash={dash} width={width} />
     </View>
   );

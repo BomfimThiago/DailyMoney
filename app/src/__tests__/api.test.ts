@@ -179,8 +179,12 @@ describe('listTransactions', () => {
       offset: 100,
       month: '2026-11',
       q: '  padaria ',
-      categoryId: 'c1',
       accountId: 'a1',
+      picks: {
+        category: { ids: ['c1', 'c2'], exclude: false },
+        member: { ids: ['casa'], exclude: true },
+        bank: { ids: ['Nubank'], exclude: false },
+      },
       kinds: ['regular', 'pending'],
     });
     const query = new URL(sent(0).url, 'http://x').searchParams;
@@ -188,7 +192,10 @@ describe('listTransactions', () => {
     expect(query.get('offset')).toBe('100');
     expect(query.get('month')).toBe('2026-11');
     expect(query.get('q')).toBe('padaria');
-    expect(query.get('category_id')).toBe('c1');
+    expect(query.getAll('category_id')).toEqual(['c1', 'c2']);
+    expect(query.getAll('exclude_member')).toEqual(['casa']);
+    expect(query.get('member')).toBeNull();
+    expect(query.getAll('bank')).toEqual(['Nubank']);
     expect(query.get('account_id')).toBe('a1');
     expect(query.getAll('kind')).toEqual(['regular', 'pending']);
   });

@@ -7,42 +7,55 @@ import type { Currency } from '@/lib/types';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
 import { colors } from '@/theme';
 
-import { FilterMenu } from './FilterMenu';
+import { FilterMenu, PickMenu } from './FilterMenu';
 import { styles } from './styles';
 
-// Everything that narrows the list, like the old app: search, Categoria, Responsável,
-// Conta, Tipo and Moeda, the internal transfers switch and "Limpar filtros". On a computer
-// one row under the tabs; on a phone the search takes a line and the menus wrap under it.
+// Everything that narrows the list, like the old app: search; Categoria, Responsável, Conta
+// and Banco (several values each, to show or to hide); Tipo and Moeda; the internal
+// transfers switch and "Limpar filtros". On a computer one row under the tabs; on a phone
+// the search takes a line and the menus wrap under it.
 export function Filters({ page, wide }: { page: TransactionsPage; wide: boolean }) {
   const [focus, setFocus] = useState(false);
   const align = 'left';
   const menus = (
     <>
       {wide ? null : <PeriodMenu page={page} short />}
-      <FilterMenu
+      <PickMenu
         label="Categoria"
-        value={page.categoryId}
+        pick={page.category}
         options={page.categories}
-        onChange={page.setCategoryId}
+        onChange={page.setCategory}
         align={align}
         short={!wide}
       />
-      <FilterMenu
+      <PickMenu
         label="Responsável"
-        value={page.memberId}
+        pick={page.member}
         options={page.members}
-        onChange={page.setMemberId}
+        onChange={page.setMember}
+        allLabel="Todos"
         align={align}
         short={!wide}
       />
-      <FilterMenu
+      <PickMenu
         label="Conta"
-        value={page.accountId}
+        pick={page.account}
         options={page.accounts}
-        onChange={page.setAccountId}
+        onChange={page.setAccount}
         align={wide ? 'left' : 'right'}
         short={!wide}
       />
+      {page.banks.length > 1 ? (
+        <PickMenu
+          label="Banco"
+          pick={page.bank}
+          options={page.banks}
+          onChange={page.setBank}
+          allLabel="Todos"
+          align={align}
+          short={!wide}
+        />
+      ) : null}
       <FilterMenu
         label="Tipo"
         value={page.direction}
