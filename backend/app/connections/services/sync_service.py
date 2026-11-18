@@ -182,7 +182,7 @@ async def _sync_account(
         raise ConflictError(
             f"Conta em {currency or 'moeda desconhecida'}: o app usa BRL, USD e EUR."
         )
-    target = await _target_account(db, conn, user, account, Currency(currency))
+    target = await _target_account(db, conn, account, Currency(currency))
     outcome.name = target.name
     since = await _read_from(db, conn, account, target)
 
@@ -261,33 +261,52 @@ def _same_currency(
 
 
 async def _target_account(
-    db: AsyncSession, conn: BankConnection, user: User, account: StoredAccount, currency: Currency
+    db: AsyncSession, conn: BankConnection, account: StoredAccount, currency: Currency
 ) -> Account:
     if account["account_id"]:
         found = await db.get(Account, uuid.UUID(account["account_id"]))
         if found is not None and found.family_id == conn.family_id:
             return found
-    match: Account | None = await db.scalar(
-        select(Account)
-        .where(
-            Account.family_id == conn.family_id,
-            Account.bank == conn.bank,
-            Account.currency == currency,
-            Account.is_card == account["is_card"],
+    others = [
+        c
+        for c in await db.scalars(
+            select(BankConnection).where(
+                BankConnection.family_id == conn.family_id, BankConnection.id != conn.id
+            )
         )
-        .order_by(Account.created_at)
-        .limit(1)
-    )
+    ]
+    shared = any(c.bank == conn.bank for c in others)
+    taken = {uuid.UUID(a["account_id"]) for c in others for a in stored(c) if a["account_id"]}
+    candidates = [
+        a
+        for a in await db.scalars(
+            select(Account)
+            .where(
+                Account.family_id == conn.family_id,
+                Account.bank == conn.bank,
+                Account.currency == currency,
+                Account.is_card == account["is_card"],
+            )
+            .order_by(Account.created_at)
+        )
+        if a.id not in taken
+    ]
+    # With one connection per bank, an account of that bank is it (statements sent
+    # before land with the bank's lines). With two people's, it must also be theirs.
+    match = next((a for a in candidates if not shared or a.member_id == conn.member_id), None)
     if match is None:
-        member_id = await db.scalar(select(Member.id).where(Member.user_id == user.id))
+        name = _account_name(conn.bank, account, currency)
+        owner = await db.get(Member, conn.member_id) if shared and conn.member_id else None
+        if owner is not None:
+            name = f"{name} {owner.name}"
         match = await account_service.create_account(
             db,
             conn.family_id,
-            name=await _free_name(db, conn.family_id, _account_name(conn.bank, account, currency)),
+            name=await _free_name(db, conn.family_id, name[:80]),
             bank=conn.bank,
             currency=currency,
             is_card=account["is_card"],
-            member_id=member_id,
+            member_id=conn.member_id,
         )
     account["account_id"] = str(match.id)
     return match

@@ -8,7 +8,7 @@ import { Loadable, signedInPage } from '@/components/states';
 import { SectionTitle } from '@/components/ui';
 import { automaticAccounts } from '@/lib/connections';
 import { WIDE_MIN } from '@/lib/dashboard';
-import { useConnections } from '@/lib/queries';
+import { useConnections, useFamily } from '@/lib/queries';
 import { useConnect } from '@/lib/useConnect';
 
 // Conexões: the banks read automatically every morning, the banks that can still be
@@ -18,6 +18,7 @@ export default signedInPage(Connections);
 function Connections() {
   const wide = useWindowDimensions().width >= WIDE_MIN;
   const overview = useConnections(true);
+  const family = useFamily(true);
   const connect = useConnect();
   return (
     <ScrollView
@@ -43,7 +44,7 @@ function Connections() {
           error="Não consegui carregar as conexões."
           textStyle={[styles.muted, styles.gap]}
         >
-          {(data) => <Banks data={data} connect={connect} />}
+          {(data) => <Banks data={data} members={family.data?.members ?? []} connect={connect} />}
         </Loadable>
         <SectionTitle>Suas contas</SectionTitle>
         <Accounts automatic={automaticAccounts(overview.data?.connections ?? [])} />

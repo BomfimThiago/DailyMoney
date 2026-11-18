@@ -5,14 +5,16 @@ import {
   automaticAccounts,
   canReconnect,
   connectedAccounts,
+  connectionOwner,
   daysUntil,
   expiryWarning,
   providerName,
   statusLine,
+  suggestedOwner,
   summary,
   when,
 } from '@/lib/connections';
-import type { Account, SyncResult } from '@/lib/types';
+import type { Account, Member, SyncResult } from '@/lib/types';
 
 type ConnectedAccount = SyncResult['connection']['accounts'][number];
 
@@ -20,6 +22,8 @@ const base: SyncResult['connection'] = {
   id: '1',
   provider: 'enablebanking',
   bank: 'Wise',
+  member_id: null,
+  member_name: null,
   accounts: [],
   consent_expires_at: null,
   last_sync_at: null,
@@ -112,6 +116,8 @@ test('describes an account and an error', () => {
     id: 'a',
     name: 'Conta',
     bank: 'Nubank',
+    member_id: null,
+    member_name: null,
     currency: 'BRL',
     is_card: false,
   } as Account;
@@ -120,4 +126,24 @@ test('describes an account and an error', () => {
   expect(accountDetails({ ...nubank, bank: '' })).toBe('BRL · Conta');
   expect(errorText(new ApiError(409, 'Já conectado'), 'x')).toBe('Já conectado');
   expect(errorText(new Error('boom'), 'Não deu.')).toBe('Não deu.');
+});
+
+test('a connection belongs to a person or to the household', () => {
+  expect(connectionOwner({ ...base, member_id: 'm1', member_name: 'Ana' })).toBe('Ana');
+  expect(connectionOwner(base)).toBe('Casa');
+});
+
+test('a new connection is suggested for whoever has not connected that bank yet', () => {
+  const ana = { id: 'ana', name: 'Ana', color: '#000', kind: 'spouse', user_id: null } as Member;
+  const me = { id: 'me', name: 'Thiago', color: '#111', kind: 'me', user_id: 'u' } as Member;
+  const mine = { ...base, bank: 'Revolut', member_id: 'me', member_name: 'Thiago' };
+  // Nothing connected yet: the one signed in.
+  expect(suggestedOwner('Revolut', [], [ana, me])).toBe('me');
+  expect(suggestedOwner('Revolut', [mine], [ana, me])).toBe('ana');
+  // Another bank's connection doesn't count.
+  expect(suggestedOwner('Wise', [mine], [ana, me])).toBe('me');
+  // Everyone has it: back to the one signed in; nobody at all: the household.
+  const hers = { ...mine, member_id: 'ana', member_name: 'Ana' };
+  expect(suggestedOwner('Revolut', [mine, hers], [ana, me])).toBe('me');
+  expect(suggestedOwner('Revolut', [], [])).toBe('casa');
 });

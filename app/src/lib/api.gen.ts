@@ -1106,6 +1106,10 @@ export interface components {
       provider: 'enablebanking' | 'pluggy';
       /** Bank */
       bank: string;
+      /** Member Id */
+      member_id: string | null;
+      /** Member Name */
+      member_name: string | null;
       /** Accounts */
       accounts: components['schemas']['ConnectedAccount'][];
       /** Consent Expires At */
@@ -1915,6 +1919,10 @@ export interface components {
     StartIn: {
       /** Bank */
       bank: string;
+      /** Connection Id */
+      connection_id?: string | null;
+      /** Member Id */
+      member_id?: string | null;
     };
     /** StartOut */
     StartOut: {

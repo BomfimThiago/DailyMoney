@@ -16,8 +16,8 @@ import {
   syncConnection,
 } from '@/lib/imports';
 import { openPluggyWindow } from '@/lib/pluggyWindow';
-import { useAccounts, useConnections, useRefreshMoney } from '@/lib/queries';
-import type { Account, Connection, ConnectionsOverview } from '@/lib/types';
+import { useAccounts, useConnections, useFamily, useRefreshMoney } from '@/lib/queries';
+import type { Account, Connection, ConnectionsOverview, Member } from '@/lib/types';
 import { BRAZIL_FAILED, useConnect } from '@/lib/useConnect';
 
 jest.mock('expo-router', () => {
@@ -32,6 +32,7 @@ jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
 jest.mock('@/lib/queries', () => ({
   useConnections: jest.fn(),
   useAccounts: jest.fn(),
+  useFamily: jest.fn(),
   useRefreshMoney: jest.fn(),
 }));
 // As in a browser, where Pluggy's window can open.
@@ -58,11 +59,17 @@ const wise: Connection = {
   id: 'c1',
   provider: 'enablebanking',
   bank: 'Wise',
+  member_id: 'me',
+  member_name: 'Thiago',
   accounts: [{ account_id: 'a1', name: 'Wise EUR', currency: 'EUR', is_card: false }],
   consent_expires_at: null,
   last_sync_at: null,
   last_error: null,
 };
+const members = [
+  { id: 'me', name: 'Thiago', color: '#3b6fa0', kind: 'me', user_id: 'u1' },
+  { id: 'ana', name: 'Ana', color: '#c2410c', kind: 'spouse', user_id: null },
+] as Member[];
 const accounts = [
   { id: 'a1', name: 'Wise EUR', bank: 'Wise', currency: 'EUR', is_card: false },
   { id: 'a2', name: 'Conta', bank: 'Nubank', currency: 'BRL', is_card: true },
@@ -98,6 +105,9 @@ beforeEach(() => {
     .mockReturnValue({ state: { status: 'signedIn', me: {} } } as ReturnType<typeof useAuth>);
   overview();
   jest.mocked(useRefreshMoney).mockReturnValue(mockRefresh);
+  jest
+    .mocked(useFamily)
+    .mockReturnValue({ data: { members } } as unknown as ReturnType<typeof useFamily>);
   mockAccounts.mockReturnValue({ data: accounts, isError: false } as ReturnType<
     typeof useAccounts
   >);
@@ -110,6 +120,9 @@ describe('ConnectionsScreen', () => {
     expect(screen.getByText('Bancos conectados')).toBeTruthy();
     expect(screen.getByText('Enable Banking')).toBeTruthy();
     expect(screen.getByText('Conectado')).toBeTruthy();
+    expect(screen.getByText('· Thiago')).toBeTruthy();
+    // Wise can still be connected by someone else.
+    expect(screen.getByText('Outra conta')).toBeTruthy();
     // Revolut, and the line for Brazilian banks.
     expect(screen.getAllByText('Conectar')).toHaveLength(2);
     expect(screen.getByText('Brasil · pelo Meu Pluggy, um banco por vez')).toBeTruthy();
@@ -187,7 +200,7 @@ describe('ConnectionsScreen', () => {
     mockDisconnect.mockResolvedValue(undefined);
     await show();
     await fireEvent.press(screen.getByText('Desconectar'));
-    expect(screen.getByText('Parar de ler o Wise? As transações ficam.')).toBeTruthy();
+    expect(screen.getByText('Parar de ler o Wise de Thiago? As transações ficam.')).toBeTruthy();
     await fireEvent.press(screen.getByText('Cancelar'));
     expect(screen.queryByText(/Parar de ler/)).toBeNull();
     await fireEvent.press(screen.getByText('Desconectar'));
@@ -206,6 +219,7 @@ describe('ConnectionsScreen', () => {
     expect(screen.getByText('Falhou ontem.')).toBeTruthy();
     await fireEvent.press(screen.getByText('Conectar de novo'));
     await screen.findByText('Não deu para abrir o banco.');
+    expect(mockStart).toHaveBeenCalledWith('Wise', { connection_id: 'c1' });
   });
 
   it('opens a bank to authorize it', async () => {
@@ -213,8 +227,28 @@ describe('ConnectionsScreen', () => {
     const open = jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     await show();
     await fireEvent.press(screen.getAllByText('Conectar')[0]);
+    // First: whose accounts. Nobody has Revolut yet: the one signed in.
+    expect(screen.getByText('De quem são as contas?')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Continuar no Revolut'));
     await waitFor(() => expect(open).toHaveBeenCalledWith('https://bank.example/auth'));
-    expect(mockStart).toHaveBeenCalledWith('Revolut');
+    expect(mockStart).toHaveBeenCalledWith('Revolut', { member_id: 'me' });
+  });
+
+  it("connects someone else's account at a bank already connected", async () => {
+    mockStart.mockClear();
+    mockStart.mockResolvedValue({ url: 'https://bank.example/auth' });
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    await show();
+    await fireEvent.press(screen.getByText('Outra conta'));
+    // Thiago already has Wise: Ana is suggested.
+    expect(screen.getByText('Ana')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Cancelar'));
+    expect(screen.queryByText('De quem são as contas?')).toBeNull();
+    await fireEvent.press(screen.getByText('Outra conta'));
+    await fireEvent.press(screen.getByLabelText('Responsável pelas contas'));
+    await fireEvent.press(screen.getByText('Casa'));
+    await fireEvent.press(screen.getByText('Continuar no Wise'));
+    await waitFor(() => expect(mockStart).toHaveBeenCalledWith('Wise', { member_id: null }));
   });
 
   it('says what is not set up yet', async () => {

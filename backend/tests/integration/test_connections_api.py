@@ -55,6 +55,23 @@ class FakeEnableBanking:
         # Like CaixaBank: an older start than this is refused.
         self.oldest_start: date | None = None
         self.starts: list[date] = []
+        # What the next authorization gives: another person's login gives other accounts.
+        self.session_id = "sess-1"
+        self.session_accounts: list[dict[str, Any]] = [
+            {
+                "uid": "acc-eur",
+                "identification_hash": "h-eur",
+                "currency": "EUR",
+                "cash_account_type": "CACC",
+                "account_id": {"iban": "BE00 1234"},
+            },
+            {
+                "uid": "acc-usd",
+                "identification_hash": "h-usd",
+                "currency": "USD",
+                "cash_account_type": "CACC",
+            },
+        ]
         self.transactions: dict[str, list[dict[str, Any]]] = {
             "acc-eur": [
                 # Already sent in the Wise statement: a duplicate.
@@ -84,24 +101,10 @@ class FakeEnableBanking:
             return httpx.Response(
                 200,
                 json={
-                    "session_id": "sess-1",
+                    "session_id": self.session_id,
                     "aspsp": {"name": "Wise", "country": "ES"},
                     "access": {"valid_until": "2027-05-01T00:00:00Z"},
-                    "accounts": [
-                        {
-                            "uid": "acc-eur",
-                            "identification_hash": "h-eur",
-                            "currency": "EUR",
-                            "cash_account_type": "CACC",
-                            "account_id": {"iban": "BE00 1234"},
-                        },
-                        {
-                            "uid": "acc-usd",
-                            "identification_hash": "h-usd",
-                            "currency": "USD",
-                            "cash_account_type": "CACC",
-                        },
-                    ],
+                    "accounts": self.session_accounts,
                 },
             )
         if path.startswith("/sessions/"):
@@ -148,8 +151,10 @@ def fake_eb(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeEnableBanking]:
     yield fake
 
 
-async def _connect_wise(client: AsyncClient, h: dict[str, str], fake: FakeEnableBanking) -> Any:
-    r = await client.post("/api/v1/connections/europe", json={"bank": "Wise"}, headers=h)
+async def _connect_wise(
+    client: AsyncClient, h: dict[str, str], fake: FakeEnableBanking, **choice: Any
+) -> Any:
+    r = await client.post("/api/v1/connections/europe", json={"bank": "Wise", **choice}, headers=h)
     assert r.status_code == 200, r.text
     assert r.json()["url"].startswith("https://bank.example/")
     r = await client.post(
@@ -451,3 +456,152 @@ async def test_daily_run_uses_its_own_session(
     monkeypatch.setattr(connection_service, "sync_all", fake_sync_all)
     await daily.run_once()
     assert len(calls) == 1
+
+
+ANA_ACCOUNT = {
+    "uid": "acc-ana",
+    "identification_hash": "h-ana",
+    "currency": "EUR",
+    "cash_account_type": "CACC",
+    "account_id": {"iban": "LT00 9876"},
+}
+
+
+def _ana_logs_in(fake: FakeEnableBanking) -> None:
+    fake.session_id = "sess-ana"
+    fake.session_accounts = [ANA_ACCOUNT]
+    fake.transactions["acc-ana"] = [_tx("a1", "2026-10-08", "30.00", "DBIT", "Zara")]
+
+
+async def _add_member(client: AsyncClient, h: dict[str, str], name: str) -> str:
+    r = await client.post("/api/v1/family/members", json={"name": name}, headers=h)
+    assert r.status_code in (200, 201), r.text
+    member_id: str = r.json()["id"]
+    return member_id
+
+
+async def test_a_second_person_connects_the_same_bank_into_their_own_accounts(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    mine = (await _connect_wise(client, h, fake_eb))["connection"]
+    assert mine["member_name"] == "Thiago"
+    ana = await _add_member(client, h, "Ana")
+
+    _ana_logs_in(fake_eb)
+    theirs = await _connect_wise(client, h, fake_eb, member_id=ana)
+    assert theirs["connection"]["id"] != mine["id"]
+    assert (theirs["connection"]["member_id"], theirs["connection"]["member_name"]) == (ana, "Ana")
+    # Thiago's Wise EUR is not Ana's: hers is a new account, in her name.
+    assert [a["name"] for a in theirs["connection"]["accounts"]] == ["Wise EUR Ana"]
+    assert theirs["accounts"][0]["new"] == 1
+    # Thiago's authorization keeps working.
+    assert fake_eb.deleted == []
+
+    overview = (await client.get("/api/v1/connections", headers=h)).json()
+    assert [(c["bank"], c["member_name"]) for c in overview["connections"]] == [
+        ("Wise", "Thiago"),
+        ("Wise", "Ana"),
+    ]
+    accounts = (await client.get("/api/v1/accounts", headers=h)).json()
+    owners = {a["name"]: a["member_id"] for a in accounts}
+    assert owners["Wise EUR Ana"] == ana
+    assert owners["Wise EUR"] == mine["member_id"]
+
+
+async def test_the_same_accounts_authorized_again_renew_their_connection(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    first = (await _connect_wise(client, h, fake_eb))["connection"]
+    fake_eb.session_id = "sess-2"
+    again = (await _connect_wise(client, h, fake_eb))["connection"]
+    assert again["id"] == first["id"]
+    assert fake_eb.deleted == ["sess-1"]
+    assert len((await client.get("/api/v1/connections", headers=h)).json()["connections"]) == 1
+
+
+async def test_conectar_de_novo_renews_the_connection_asked_for(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    ana = await _add_member(client, h, "Ana")
+    _ana_logs_in(fake_eb)
+    hers = (await _connect_wise(client, h, fake_eb, member_id=ana))["connection"]
+    fake_eb.session_id = "sess-ana-2"
+    # Even if the bank now shares a different set of accounts.
+    fake_eb.session_accounts = [{**ANA_ACCOUNT, "identification_hash": "h-ana-new"}]
+    again = (await _connect_wise(client, h, fake_eb, connection_id=hers["id"]))["connection"]
+    assert again["id"] == hers["id"]
+    assert again["member_name"] == "Ana"
+    assert fake_eb.deleted == ["sess-ana"]
+
+    other = auth(await login(client, "token-partner-padded"))
+    r = await client.post(
+        "/api/v1/connections/europe",
+        json={"bank": "Wise", "connection_id": hers["id"]},
+        headers=other,
+    )
+    assert r.status_code == 404
+
+
+async def test_a_connection_can_belong_to_the_household(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    conn = (await _connect_wise(client, h, fake_eb, member_id=None))["connection"]
+    assert (conn["member_id"], conn["member_name"]) == (None, None)
+    accounts = (await client.get("/api/v1/accounts", headers=h)).json()
+    assert {a["name"]: a["member_id"] for a in accounts}["Wise EUR"] is None
+
+
+async def test_only_the_familys_own_people_can_own_a_connection(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    other = auth(await login(client, "token-partner-padded"))
+    stranger = await _add_member(client, other, "Bia")
+    r = await client.post(
+        "/api/v1/connections/europe", json={"bank": "Wise", "member_id": stranger}, headers=h
+    )
+    assert r.status_code == 404
+
+
+async def test_a_person_removed_during_the_authorization_leaves_it_to_the_household(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    ana = await _add_member(client, h, "Ana")
+    r = await client.post(
+        "/api/v1/connections/europe", json={"bank": "Wise", "member_id": ana}, headers=h
+    )
+    assert r.status_code == 200
+    assert (await client.delete(f"/api/v1/family/members/{ana}", headers=h)).status_code == 204
+    r = await client.post(
+        "/api/v1/connections/europe/finish", json={"code": "c", "state": fake_eb.state}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["connection"]["member_id"] is None
+
+
+async def test_an_authorization_started_before_owners_existed_goes_to_whoever_connected(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    h = auth(await login(client))
+    me = (await client.get("/api/v1/auth/me", headers=h)).json()
+    old_state = jwt.encode(
+        {
+            "sub": me["id"],
+            "aud": connection_service.STATE_AUDIENCE,
+            "aspsp": "Wise",
+            "country": "ES",
+            "exp": 4102444800,
+        },
+        settings.SECRET_KEY,
+        algorithm="HS256",
+    )
+    r = await client.post(
+        "/api/v1/connections/europe/finish", json={"code": "c", "state": old_state}, headers=h
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["connection"]["member_name"] == "Thiago"

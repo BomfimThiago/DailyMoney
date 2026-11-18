@@ -26,8 +26,14 @@ async def list_connections(user: CurrentUser, db: DbSession) -> ConnectionsOverv
 
 
 @router.post("/europe", response_model=StartOut)
-async def start(user: CurrentUser, data: StartIn) -> StartOut:
-    return StartOut(url=await connection_service.start_authorization(user, data.bank))
+async def start(user: CurrentUser, db: DbSession, data: StartIn) -> StartOut:
+    owner: connection_service.Owner = data.member_id
+    if owner is None and "member_id" in data.model_fields_set:
+        owner = connection_service.HOUSEHOLD
+    url = await connection_service.start_authorization(
+        db, user, data.bank, connection_id=data.connection_id, owner=owner
+    )
+    return StartOut(url=url)
 
 
 @router.post("/europe/finish", response_model=SyncOut)

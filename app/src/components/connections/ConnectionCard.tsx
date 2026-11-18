@@ -6,6 +6,7 @@ import { Button, ui } from '@/components/ui';
 import {
   canReconnect,
   connectedAccounts,
+  connectionOwner,
   expiryWarning,
   providerName,
   statusLine,
@@ -44,7 +45,9 @@ export function ConnectionCard({
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <View style={ui.rowMain}>
-          <Text style={styles.bank}>{c.bank}</Text>
+          <Text style={styles.bank}>
+            {c.bank} <Text style={styles.owner}>· {connectionOwner(c)}</Text>
+          </Text>
           <Text style={ui.rowSub}>{connectedAccounts(c)}</Text>
         </View>
         <Text style={styles.via}>{providerName(c)}</Text>
@@ -55,7 +58,7 @@ export function ConnectionCard({
       <Note text={failed} style={styles.error} />
       <Note text={result && summary(result)} style={styles.result} />
       <Actions
-        bank={c.bank}
+        bank={`${c.bank} de ${connectionOwner(c)}`}
         syncing={sync.isPending}
         onSync={() => sync.mutate()}
         removing={remove.isPending}

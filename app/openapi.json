@@ -3685,6 +3685,29 @@
             "type": "string",
             "title": "Bank"
           },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
+          },
+          "member_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Name"
+          },
           "accounts": {
             "items": {
               "$ref": "#/components/schemas/ConnectedAccount"
@@ -3733,6 +3756,8 @@
           "id",
           "provider",
           "bank",
+          "member_id",
+          "member_name",
           "accounts",
           "consent_expires_at",
           "last_sync_at",
@@ -5767,6 +5792,30 @@
             "maxLength": 80,
             "minLength": 1,
             "title": "Bank"
+          },
+          "connection_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connection Id"
+          },
+          "member_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Member Id"
           }
         },
         "type": "object",
