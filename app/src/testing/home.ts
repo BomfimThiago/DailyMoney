@@ -24,16 +24,16 @@ export const dashboard = builder<CurrencyDashboard>(() => ({
   daily: ['100', '0', '50', ...Array<string>(28).fill('0')],
   previous_daily: ['200', ...Array<string>(29).fill('0')],
   categories: [
-    { name: 'Mercado', amount: '120' },
-    { name: 'Transporte', amount: '30' },
+    { key: 'cat-mercado', name: 'Mercado', amount: '120' },
+    { key: 'cat-transporte', name: 'Transporte', amount: '30' },
   ],
-  accounts: [{ name: 'Nubank', amount: '150' }],
+  accounts: [{ key: 'acc-nubank', name: 'Nubank', amount: '150' }],
   people: [
-    { name: 'Thiago', amount: '120' },
-    { name: 'Casa', amount: '30' },
+    { key: 'm-thiago', name: 'Thiago', amount: '120' },
+    { key: 'casa', name: 'Casa', amount: '30' },
   ],
-  banks: [{ name: 'Nubank', amount: '150' }],
-  income_categories: [{ name: 'Renda', amount: '8500' }],
+  banks: [{ key: 'Nubank', name: 'Nubank', amount: '150' }],
+  income_categories: [{ key: 'cat-renda', name: 'Renda', amount: '8500' }],
   previous_income: '8000.0000',
   previous_spending: '3600.0000',
 }));

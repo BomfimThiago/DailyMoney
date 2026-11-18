@@ -1,8 +1,10 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { act, renderHook } from '@testing-library/react-native';
 
+import { drillOf, drillParams } from '@/lib/drill';
 import {
   accountOptions,
+  bankOptions,
   categoryOptions,
   countText,
   currencyOptions,
@@ -11,6 +13,10 @@ import {
   groupRows,
   GROUPS_SHOWN,
   isFiltered,
+  NO_PICK,
+  pickLabel,
+  toggled,
+  txFilters,
   memberOptions,
   nextSort,
   NO_FILTERS,
@@ -119,9 +125,10 @@ describe('transaction pages', () => {
     const none = { q: '  ', ...NO_FILTERS };
     expect(isFiltered(none)).toBe(false);
     expect(isFiltered({ ...none, q: 'uber' })).toBe(true);
-    expect(isFiltered({ ...none, categoryId: 'c' })).toBe(true);
-    expect(isFiltered({ ...none, accountId: 'a' })).toBe(true);
-    expect(isFiltered({ ...none, memberId: 'casa' })).toBe(true);
+    expect(isFiltered({ ...none, category: { ids: ['c'], exclude: false } })).toBe(true);
+    expect(isFiltered({ ...none, account: { ids: ['a'], exclude: true } })).toBe(true);
+    expect(isFiltered({ ...none, member: { ids: ['casa'], exclude: false } })).toBe(true);
+    expect(isFiltered({ ...none, bank: { ids: [], exclude: true } })).toBe(false);
     expect(isFiltered({ ...none, direction: 'out' })).toBe(true);
     expect(isFiltered({ ...none, accountCurrency: 'EUR' })).toBe(true);
     expect(emptyListText(false, 'all')).toBe('Nenhum gasto ou entrada.');
@@ -129,17 +136,86 @@ describe('transaction pages', () => {
     expect(emptyListText(false)).toBe('Nenhum gasto ou entrada neste mês.');
   });
 
-  it('offers categories without transfers, and every account', () => {
+  it('offers categories without transfers (plus "Sem categoria"), accounts and banks', () => {
     const cats = [
       { id: '1', name: 'Mercado', kind: 'expense' },
       { id: '2', name: 'Transferência', kind: 'transfer' },
     ] as Category[];
-    expect(categoryOptions(cats)).toEqual([{ id: '1', name: 'Mercado' }]);
-    expect(categoryOptions(undefined)).toEqual([]);
+    const none = { id: 'none', name: 'Sem categoria' };
+    expect(categoryOptions(cats)).toEqual([{ id: '1', name: 'Mercado' }, none]);
+    expect(categoryOptions(undefined)).toEqual([none]);
     expect(accountOptions([{ id: 'a', name: 'Nubank' } as Account])).toEqual([
       { id: 'a', name: 'Nubank' },
     ]);
     expect(accountOptions(undefined)).toEqual([]);
+    const accounts = [
+      { id: 'a', bank: 'Nubank' },
+      { id: 'b', bank: 'Inter' },
+      { id: 'c', bank: 'Nubank' },
+    ] as Account[];
+    expect(bankOptions(accounts)).toEqual([
+      { id: 'Inter', name: 'Inter' },
+      { id: 'Nubank', name: 'Nubank' },
+    ]);
+  });
+
+  it('picks several values to show or to hide, and names the pick on the button', () => {
+    const options = [
+      { id: 'm', name: 'Moradia' },
+      { id: 'a', name: 'Assinaturas' },
+    ];
+    const one = toggled(NO_PICK, 'm');
+    expect(one).toEqual({ ids: ['m'], exclude: false });
+    const two = toggled(one, 'a');
+    expect(two.ids).toEqual(['m', 'a']);
+    expect(toggled(two, 'm').ids).toEqual(['a']);
+    expect(pickLabel('Categoria', NO_PICK, options)).toBe('Categoria');
+    expect(pickLabel('Categoria', one, options)).toBe('Categoria: Moradia');
+    expect(pickLabel('Categoria', two, options)).toBe('Categoria: Moradia +1');
+    expect(pickLabel('Categoria', { ...two, exclude: true }, options)).toBe(
+      'Categoria: exceto Moradia +1',
+    );
+    expect(pickLabel('Categoria', two, options, true)).toBe('Moradia +1');
+    expect(pickLabel('Categoria', { ...one, exclude: true }, options, true)).toBe('Exceto Moradia');
+  });
+
+  it('sends only the dimensions that have a pick', () => {
+    const f = {
+      q: 'x',
+      ...NO_FILTERS,
+      category: { ids: ['m', 'a'], exclude: false },
+      bank: { ids: ['Nubank'], exclude: true },
+      direction: 'out' as const,
+    };
+    expect(txFilters(f)).toEqual({
+      q: 'x',
+      direction: 'out',
+      accountCurrency: null,
+      picks: { category: f.category, bank: f.bank },
+    });
+  });
+});
+
+describe('links from the breakdown on Início', () => {
+  it('round-trips a row and "Demais", and ignores broken links', () => {
+    const row = drillParams('2026-11', 'categoria', ['c1', 'c2'], false, '7');
+    expect(drillOf(row)).toEqual({
+      month: '2026-11',
+      dim: 'category',
+      pick: { ids: ['c1', 'c2'], exclude: false },
+    });
+    const rest = drillOf(drillParams('2026-11', 'banco', ['Nubank'], true));
+    expect(rest).toEqual({
+      month: '2026-11',
+      dim: 'bank',
+      pick: { ids: ['Nubank'], exclude: true },
+    });
+    expect(drillOf({})).toBeNull();
+    expect(drillOf({ ...row, mes: 'nov' })).toBeNull();
+    expect(drillOf({ ...row, filtro: 'cor' })).toBeNull();
+    expect(drillOf({ ...row, ids: '{' })).toBeNull();
+    expect(drillOf({ ...row, ids: '[]' })).toBeNull();
+    expect(drillOf({ ...row, ids: '[1]' })).toBeNull();
   });
 });
 

@@ -1,6 +1,6 @@
 // What the transactions page derives from its answers, kept apart from the page for tests.
 import { money } from './format';
-import type { TxSort } from './imports';
+import type { TxFilters, TxSort } from './imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from './people';
 import { parseDate } from './txEdit';
 import type {
@@ -42,27 +42,70 @@ export function remaining(pages: TransactionPage[] | undefined): number {
   return pages[pages.length - 1].total - shown;
 }
 
+// One dimension of the filters (Categoria, Responsável, Conta, Banco): the values to show,
+// or, with "exclude", the values to hide ("everything but these").
+export type Dim = 'category' | 'member' | 'account' | 'bank';
+
+export interface Pick {
+  ids: string[];
+  exclude: boolean;
+}
+
+export const NO_PICK: Pick = { ids: [], exclude: false };
+
+export const DIMS: Dim[] = ['category', 'member', 'account', 'bank'];
+
 // The filters the page holds, apart from the period.
 export interface PageFilters {
   q: string;
-  categoryId: string | null;
-  accountId: string | null;
-  memberId: string | null;
+  category: Pick;
+  member: Pick;
+  account: Pick;
+  bank: Pick;
   direction: 'in' | 'out' | null;
   accountCurrency: Currency | null;
 }
 
 export const NO_FILTERS: Omit<PageFilters, 'q'> = {
-  categoryId: null,
-  accountId: null,
-  memberId: null,
+  category: NO_PICK,
+  member: NO_PICK,
+  account: NO_PICK,
+  bank: NO_PICK,
   direction: null,
   accountCurrency: null,
 };
 
 export function isFiltered(f: PageFilters) {
-  const { q, ...menus } = f;
-  return q.trim() !== '' || Object.values(menus).some((v) => v !== null);
+  return (
+    f.q.trim() !== '' ||
+    DIMS.some((d) => f[d].ids.length > 0) ||
+    f.direction !== null ||
+    f.accountCurrency !== null
+  );
+}
+
+// The page's filters as the list and the totals ask for them.
+export function txFilters(f: PageFilters): TxFilters {
+  const { q, direction, accountCurrency } = f;
+  const picks = Object.fromEntries(DIMS.filter((d) => f[d].ids.length > 0).map((d) => [d, f[d]]));
+  return { q, direction, accountCurrency, picks };
+}
+
+// Tapping a value in a menu: in or out of the pick, keeping whether it shows or hides.
+export function toggled(pick: Pick, id: string): Pick {
+  const ids = pick.ids.includes(id) ? pick.ids.filter((i) => i !== id) : [...pick.ids, id];
+  return { ...pick, ids };
+}
+
+// The button's text: "Categoria", "Categoria: Moradia", "Categoria: Moradia +1",
+// "Categoria: exceto Investimento +4". A phone shows only what comes after the colon.
+export function pickLabel(label: string, pick: Pick, options: Option[], short = false): string {
+  if (pick.ids.length === 0) return label;
+  const first = options.find((o) => o.id === pick.ids[0])?.name ?? '…';
+  const more = pick.ids.length > 1 ? ` +${pick.ids.length - 1}` : '';
+  const names = `${first}${more}`;
+  if (short) return pick.exclude ? `Exceto ${names}` : names;
+  return `${label}: ${pick.exclude ? 'exceto ' : ''}${names}`;
 }
 
 // ── period: a month, everything, or the days between two dates ─────────────
@@ -153,15 +196,31 @@ export function dayTotals(t: CurrencyTotals | undefined): Record<string, string>
   return out;
 }
 
+// Lines with no category; the server filters them by this word.
+export const NO_CATEGORY_ID = 'none';
+export const NO_CATEGORY = 'Sem categoria';
+
 // Transfers show with their own switch, so they are not a category to filter the list by.
+// Lines with no category close the list.
 export function categoryOptions(categories: Category[] | undefined): Option[] {
-  return (categories ?? [])
-    .filter((c) => c.kind !== 'transfer')
-    .map(({ id, name }) => ({ id, name }));
+  return [
+    ...(categories ?? [])
+      .filter((c) => c.kind !== 'transfer')
+      .map(({ id, name }) => ({ id, name })),
+    { id: NO_CATEGORY_ID, name: NO_CATEGORY },
+  ];
 }
 
 export function accountOptions(accounts: Account[] | undefined): Option[] {
   return (accounts ?? []).map(({ id, name }) => ({ id, name }));
+}
+
+// Each bank of the family's accounts once; a bank is filtered by its name.
+export function bankOptions(accounts: Account[] | undefined): Option[] {
+  const banks = [...new Set((accounts ?? []).map((a) => a.bank))].sort((a, b) =>
+    a.localeCompare(b),
+  );
+  return banks.map((b) => ({ id: b, name: b }));
 }
 
 // Each person, then the household ("Casa"), whose lines have no member.

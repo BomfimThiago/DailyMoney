@@ -1,10 +1,10 @@
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, Select, and_, func, not_, or_, select, true
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,17 +50,31 @@ _ORDER = {
 }
 
 
+# A value of one dimension: an id, or a word for the lines that have none ("none" for no
+# category, "casa" for the household) or, for banks, the bank's name.
+Value = uuid.UUID | str
+
+
+@dataclass(frozen=True)
+class Pick:
+    """One dimension of the filters: show only these values, and/or hide these."""
+
+    only: tuple[Value, ...] = ()
+    hide: tuple[Value, ...] = ()
+
+
 @dataclass(frozen=True)
 class Filters:
     """The filters of the list (Transações), shared by the page and its totals."""
 
-    account_id: uuid.UUID | None = None
     month: str | None = None
     date_from: date | None = None
     date_to: date | None = None
     kinds: list[TxKind] | None = None
-    category_id: uuid.UUID | None = None
-    member: uuid.UUID | str | None = None
+    categories: Pick = field(default_factory=Pick)
+    members: Pick = field(default_factory=Pick)
+    accounts: Pick = field(default_factory=Pick)
+    banks: Pick = field(default_factory=Pick)
     q: str | None = None
     direction: Direction | None = None
     account_currency: Currency | None = None
@@ -71,15 +85,52 @@ class Filters:
 # The household ("Casa") has no member id; a filter for its lines uses this word instead.
 HOUSEHOLD = "casa"
 HOUSEHOLD_NAME = "Casa"
+# Lines with no category; a filter for them uses this word.
+NO_CATEGORY_KEY = "none"
 NO_CATEGORY = "Sem categoria"
+
+
+def _matches(column: Any, values: tuple[Value, ...], empty: str | None) -> ColumnElement[bool]:
+    ids = [v for v in values if v != empty]
+    parts = [column.in_(ids)] if ids else []
+    if empty is not None and empty in values:
+        parts.append(column.is_(None))
+    return or_(*parts)
+
+
+def _picked(column: Any, pick: Pick, empty: str | None = None) -> list[ColumnElement[bool]]:
+    where: list[ColumnElement[bool]] = []
+    if pick.only:
+        where.append(_matches(column, pick.only, empty))
+    if pick.hide:
+        # NOT IN alone would also drop the lines with no value (NULL), which are not hidden.
+        ids = [v for v in pick.hide if v != empty]
+        kept = column.not_in(ids) if ids else true()
+        if empty is not None and empty in pick.hide:
+            where.append(and_(column.is_not(None), kept))
+        else:
+            where.append(or_(column.is_(None), kept))
+    return where
+
+
+def _by_bank(family_id: uuid.UUID, pick: Pick) -> list[ColumnElement[bool]]:
+    def accounts_of(banks: tuple[Value, ...]) -> Select[uuid.UUID]:
+        return select(Account.id).where(
+            Account.family_id == family_id, Account.bank.in_([str(b) for b in banks])
+        )
+
+    where: list[ColumnElement[bool]] = []
+    if pick.only:
+        where.append(Transaction.account_id.in_(accounts_of(pick.only)))
+    if pick.hide:
+        where.append(not_(Transaction.account_id.in_(accounts_of(pick.hide))))
+    return where
 
 
 async def _where(
     db: AsyncSession, family_id: uuid.UUID, f: Filters, review: ReviewStatus
 ) -> list[ColumnElement[bool]]:
     where = [Transaction.family_id == family_id, Transaction.review == review]
-    if f.account_id is not None:
-        where.append(Transaction.account_id == f.account_id)
     if f.month is not None:
         lo, hi = month_range(f.month, await month_start_day(db, family_id))
         where.append(Transaction.date.between(lo, hi))
@@ -95,12 +146,10 @@ async def _where(
         where.append(Transaction.currency == f.account_currency)
     if f.kinds:
         where.append(Transaction.kind.in_(f.kinds))
-    if f.category_id is not None:
-        where.append(Transaction.category_id == f.category_id)
-    if f.member == HOUSEHOLD:
-        where.append(Transaction.member_id.is_(None))
-    elif f.member is not None:
-        where.append(Transaction.member_id == f.member)
+    where += _picked(Transaction.category_id, f.categories, NO_CATEGORY_KEY)
+    where += _picked(Transaction.member_id, f.members, HOUSEHOLD)
+    where += _picked(Transaction.account_id, f.accounts)
+    where += _by_bank(family_id, f.banks)
     if f.card_bill is not None:
         where.append(Transaction.card_bill == f.card_bill)
     if f.q and (text := f.q.strip()):

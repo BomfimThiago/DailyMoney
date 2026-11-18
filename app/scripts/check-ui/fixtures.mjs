@@ -128,12 +128,18 @@ const daily = Array.from({ length: daysIn(0) }, (_, i) =>
 const previousDaily = Array.from({ length: daysIn(-1) }, (_, i) =>
   (i === 4 ? 2800 : i % 3 === 0 ? 45 + (i % 7) * 12 : 0).toFixed(2),
 );
-const shares = (key) =>
-  Object.entries(
-    spent.reduce((acc, t) => ({ ...acc, [t[key]]: (acc[t[key]] ?? 0) - Number(t.amount) }), {}),
+// Spending by a dimension; "key" is what Transações filters the row by.
+const shares = (name, key) =>
+  Object.values(
+    spent.reduce((acc, t) => {
+      const k = key(t);
+      const before = acc[k] ?? { key: k, name: name(t), amount: 0 };
+      return { ...acc, [k]: { ...before, amount: before.amount - Number(t.amount) } };
+    }, {}),
   )
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, amount]) => ({ name, amount: amount.toFixed(2) }));
+    .sort((a, b) => b.amount - a.amount)
+    .map((r) => ({ ...r, amount: r.amount.toFixed(2) }));
+const bankOf = (t) => Object.values(accounts).find((a) => a.id === t.account_id).bank;
 
 const importDone = (filename, format, bank, imported, duplicates, d) => ({
   id: `imp-${filename}`,
@@ -456,22 +462,23 @@ export const fixtures = {
         currency: 'BRL',
         daily,
         previous_daily: previousDaily,
-        categories: shares('category_name'),
-        accounts: shares('account_name'),
-        // Nubank is Pessoa's, Inter belongs to the household.
-        people: Object.entries(
-          spent.reduce((acc, t) => {
-            const who = t.account_name === 'Nubank' ? 'Pessoa' : 'Casa';
-            return { ...acc, [who]: (acc[who] ?? 0) - Number(t.amount) };
-          }, {}),
-        )
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, amount]) => ({ name, amount: amount.toFixed(2) })),
-        banks: shares('account_name'),
+        categories: shares(
+          (t) => t.category_name ?? 'Sem categoria',
+          (t) => t.category_id ?? 'none',
+        ),
+        accounts: shares(
+          (t) => t.account_name,
+          (t) => t.account_id,
+        ),
+        people: shares(
+          (t) => ({ 'mem-1': 'Pessoa', 'mem-2': 'Ana' })[t.member_id] ?? 'Casa',
+          (t) => t.member_id ?? 'casa',
+        ),
+        banks: shares(bankOf, bankOf),
         income_categories: [
-          { name: 'Renda', amount: '8000.00' },
-          { name: 'Outros', amount: '500.00' },
-          { name: 'Investimento', amount: '300.00' },
+          { key: 'cat-Renda', name: 'Renda', amount: '8000.00' },
+          { key: 'cat-Outros', name: 'Outros', amount: '500.00' },
+          { key: 'cat-Investimento', name: 'Investimento', amount: '300.00' },
         ],
         previous_income: '8200.00',
         previous_spending: '6100.00',

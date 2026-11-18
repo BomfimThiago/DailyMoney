@@ -16,8 +16,13 @@ import {
   useTransfers,
 } from './queries';
 import { reviewItems } from './review';
+import { type Drill, type DrillParams, drillOf } from './drill';
 import {
   accountOptions,
+  bankOptions,
+  type Dim,
+  type Pick,
+  txFilters,
   ALL_KINDS,
   LIST_KINDS,
   type ListView,
@@ -74,6 +79,13 @@ export function useTabFromLink(aba: string | undefined) {
   return { tab, setTab, withTransfers, setWithTransfers };
 }
 
+// Which grouping of the totals goes with each filter (banks have none).
+const GROUP_OF: Partial<Record<Dim, GroupBy>> = {
+  category: 'categories',
+  member: 'members',
+  account: 'accounts',
+};
+
 // A filter that also groups the totals by its own dimension once it is picked: filter by
 // Moradia and the totals show by category; by a person, they show by Responsável.
 function useFilters() {
@@ -82,19 +94,23 @@ function useFilters() {
   const [menus, setMenus] = useState(NO_FILTERS);
   const [groupBy, setGroupBy] = useState<GroupBy>('categories');
   const setter =
-    <K extends keyof typeof NO_FILTERS>(key: K, by?: GroupBy) =>
-    (value: (typeof NO_FILTERS)[K]) => {
+    <K extends 'direction' | 'accountCurrency'>(key: K) =>
+    (value: (typeof NO_FILTERS)[K]) =>
       setMenus((m) => ({ ...m, [key]: value }));
-      if (value !== null && by) setGroupBy(by);
-    };
+  const setPick = (dim: Dim) => (pick: Pick) => {
+    setMenus((m) => ({ ...m, [dim]: pick }));
+    const by = GROUP_OF[dim];
+    if (pick.ids.length > 0 && by) setGroupBy(by);
+  };
   const filters: PageFilters = { q, ...menus };
   return {
     search,
     setSearch,
     ...menus,
-    setCategoryId: setter('categoryId', 'categories'),
-    setAccountId: setter('accountId', 'accounts'),
-    setMemberId: setter('memberId', 'members'),
+    setCategory: setPick('category'),
+    setMember: setPick('member'),
+    setAccount: setPick('account'),
+    setBank: setPick('bank'),
     setDirection: setter('direction'),
     setAccountCurrency: setter('accountCurrency'),
     groupBy,
@@ -105,7 +121,25 @@ function useFilters() {
       setSearch('');
       setMenus(NO_FILTERS);
     },
+    // A row of Início's breakdown: only that pick, on the month's spending.
+    showDrill: (dim: Dim, pick: Pick) => {
+      setSearch('');
+      setMenus({ ...NO_FILTERS, [dim]: pick, direction: 'out' });
+      const by = GROUP_OF[dim];
+      if (by) setGroupBy(by);
+    },
   };
+}
+
+// A link from Início's breakdown: applied once per tap (its "n" changes every time), while
+// rendering, like the ?aba= links, because the screen stays mounted between tabs.
+function useDrillLink(link: DrillParams, apply: (drill: Drill) => void) {
+  const [seen, setSeen] = useState<string | undefined>(undefined);
+  const drill = drillOf(link);
+  if (drill && link.n !== seen) {
+    setSeen(link.n);
+    apply(drill);
+  }
 }
 
 // The month shown: the newest one with lines until the person picks another, so the page
@@ -158,10 +192,17 @@ function usePeriod() {
 
 // Transações is a page to study the money: whatever the filters leave on screen is also
 // added up (entradas, saídas, by day, and by category, Responsável or account).
-export function useTransactionsPage(aba: string | undefined) {
+export function useTransactionsPage(aba: string | undefined, link: DrillParams = {}) {
   const { tab, setTab, withTransfers, setWithTransfers } = useTabFromLink(aba);
   const period = usePeriod();
   const f = useFilters();
+  useDrillLink(link, (drill) => {
+    setTab('lista');
+    setWithTransfers(false);
+    period.resetPeriod();
+    period.setMonth(drill.month);
+    f.showDrill(drill.dim, drill.pick);
+  });
   const [sort, setSort] = useState<TxSort>('date');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const view: ListView = {
@@ -169,7 +210,7 @@ export function useTransactionsPage(aba: string | undefined) {
     kinds: withTransfers ? ALL_KINDS : LIST_KINDS,
     sort,
   };
-  const query = { ...f.filters, ...period.dates };
+  const query = { ...txFilters(f.filters), ...period.dates };
   const onList = tab === 'lista';
   const regular = useRegular(view, period.ready, query);
   const totals = useTotals(view, onList && period.ready, query);
@@ -215,6 +256,7 @@ export function useTransactionsPage(aba: string | undefined) {
     review,
     categories: categoryOptions(categories.data),
     accounts: accountOptions(accounts.data),
+    banks: bankOptions(accounts.data),
     currencies: currencyOptions(accounts.data),
     members: memberOptions(family.data?.members),
     refreshMoney: useRefreshMoney(),

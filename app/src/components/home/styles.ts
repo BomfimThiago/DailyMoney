@@ -104,6 +104,8 @@ export const dash = StyleSheet.create({
   shareName: { flex: 1, fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   shareValue: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   sharePct: { color: colors.muted },
+  shareGo: { color: colors.dashed },
+  shareHover: { textDecorationLine: 'underline' },
   track: { height: 4, borderRadius: 2, backgroundColor: colors.soft, overflow: 'hidden' },
   fill: { height: 4, borderRadius: 2, backgroundColor: colors.ink },
   // Comparison with the month before: a short table, numbers to the right.

@@ -97,15 +97,26 @@ function shiftedDashboard(body) {
 function listed(url) {
   const get = (k) => url.searchParams.get(k);
   const q = (get('q') ?? '').toLowerCase();
-  const member = get('member');
-  const currencyOf = (t) => fixtures['/accounts'].find((a) => a.id === t.account_id)?.currency;
+  const accountOf = (t) => fixtures['/accounts'].find((a) => a.id === t.account_id);
+  const currencyOf = (t) => accountOf(t)?.currency;
   const out = get('direction') === 'out';
+  // Several values per dimension to show, or with "exclude_" in front to hide.
+  const values = {
+    category_id: (t) => t.category_id ?? 'none',
+    member: (t) => t.member_id ?? 'casa',
+    account_id: (t) => t.account_id,
+    bank: (t) => accountOf(t)?.bank,
+  };
+  const picked = (t) =>
+    Object.entries(values).every(([param, of]) => {
+      const only = url.searchParams.getAll(param);
+      const hide = url.searchParams.getAll(`exclude_${param}`);
+      return (!only.length || only.includes(of(t))) && !hide.includes(of(t));
+    });
   const items = fixtures.regular.items.filter(
     (t) =>
       t.description.toLowerCase().includes(q) &&
-      (!get('category_id') || t.category_id === get('category_id')) &&
-      (!get('account_id') || t.account_id === get('account_id')) &&
-      (!member || (member === 'casa' ? t.member_id === null : t.member_id === member)) &&
+      picked(t) &&
       (!get('direction') || Number(t.amount) < 0 === out) &&
       (!get('account_currency') || currencyOf(t) === get('account_currency')) &&
       (!get('date_from') || t.date >= get('date_from')) &&
@@ -395,6 +406,18 @@ async function checkScreens(page, tag) {
     const seen = (text) => page.getByText(text).filter({ visible: true }).first();
     // Bottom tabs on a phone, sidebar links on a computer: both carry the same test id.
     const tab = (name) => page.getByTestId(`tab-${name}`);
+    // A row of "Divisão dos gastos" opens Transações with exactly its lines.
+    await tab('Início').click();
+    await page.getByLabel('Ver transações: Mercado').filter({ visible: true }).first().click();
+    await seen(tag === 'computador' ? 'Categoria: Mercado ▾' : 'Mercado ▾')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('a linha da divisão não abriu Transações filtrada'));
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await shot('transacoes-da-divisao');
+    await seen('✕ Limpar filtros').click();
+    await seen('TOTAL DO MÊS').waitFor();
+
     // Investimentos: only the bank's portfolio.
     await tab('Investimentos').click();
     await seen(tag === 'computador' ? 'SEUS INVESTIMENTOS' : 'Seus investimentos').waitFor();
@@ -411,7 +434,7 @@ async function checkScreens(page, tag) {
         ? ['Responsável', 'Ana', 'Responsável: Ana']
         : ['Categoria', 'Mercado', 'Mercado'];
     await seen(`${menu} ▾`).click();
-    await page.getByRole('menuitem', { name: pick, exact: true }).filter({ visible: true }).click();
+    await page.getByRole('checkbox', { name: pick, exact: true }).filter({ visible: true }).click();
     await seen('TOTAL DO QUE ESTÁ FILTRADO')
       .waitFor({ timeout: 3000 })
       .catch(() => flag('o total não seguiu o filtro'));
@@ -420,10 +443,28 @@ async function checkScreens(page, tag) {
     await seen(tag === 'computador' ? 'Salário' : 'Pão de Açúcar').waitFor();
     await shot('transacoes-filtro');
     await seen(`${back} ▾`).click();
+    await seen('✕ Limpar filtros').click();
+    await seen('TOTAL DO MÊS').waitFor();
+    // Several categories at once, then hidden instead of shown (Início's "Demais").
+    await seen('Categoria ▾').click();
+    const check = (name) =>
+      page.getByRole('checkbox', { name, exact: true }).filter({ visible: true });
+    await check('Mercado').click();
+    await check('Assinaturas').click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    await shot('transacoes-varias-categorias');
     await page
-      .getByRole('menuitem', { name: 'Todas', exact: true })
+      .getByRole('radio', { name: 'Esconder', exact: true })
       .filter({ visible: true })
       .click();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    await shot('transacoes-esconder');
+    await seen(
+      tag === 'computador' ? 'Categoria: exceto Mercado +1 ▾' : 'Exceto Mercado +1 ▾',
+    ).click();
+    await seen('✕ Limpar filtros').click();
     await seen('TOTAL DO MÊS').waitFor();
 
     // Study like the old app: all the time there is, only gastos, biggest first.

@@ -105,7 +105,7 @@ function Charts({
       <Comparison month={month} shown={shown} dash={dash} />
       <Pace month={month} start={start} dash={dash} width={width} />
       <View style={[styles.pair, !twoColumns && styles.stack]}>
-        <Breakdown dash={dash} />
+        <Breakdown month={month} dash={dash} />
         <SpendingCalendar start={start} dash={dash} />
       </View>
       <Flow dash={dash} width={width} />
