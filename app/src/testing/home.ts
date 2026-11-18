@@ -28,4 +28,12 @@ export const dashboard = builder<CurrencyDashboard>(() => ({
     { name: 'Transporte', amount: '30' },
   ],
   accounts: [{ name: 'Nubank', amount: '150' }],
+  people: [
+    { name: 'Thiago', amount: '120' },
+    { name: 'Casa', amount: '30' },
+  ],
+  banks: [{ name: 'Nubank', amount: '150' }],
+  income_categories: [{ name: 'Renda', amount: '8500' }],
+  previous_income: '8000.0000',
+  previous_spending: '3600.0000',
 }));

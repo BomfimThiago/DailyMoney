@@ -3255,6 +3255,40 @@
             },
             "type": "array",
             "title": "Accounts"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "People",
+            "default": []
+          },
+          "banks": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Banks",
+            "default": []
+          },
+          "income_categories": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Income Categories",
+            "default": []
+          },
+          "previous_income": {
+            "type": "string",
+            "title": "Previous Income",
+            "default": "0"
+          },
+          "previous_spending": {
+            "type": "string",
+            "title": "Previous Spending",
+            "default": "0"
           }
         },
         "type": "object",

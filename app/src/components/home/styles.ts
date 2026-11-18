@@ -43,6 +43,8 @@ export const phone = StyleSheet.create({
   more: { paddingVertical: 12 },
   moreText: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
   upload: { marginTop: 24 },
+  // The cards borrowed from the computer's Início.
+  cards: { gap: 12, marginTop: 20 },
   emptyBox: { gap: 12, marginTop: 8 },
   empty: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },
   footer: {
@@ -90,6 +92,7 @@ export const dash = StyleSheet.create({
   pendingLink: { fontFamily: fonts.medium, fontSize: 14, color: colors.pendingText },
   card: { borderWidth: 1, borderColor: colors.line, borderRadius: 14, padding: 18, gap: 8 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  wrap: { flexWrap: 'wrap', gap: 8 },
   cardTitle: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.7, color: colors.muted },
   cardSub: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   legend: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 4 },
@@ -103,6 +106,27 @@ export const dash = StyleSheet.create({
   sharePct: { color: colors.muted },
   track: { height: 4, borderRadius: 2, backgroundColor: colors.soft, overflow: 'hidden' },
   fill: { height: 4, borderRadius: 2, backgroundColor: colors.ink },
+  // Comparison with the month before: a short table, numbers to the right.
+  cmpRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 34 },
+  cmpLine: { borderTopWidth: 1, borderTopColor: colors.line },
+  cmpLabel: { flex: 1, textAlign: 'left' },
+  cmpHead: {
+    flex: 1,
+    textAlign: 'right',
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.muted,
+  },
+  cmpName: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
+  cmpValue: {
+    flex: 1,
+    textAlign: 'right',
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.ink,
+    fontVariant: ['tabular-nums'],
+  },
+  cmpPrevious: { color: colors.muted },
   week: { flexDirection: 'row', gap: 4, marginBottom: 4 },
   weekday: {
     flex: 1,
