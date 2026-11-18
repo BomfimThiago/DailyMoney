@@ -4,7 +4,6 @@ import { StyleSheet, Text, View } from 'react-native';
 import {
   barHeight,
   changeRows,
-  dayLabel,
   habitDetail,
   habitTrend,
   monthSentence,
@@ -18,8 +17,8 @@ import { money, plain, shortMonth } from '@/lib/format';
 import type { Currency, CurrencyAnalysis } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
-// The cards of Análises (validated mock: trend, what changed, habits, weekday, peaks),
-// plus the charges that repeat every month. Shared by the phone and computer layouts.
+// The cards of Início's "Últimos meses" (trend, what changed, habits, weekday) plus the
+// charges that repeat every month. Shared by the phone and computer layouts.
 
 function Card({ title, sub, children }: { title: string; sub?: string; children: ReactNode }) {
   return (
@@ -214,29 +213,6 @@ function WeekdayBar({
   );
 }
 
-export function PeaksCard({ a }: { a: CurrencyAnalysis }) {
-  return (
-    <Card title="PICOS DO MÊS" sub="Os dias mais caros, sem contar moradia.">
-      <Rows items={a.peaks} empty="Nenhum gasto neste mês.">
-        {(p, i) => (
-          <View key={p.date} style={[styles.row, i === 0 && styles.rowFirst]}>
-            <View style={styles.rank}>
-              <Text style={styles.rankText}>{i + 1}</Text>
-            </View>
-            <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>{dayLabel(p.date)}</Text>
-              <Text style={styles.rowSub} numberOfLines={1}>
-                {p.merchants.join(' e ')}
-              </Text>
-            </View>
-            <Text style={styles.rowAmount}>{money(p.amount, a.currency)}</Text>
-          </View>
-        )}
-      </Rows>
-    </Card>
-  );
-}
-
 export function RecurringCard({ a }: { a: CurrencyAnalysis }) {
   return (
     <Card title="COBRANÇAS QUE SE REPETEM" sub={recurringSentence(a)}>
@@ -331,15 +307,6 @@ const styles = StyleSheet.create({
   rowAmount: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink, textAlign: 'right' },
   count: { alignItems: 'flex-end', minWidth: 72 },
   countValue: { fontFamily: fonts.medium, fontSize: 15, color: colors.ink },
-  rank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.soft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rankText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.ink },
   week: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginTop: 8 },
   weekCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   weekBar: { width: '100%', maxWidth: 34, borderRadius: 5, backgroundColor: colors.barSoft },

@@ -12,7 +12,6 @@ import { colors, fonts } from '@/theme';
 
 const TABS = [
   { href: '/', label: 'Início' },
-  { href: '/analises', label: 'Análises' },
   { href: '/investimentos', label: 'Investimentos' },
   { href: '/transacoes', label: 'Transações' },
 ] as const;

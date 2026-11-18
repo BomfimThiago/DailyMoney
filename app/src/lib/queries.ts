@@ -12,7 +12,6 @@ import {
   getCardBills,
   getConnections,
   getDashboard,
-  getInvestments,
   getLatestMonth,
   getLineCurrencies,
   getPortfolio,
@@ -125,15 +124,6 @@ export function useLineCurrencies(id: string) {
   return useQuery({
     queryKey: ['money', 'line-currencies', id],
     queryFn: () => getLineCurrencies(id),
-  });
-}
-
-export function useInvestments(month: string, enabled: boolean) {
-  const { currency } = useDisplayCurrency();
-  return useQuery({
-    queryKey: ['money', 'investments', month, currency],
-    queryFn: () => getInvestments(month, currency),
-    enabled,
   });
 }
 

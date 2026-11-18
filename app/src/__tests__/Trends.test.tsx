@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
-import AnalysisScreen from '@/app/(tabs)/analises';
+import { CurrencyChips } from '@/components/CurrencyChips';
+import { Trends } from '@/components/home/Trends';
 import { useAuth } from '@/lib/auth';
 import { useAnalysis } from '@/lib/queries';
-import { withCurrency } from '@/testing/currency';
 import type { Analysis } from '@/lib/types';
 import { analysis } from '@/testing/analysis';
+import { withCurrency } from '@/testing/currency';
 
-jest.mock('expo-router', () => ({ Redirect: () => null }));
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
 jest.mock('@/lib/api', () => ({
   ...jest.requireActual<typeof import('@/lib/api')>('@/lib/api'),
@@ -24,7 +24,6 @@ const full = analysis({
     { name: 'Uber', amount: '50', average: '100' },
   ],
   habits: [{ name: 'Padaria', category: 'Mercado', count: 4, previous_count: 2, total: '50' }],
-  peaks: [{ date: '2026-10-17', amount: '300', merchants: ['Zara', 'iFood'] }],
   recurring: [
     {
       name: 'Netflix',
@@ -44,22 +43,26 @@ const answer = (o: Partial<ReturnType<typeof useAnalysis>>) =>
 const data = (...currencies: Analysis['currencies']): Analysis =>
   ({ month: '2026-10', months: 6, currencies }) as Analysis;
 
-const wide = (width: number) =>
-  jest
-    .spyOn(jest.requireActual<typeof import('react-native')>('react-native'), 'useWindowDimensions')
-    .mockReturnValue({ width, height: 900, scale: 1, fontScale: 1 });
+// Início's currency chips sit above; the section follows them.
+const page = (twoColumns = false) =>
+  withCurrency(
+    <>
+      <CurrencyChips />
+      <Trends month="2026-10" twoColumns={twoColumns} />
+    </>,
+  );
 
 beforeEach(() => {
-  jest.restoreAllMocks();
   jest.mocked(useAuth).mockReturnValue({
     state: { status: 'signedIn', me: { family: { display_currency: 'BRL' } } },
   } as ReturnType<typeof useAuth>);
   answer({ data: data(full, analysis({ currency: 'EUR', average: null, changes: [] })) });
 });
 
-describe('AnalysisScreen', () => {
-  it('shows every card with its lines', async () => {
-    await render(withCurrency(<AnalysisScreen />));
+describe('Trends (the last months on Início)', () => {
+  it('shows every card with its lines, and no peaks card', async () => {
+    await render(page());
+    expect(screen.getByText('Últimos meses')).toBeTruthy();
     expect(screen.getByText('GASTOS POR MÊS')).toBeTruthy();
     expect(screen.getByText(/^média /)).toBeTruthy();
     expect(screen.getByText('+50%')).toBeTruthy();
@@ -67,16 +70,15 @@ describe('AnalysisScreen', () => {
     expect(screen.getByText(/de costume\.$/)).toBeTruthy();
     expect(screen.getByText('Padaria')).toBeTruthy();
     expect(screen.getByText('4×')).toBeTruthy();
-    expect(screen.getByText('Zara e iFood')).toBeTruthy();
     expect(screen.getByText('Netflix')).toBeTruthy();
+    expect(screen.queryByText('PICOS DO MÊS')).toBeNull();
   });
 
-  it('switches currency and period, with each card saying when it has nothing', async () => {
-    await render(withCurrency(<AnalysisScreen />));
+  it('follows the currency, changes the period, and each card says when it has nothing', async () => {
+    await render(page(true));
     await fireEvent.press(screen.getByText('EUR'));
     expect(screen.getByText('Precisa de pelo menos um mês anterior para comparar.')).toBeTruthy();
     expect(screen.getByText('Nenhuma compra se repetiu tanto neste mês.')).toBeTruthy();
-    expect(screen.getByText('Nenhum gasto neste mês.')).toBeTruthy();
     expect(screen.getByText(/Nenhuma assinatura/)).toBeTruthy();
     expect(screen.queryByText(/^média /)).toBeNull();
     await fireEvent.press(screen.getByText('12 meses'));
@@ -86,24 +88,13 @@ describe('AnalysisScreen', () => {
 
   it('shows loading, error and empty states', async () => {
     answer({});
-    await render(withCurrency(<AnalysisScreen />));
+    await render(page());
     expect(screen.queryByText('GASTOS POR MÊS')).toBeNull();
     answer({ isError: true });
-    await render(withCurrency(<AnalysisScreen />));
+    await render(page());
     expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
     answer({ data: data(analysis({ months: [{ month: '2026-10', amount: '0' }] })) });
-    await render(withCurrency(<AnalysisScreen />));
-    expect(screen.getByText(/Nenhum gasto nos extratos enviados/)).toBeTruthy();
-    // The currencies stay: the period may be empty in one view and not in another.
-    expect(screen.getByText('BRL')).toBeTruthy();
-  });
-
-  it('puts cards side by side on a wide computer and stacks them on a narrow one', async () => {
-    wide(1440);
-    await render(withCurrency(<AnalysisScreen />));
-    expect(screen.getByText('O QUE MAIS MUDOU')).toBeTruthy();
-    wide(950);
-    await render(withCurrency(<AnalysisScreen />));
-    expect(screen.getByText('PICOS DO MÊS')).toBeTruthy();
+    await render(page());
+    expect(screen.getByText(/^Ainda não há gastos nos meses anteriores/)).toBeTruthy();
   });
 });

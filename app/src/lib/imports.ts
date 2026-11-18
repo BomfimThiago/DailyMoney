@@ -18,7 +18,6 @@ import type {
   ImportPreview,
   ImportSummary,
   ImportUndone,
-  InvestmentOverview,
   LatestMonth,
   LineCurrencies,
   Portfolio,
@@ -190,10 +189,6 @@ export function getLineCurrencies(id: string) {
 // With a currency, every amount comes converted into it (ECB rate of each line's day).
 export function getSummary(month: string, currency: Currency) {
   return api<MonthSummary>(`/transactions/summary?month=${month}&currency=${currency}`);
-}
-
-export function getInvestments(month: string, currency: Currency) {
-  return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
 }
 
 export function getCardBills(month: string, currency: Currency) {

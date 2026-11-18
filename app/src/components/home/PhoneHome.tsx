@@ -15,11 +15,12 @@ import type { CurrencySummary, TransactionPage } from '@/lib/types';
 import { Breakdown } from './Breakdown';
 import { Comparison } from './Comparison';
 import { Flow } from './Flow';
+import { Trends } from './Trends';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from './shared';
 import { phone as styles } from './styles';
 
 // Início on a phone: variant A from the validated mock (Entradas · Gastos and the latest
-// lines). Investments are already inside Entradas and Gastos, so there is no Investido here:
+// lines), with the last months (what used to be the Análises page) before the lines. Investments are already inside Entradas and Gastos, so there is no Investido here:
 // it lives in Investimentos.
 export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }) {
   const noAccounts = hasNoAccounts(home.summary);
@@ -50,6 +51,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
           <PendingLink count={home.summary?.pending_transfers ?? 0} style={styles.pending} />
           {noAccounts ? null : <CardBillLink style={styles.pending} />}
           {noAccounts || !home.shown ? null : <Cards month={home.month} shown={home.shown} />}
+          {noAccounts ? null : <Trends month={home.month} twoColumns={false} />}
           {noAccounts ? null : <Recent month={home.month} />}
           <View style={styles.footer}>
             <Pressable

@@ -380,37 +380,25 @@ async function checkScreens(page, tag) {
     await shot('inicio-fluxo');
     await page.getByRole('radio', { name: 'Categoria' }).filter({ visible: true }).first().click();
 
+    // Further down still: the last months (what used to be the Análises page).
+    await page.getByText('COBRANÇAS QUE SE REPETEM').filter({ visible: true }).first().waitFor();
+    // Scrolled so the section's title sits at the top of the screen.
+    await page
+      .getByText('Últimos meses')
+      .filter({ visible: true })
+      .first()
+      .evaluate((el) => el.scrollIntoView({ block: 'start' }));
+    await page.waitForTimeout(200);
+    await shot('inicio-ultimos-meses');
+
     // Tabs stay mounted, so the same text can exist on a hidden tab: wait for the visible one.
     const seen = (text) => page.getByText(text).filter({ visible: true }).first();
     // Bottom tabs on a phone, sidebar links on a computer: both carry the same test id.
     const tab = (name) => page.getByTestId(`tab-${name}`);
+    // Investimentos: only the bank's portfolio.
     await tab('Investimentos').click();
-    if (tag === 'computador') {
-      // The bank's portfolio on top; products and the month's movements side by side below.
-      await seen('SEUS INVESTIMENTOS').waitFor();
-      await seen('Aplicação RDB').waitFor();
-      await shot('investimentos');
-      await page
-        .getByText('SEUS PRODUTOS')
-        .filter({ visible: true })
-        .first()
-        .scrollIntoViewIfNeeded();
-      await shot('investimentos-extratos');
-    } else {
-      await seen('Seus investimentos').waitFor();
-      await shot('investimentos-carteira');
-      await page.getByRole('tab', { name: 'Produtos' }).click();
-      await seen('Seus produtos').waitFor();
-      await shot('investimentos-produtos');
-      await page.getByRole('tab', { name: 'Movimentos' }).click();
-      await shot('investimentos-movimentos');
-    }
-
-    await tab('Análises').click();
-    await seen('GASTOS POR MÊS').waitFor();
-    await seen('COBRANÇAS QUE SE REPETEM').waitFor();
-    await page.waitForLoadState('networkidle');
-    await shot('analises');
+    await seen(tag === 'computador' ? 'SEUS INVESTIMENTOS' : 'Seus investimentos').waitFor();
+    await shot('investimentos');
 
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
@@ -595,7 +583,6 @@ async function checkScreens(page, tag) {
 
     // Every tab has loaded once: switching back must never show a blank or loading screen.
     await noBlankWhile('Início', () => tab('Início').click());
-    await noBlankWhile('Análises', () => tab('Análises').click());
     await noBlankWhile('Investimentos', () => tab('Investimentos').click());
     await noBlankWhile('Transações', () => tab('Transações').click());
 

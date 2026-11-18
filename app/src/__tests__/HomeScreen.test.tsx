@@ -5,8 +5,9 @@ import { router } from 'expo-router';
 import HomeScreen from '@/app/(tabs)/index';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { useCardBills, useDashboard, useRecent, useSummary } from '@/lib/queries';
+import { useAnalysis, useCardBills, useDashboard, useRecent, useSummary } from '@/lib/queries';
 import type { CardBills } from '@/lib/types';
+import { analysis } from '@/testing/analysis';
 import { movement } from '@/testing/investments';
 import { withCurrency } from '@/testing/currency';
 import { dashboard, monthSummary } from '@/testing/home';
@@ -28,6 +29,7 @@ jest.mock('@/lib/queries', () => ({
   useRecent: jest.fn(),
   useDashboard: jest.fn(),
   useCardBills: jest.fn(),
+  useAnalysis: jest.fn(),
 }));
 
 const mockAuth = jest.mocked(useAuth);
@@ -74,6 +76,14 @@ beforeEach(() => {
     data: { month: '2026-10', start: '2026-10-01', end: '2026-10-31', currencies: [dashboard()] },
   });
   bills([]);
+  jest.mocked(useAnalysis).mockReturnValue({
+    data: {
+      month: '2026-10',
+      months: 6,
+      currencies: [analysis({ months: [{ month: '2026-10', amount: '900' }] })],
+    },
+    isError: false,
+  } as unknown as ReturnType<typeof useAnalysis>);
 });
 
 const bills = (cards: CardBills[]) =>
@@ -209,6 +219,11 @@ describe('HomeScreen on a computer', () => {
     expect(screen.getByText(/^COMPARADO COM /)).toBeTruthy();
     expect(screen.getByText('Diferença')).toBeTruthy();
     expect(screen.getByText('FLUXO DO MÊS')).toBeTruthy();
+    // What used to be Análises sits below, without the peaks (the calendar shows them).
+    expect(screen.getByText('Últimos meses')).toBeTruthy();
+    expect(screen.getByText('GASTOS POR MÊS')).toBeTruthy();
+    expect(screen.getByText('COBRANÇAS QUE SE REPETEM')).toBeTruthy();
+    expect(screen.queryByText('PICOS DO MÊS')).toBeNull();
     expect(screen.getByLabelText(/^1: /)).toBeTruthy();
     expect(screen.getByLabelText('2: sem gastos')).toBeTruthy();
     await fireEvent.press(screen.getByText('EUR'));

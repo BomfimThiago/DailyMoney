@@ -8,6 +8,7 @@ import { Flow } from '@/components/home/Flow';
 import { Pace } from '@/components/home/Pace';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from '@/components/home/shared';
 import { SpendingCalendar } from '@/components/home/SpendingCalendar';
+import { Trends } from '@/components/home/Trends';
 import { dash as styles } from '@/components/home/styles';
 import { MonthNav } from '@/components/nav';
 import { Loadable } from '@/components/states';
@@ -24,7 +25,8 @@ import { useDashboard } from '@/lib/queries';
 import type { CurrencyDashboard, CurrencySummary, MonthSummary } from '@/lib/types';
 import { colors } from '@/theme';
 
-// Início on a computer: the old web's dashboard, in the new white style (variant B).
+// Início on a computer: the old web's dashboard, in the new white style (variant B), then
+// the last months (what used to be the Análises page).
 export function HomeDashboard({ home }: { home: Home }) {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -59,6 +61,7 @@ export function HomeDashboard({ home }: { home: Home }) {
 
 function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
   const query = useDashboard(home.month, true);
+  const twoColumns = contentWidthFor(useWindowDimensions().width) >= TWO_COLUMNS;
   const shown = home.shown;
   if (!shown) return null;
   const dash = query.data?.currencies.find((c) => c.currency === shown.currency) ?? null;
@@ -79,6 +82,7 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
       >
         {(d) => <Charts month={home.month} start={start ?? ''} shown={shown} dash={d} />}
       </Loadable>
+      <Trends month={home.month} twoColumns={twoColumns} />
     </>
   );
 }
@@ -98,7 +102,7 @@ function Charts({
   const twoColumns = width >= TWO_COLUMNS;
   return (
     <>
-      <Comparison month={month} shown={shown} dash={dash} withCurrent />
+      <Comparison month={month} shown={shown} dash={dash} />
       <Pace month={month} start={start} dash={dash} width={width} />
       <View style={[styles.pair, !twoColumns && styles.stack]}>
         <Breakdown dash={dash} />
