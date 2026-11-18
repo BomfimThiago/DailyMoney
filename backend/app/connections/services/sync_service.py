@@ -37,6 +37,9 @@ log = logging.getLogger(__name__)
 # A new connection reads up to a year back (European banks give that only right after
 # the authorization; afterwards 90 days at most).
 FIRST_READ_DAYS = 365
+# What every bank still gives long after the authorization (PSD2: 90 days). Used when a
+# bank refuses an older start, as CaixaBank does after "Apagar todas as transações".
+SAFE_READ_DAYS = 89
 # Later reads go back a month before the last one: banks book some lines late.
 OVERLAP_DAYS = 30
 
@@ -186,7 +189,7 @@ async def _sync_account(
     fmt: Format
     if conn.provider == enablebanking.PROVIDER:
         fmt = "eb"
-        txs = await enablebanking.list_transactions(account["uid"], since)
+        txs, since = await _eb_transactions(account["uid"], since)
         rows, errors = enablebanking.map_transactions(txs, currency, since)
     else:
         fmt = "pluggy"
@@ -227,6 +230,18 @@ async def _sync_account(
     if imp.imported_count == 0:
         # Nothing new: no need to keep a record of this read.
         await db.delete(imp)
+
+
+async def _eb_transactions(uid: str, since: date) -> tuple[list[dict[str, Any]], date]:
+    """The account's lines from `since`, or from the oldest day the bank still allows."""
+    try:
+        return await enablebanking.list_transactions(uid, since), since
+    except enablebanking.WrongPeriodError:
+        shorter = date.today() - timedelta(days=SAFE_READ_DAYS)
+        if shorter <= since:
+            raise
+        log.info("bank refused the period asked for; reading the last %d days", SAFE_READ_DAYS)
+        return await enablebanking.list_transactions(uid, shorter), shorter
 
 
 def _same_currency(
