@@ -58,14 +58,6 @@ export function habitTrend(count: number, previous: number, month: string): stri
   return `${diff > 0 ? '+' : '−'}${Math.abs(diff)} vs ${before}`;
 }
 
-// "Sábado, 17 out".
-export function dayLabel(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const weekday = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
-  const name = WEEKDAY_NAMES[weekday];
-  return `${name[0].toUpperCase()}${name.slice(1)}, ${dayMonth(iso)}`;
-}
-
 // The currency to open with: the first that has any spending in the period.
 export function firstWithSpending(currencies: CurrencyAnalysis[]): CurrencyAnalysis | null {
   return (

@@ -577,42 +577,6 @@ export const fixtures = {
       },
     ],
   },
-  '/transactions/investments': {
-    month,
-    totals: [{ currency: 'BRL', put_in: '9800.00', taken_out: '1300.00', net: '8500.00' }],
-    products: [
-      {
-        name: 'RDB',
-        account_id: 'acc-nu',
-        account_name: 'Nubank',
-        currency: 'BRL',
-        put_in: '6500.00',
-        taken_out: '1300.00',
-        net: '5200.00',
-        month_net: '1200.00',
-        last_date: day(20),
-      },
-      {
-        name: 'Prot.1 IPCA+ 2032',
-        account_id: 'acc-inter',
-        account_name: 'Inter',
-        currency: 'BRL',
-        put_in: '3300.00',
-        taken_out: '0.00',
-        net: '3300.00',
-        month_net: '800.00',
-        last_date: day(10),
-      },
-    ],
-    history: [-5, -4, -3, -2, -1, 0].map((o, i) => ({
-      month: ym(o),
-      currency: 'BRL',
-      put_in: ['1200.00', '900.00', '1500.00', '600.00', '1300.00', '2300.00'][i],
-      taken_out: ['0.00', '200.00', '0.00', '500.00', '0.00', '300.00'][i],
-      net: ['1200.00', '700.00', '1500.00', '100.00', '1300.00', '2000.00'][i],
-    })),
-    movements: investments,
-  },
   // Transferências > Conferência: the card bill closed, R$ 400 went to an account not in
   // the app.
   '/transactions/movements': {

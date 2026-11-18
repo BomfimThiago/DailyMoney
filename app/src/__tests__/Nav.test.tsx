@@ -51,8 +51,9 @@ describe('TabBar', () => {
     expect(screen.getByRole('tab', { name: 'Início' }).props.accessibilityState).toEqual({
       selected: false,
     });
-    await fireEvent.press(screen.getByText('Análises'));
-    expect(router.navigate).toHaveBeenCalledWith('/analises');
+    expect(screen.queryByText('Análises')).toBeNull();
+    await fireEvent.press(screen.getByText('Investimentos'));
+    expect(router.navigate).toHaveBeenCalledWith('/investimentos');
   });
 
   it('marks Início only on the home page', async () => {
@@ -100,7 +101,7 @@ describe('TabsLayout', () => {
   it('puts the tabs at the bottom of a phone', async () => {
     wide(390);
     await render(<TabsLayout />);
-    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.getAllByRole('tab')).toHaveLength(3);
     expect(screen.queryByText('Sair')).toBeNull();
   });
 

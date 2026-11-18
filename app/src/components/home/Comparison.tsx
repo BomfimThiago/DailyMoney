@@ -16,42 +16,34 @@ const toneColor: Record<Tone, string> = {
 const monthName = (month: string) => monthLabel(month).split(' ')[0];
 
 // Entradas, Gastos and Sobra against the month before: its value and the difference, in
-// green when it got better and red when it got worse. The computer also shows this month.
+// green when it got better and red when it got worse. This month's own values are the
+// figures at the top of Início, so they are not repeated here.
 export function Comparison({
   month,
   shown,
   dash,
-  withCurrent = false,
 }: {
   month: string;
   shown: CurrencySummary;
   dash: CurrencyDashboard;
-  withCurrent?: boolean;
 }) {
   const before = monthName(shiftMonth(month, -1));
   const rows = comparisonRows(shown, {
     income: dash.previous_income,
     spending: dash.previous_spending,
   });
-  const current = { income: shown.income, spending: shown.spending, left: shown.left };
   const cur = shown.currency;
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{`COMPARADO COM ${before.toUpperCase()}`}</Text>
       <View style={styles.cmpRow}>
         <Text style={[styles.cmpHead, styles.cmpLabel]}> </Text>
-        {withCurrent ? <Text style={styles.cmpHead}>{monthName(month)}</Text> : null}
         <Text style={styles.cmpHead}>{before}</Text>
         <Text style={styles.cmpHead}>Diferença</Text>
       </View>
       {rows.map((r) => (
         <View key={r.key} style={[styles.cmpRow, styles.cmpLine]}>
           <Text style={[styles.cmpName, styles.cmpLabel]}>{r.label}</Text>
-          {withCurrent ? (
-            <Text style={styles.cmpValue} numberOfLines={1}>
-              {money(current[r.key], cur)}
-            </Text>
-          ) : null}
           <Text style={[styles.cmpValue, styles.cmpPrevious]} numberOfLines={1}>
             {r.previous === null ? '—' : money(r.previous, cur)}
           </Text>

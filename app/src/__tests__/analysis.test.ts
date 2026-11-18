@@ -4,7 +4,6 @@ import {
   barHeight,
   changeOf,
   changeRows,
-  dayLabel,
   firstWithSpending,
   habitDetail,
   habitTrend,
@@ -55,11 +54,6 @@ describe('análises', () => {
     expect(habitTrend(4, 2, '2026-10')).toBe('+2 vs set');
     expect(habitTrend(3, 3, '2026-10')).toBe('igual a set');
     expect(habitTrend(3, 5, '2026-01')).toBe('−2 vs dez');
-  });
-
-  it('names a day with its weekday', () => {
-    expect(dayLabel('2026-10-17')).toBe('Sábado, 17 out');
-    expect(dayLabel('2026-11-09')).toBe('Segunda, 9 nov');
   });
 
   it('opens on the first currency that has spending', () => {

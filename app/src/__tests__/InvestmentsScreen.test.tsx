@@ -3,10 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import InvestmentsScreen from '@/app/(tabs)/investimentos';
 import { useAuth } from '@/lib/auth';
-import { currentMonth } from '@/lib/format';
-import { useInvestments, usePortfolio } from '@/lib/queries';
+import { usePortfolio } from '@/lib/queries';
 import { withCurrency } from '@/testing/currency';
-import { overview } from '@/testing/investments';
 import { emptyPortfolio, portfolio } from '@/testing/portfolio';
 
 jest.mock('expo-router', () => {
@@ -23,20 +21,14 @@ jest.mock('@/lib/api', () => ({
   ...jest.requireActual<typeof import('@/lib/api')>('@/lib/api'),
   api: jest.fn(() => Promise.resolve({})),
 }));
-jest.mock('@/lib/queries', () => ({ useInvestments: jest.fn(), usePortfolio: jest.fn() }));
+jest.mock('@/lib/queries', () => ({ usePortfolio: jest.fn() }));
 
 const mockAuth = jest.mocked(useAuth);
-const mockInvestments = jest.mocked(useInvestments);
 const mockPortfolio = jest.mocked(usePortfolio);
 
 const holding = (o: Partial<ReturnType<typeof usePortfolio>>) =>
   mockPortfolio.mockReturnValue({ data: undefined, isError: false, ...o } as ReturnType<
     typeof usePortfolio
-  >);
-
-const answer = (o: Partial<ReturnType<typeof useInvestments>>) =>
-  mockInvestments.mockReturnValue({ data: undefined, isError: false, ...o } as ReturnType<
-    typeof useInvestments
   >);
 
 // Spaces inside formatted money are non-breaking; tests read them as plain spaces.
@@ -54,12 +46,8 @@ beforeEach(() => {
   mockAuth.mockReturnValue({
     state: { status: 'signedIn', me: { family: { display_currency: 'BRL' } } },
   } as ReturnType<typeof useAuth>);
-  answer({ data: overview({ month: currentMonth() }) });
   holding({ data: emptyPortfolio() });
 });
-
-// The phone opens on the bank's portfolio; the statements' products are the next tab.
-const products = () => fireEvent.press(screen.getByTestId('segment-produtos'));
 
 describe('InvestmentsScreen session', () => {
   it('waits for the session, then sends signed-out people to login', async () => {
@@ -69,105 +57,6 @@ describe('InvestmentsScreen session', () => {
     mockAuth.mockReturnValue({ state: { status: 'signedOut' } } as ReturnType<typeof useAuth>);
     await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('redirect /login')).toBeTruthy();
-  });
-});
-
-describe('InvestmentsScreen on the phone', () => {
-  it('shows loading, error and empty states', async () => {
-    answer({});
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    expect(screen.queryByText('Seus produtos')).toBeNull();
-    answer({ isError: true });
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
-    answer({ data: overview({ totals: [] }) });
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    expect(
-      screen.getByText('Nenhuma aplicação ou resgate nos extratos enviados até agora.'),
-    ).toBeTruthy();
-  });
-
-  it('shows the total, the month and the products', async () => {
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    expect(text('R$ 4.000,00')).toBeTruthy();
-    expect(text('+R$ 1.500,00')).toBeTruthy();
-    expect(screen.getByText('RDB')).toBeTruthy();
-    expect(screen.getByText('sem movimento no mês')).toBeTruthy();
-    expect(screen.getByText(/lido dos extratos/)).toBeTruthy();
-  });
-
-  it('switches currency and says when the month had no moves', async () => {
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    await fireEvent.press(screen.getByText('EUR'));
-    expect(screen.getAllByText(money('€ 300,00')).length).toBeGreaterThan(0);
-    expect(screen.getByText(/^Nenhum movimento em /)).toBeTruthy();
-    expect(screen.getByText('Wise Interest')).toBeTruthy();
-  });
-
-  it('shows movements with the month figures', async () => {
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    await fireEvent.press(screen.getByTestId('segment-movimentos'));
-    expect(screen.getByText('Investido por mês (aplicado menos resgatado)')).toBeTruthy();
-    expect(screen.getByText('Resgatado')).toBeTruthy();
-    expect(screen.getByText('Aplicação RDB')).toBeTruthy();
-  });
-
-  it('leaves out the figures and movements when the month is empty', async () => {
-    answer({ data: overview({ history: [], movements: [] }) });
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    await fireEvent.press(screen.getByTestId('segment-movimentos'));
-    expect(screen.queryByText('Resgatado')).toBeNull();
-    expect(screen.getByText('Nenhuma aplicação ou resgate neste mês.')).toBeTruthy();
-  });
-
-  it('asks for another month when the arrow is pressed', async () => {
-    await render(withCurrency(<InvestmentsScreen />));
-    await products();
-    await fireEvent.press(screen.getByLabelText('Mês anterior'));
-    const months = mockInvestments.mock.calls.map((c) => c[0]);
-    expect(months[months.length - 1]).not.toBe(currentMonth());
-  });
-});
-
-describe('InvestmentsScreen on a computer', () => {
-  it('shows the four figures and both cards', async () => {
-    wide();
-    await render(withCurrency(<InvestmentsScreen />));
-    expect(screen.getByText('APLICADO NO TOTAL')).toBeTruthy();
-    expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
-    expect(screen.getByText('INVESTIDO POR MÊS')).toBeTruthy();
-    expect(screen.getByText('Aplicação RDB')).toBeTruthy();
-    await fireEvent.press(screen.getByText('EUR'));
-    expect(screen.getAllByText(money('€ 300,00')).length).toBeGreaterThan(0);
-  });
-
-  it('shows zeros without a month, and the currencies even while loading', async () => {
-    wide();
-    answer({ data: overview({ totals: [overview().totals[0]], history: [] }) });
-    await render(withCurrency(<InvestmentsScreen />));
-    expect(screen.getAllByText(money('R$ 0,00'))).toHaveLength(3);
-    answer({});
-    await render(withCurrency(<InvestmentsScreen />));
-    expect(screen.queryByText('SEUS PRODUTOS')).toBeNull();
-    expect(screen.getByText('USD')).toBeTruthy();
-  });
-
-  it('stacks the cards on a narrow computer', async () => {
-    jest
-      .spyOn(
-        jest.requireActual<typeof import('react-native')>('react-native'),
-        'useWindowDimensions',
-      )
-      .mockReturnValue({ width: 960, height: 900, scale: 1, fontScale: 1 });
-    await render(withCurrency(<InvestmentsScreen />));
-    expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
   });
 });
 
@@ -202,9 +91,10 @@ describe('the bank portfolio', () => {
     expect(screen.getByText(/^O maior volume volta em 2027/)).toBeTruthy();
     expect(screen.getByText(/^Saldo líquido \(já sem IR e taxas\)/)).toBeTruthy();
     expect(screen.getByTestId('banks-link')).toBeTruthy();
+    expect(screen.queryByTestId('segment-produtos')).toBeNull();
   });
 
-  it('sits above the statements on a computer', async () => {
+  it('fills the page on a computer, with no statements part and no month', async () => {
     wide();
     holding({
       data: portfolio({
@@ -223,7 +113,10 @@ describe('the bank portfolio', () => {
     expect(
       screen.getByText('2 investimentos resgatados ou encerrados não aparecem aqui.'),
     ).toBeTruthy();
-    expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
+    expect(screen.queryByText('SEUS PRODUTOS')).toBeNull();
+    expect(screen.queryByText(/Aplicações e resgates/)).toBeNull();
+    expect(screen.queryByLabelText('Mês anterior')).toBeNull();
+    await fireEvent.press(screen.getByText('EUR'));
     holding({ data: emptyPortfolio({ has_source: true }) });
     await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText(/ainda não informou/)).toBeTruthy();
