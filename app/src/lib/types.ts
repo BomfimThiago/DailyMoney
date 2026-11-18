@@ -6,6 +6,7 @@ type S = components['schemas'];
 
 export type Currency = S['Currency'];
 export type Member = S['MemberOut'];
+export type MemberKind = Member['kind'];
 export type Family = S['FamilyOut'];
 export type Me = S['MeOut'];
 export type TokenPair = S['TokenPair'];

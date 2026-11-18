@@ -58,6 +58,7 @@ function Categories() {
         all={all}
         onChanged={refresh}
         onDeleted={close}
+        onKindChanged={setKind}
       />
     ) : null;
 

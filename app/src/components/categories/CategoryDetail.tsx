@@ -2,9 +2,19 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { DeleteConfirm, Field, Input } from '@/components/transactions/TxEditForm';
+import { Segment } from '@/components/nav';
 import { Button } from '@/components/ui';
 import { errorText } from '@/lib/api';
-import { countText, deleteHint, KINDS, merchantLabel, nameError } from '@/lib/categories';
+import {
+  countText,
+  deleteHint,
+  KIND_CHOICES,
+  kindChangeNote,
+  KINDS,
+  merchantLabel,
+  nameError,
+  type CategoryKind,
+} from '@/lib/categories';
 import { deleteCategory, deleteCategoryRule, editCategory } from '@/lib/imports';
 import { useCategoryRules } from '@/lib/queries';
 import type { Category } from '@/lib/types';
@@ -19,11 +29,14 @@ export function CategoryDetail({
   all,
   onChanged,
   onDeleted,
+  onKindChanged,
 }: {
   category: Category;
   all: Category[];
   onChanged: () => Promise<void> | void;
   onDeleted: () => void;
+  // The category went to another kind: the list follows it there.
+  onKindChanged?: (kind: CategoryKind) => void;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(c.name);
@@ -60,6 +73,11 @@ export function CategoryDetail({
     const before = color;
     setColor(next);
     if (!(await run('color', () => editCategory(c.id, { color: next })))) setColor(before);
+  };
+
+  const pickKind = async (next: CategoryKind) => {
+    if (next === c.kind || busy) return;
+    if (await run('kind', () => editCategory(c.id, { kind: next }))) onKindChanged?.(next);
   };
 
   const remove = async () => {
@@ -120,6 +138,12 @@ export function CategoryDetail({
           </Text>
         </View>
       )}
+
+      <View style={styles.section}>
+        <Text style={styles.label}>TIPO{busy === 'kind' ? ' · salvando…' : ''}</Text>
+        <Segment options={KIND_CHOICES} value={c.kind} onChange={pickKind} testPrefix="kind" />
+        <Text style={styles.note}>{kindChangeNote(c)}</Text>
+      </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>COR</Text>

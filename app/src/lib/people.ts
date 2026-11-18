@@ -1,7 +1,8 @@
 import { api } from './api';
 import type { DotOption } from '@/components/DotSelect';
 
-import type { Account, Family, Member } from './types';
+import { PALETTE } from './categories';
+import type { Account, Family, Member, MemberKind } from './types';
 
 // Responsáveis (from the old app): who each account belongs to. An account with no one
 // belongs to the whole household; its lines follow the account's owner.
@@ -31,14 +32,50 @@ export function getFamily() {
   return api<Family>('/family');
 }
 
-export function addMember(name: string) {
+// "Quem é" (from the old app): who the person is to the household.
+export const MEMBER_KINDS: { value: MemberKind; label: string }[] = [
+  { value: 'me', label: 'Eu' },
+  { value: 'spouse', label: 'Cônjuge' },
+  { value: 'family', label: 'Família' },
+  { value: 'other', label: 'Outro' },
+];
+
+export function kindLabel(kind: MemberKind): string {
+  return MEMBER_KINDS.find((k) => k.value === kind)?.label ?? '';
+}
+
+// Under the name: "Cônjuge · 2 contas".
+export function memberSub(m: Member, accounts: Account[]): string {
+  return `${kindLabel(m.kind)} · ${accountCount(m.id, accounts)}`;
+}
+
+// The first colour no one uses yet, for a new person.
+export function freeMemberColor(members: Member[]): string {
+  const used = new Set(members.map((m) => m.color.toLowerCase()));
+  return PALETTE.find((p) => !used.has(p)) ?? PALETTE[0];
+}
+
+export type NewMember = { name: string; kind: MemberKind; color: string };
+
+export function addMember(m: NewMember) {
   return api<Member>('/family/members', {
     method: 'POST',
-    body: JSON.stringify({ name: name.trim() }),
+    body: JSON.stringify({ name: m.name.trim(), kind: m.kind, color: m.color }),
   });
 }
 
-export function editMember(id: string, patch: { name?: string; color?: string }) {
+export type MemberPatch = { name?: string; color?: string; kind?: MemberKind };
+
+// Only what changed, or null when nothing did.
+export function memberPatch(m: Member, next: NewMember): MemberPatch | null {
+  const patch: MemberPatch = {};
+  if (next.name.trim() !== m.name) patch.name = next.name.trim();
+  if (next.color.toLowerCase() !== m.color.toLowerCase()) patch.color = next.color;
+  if (next.kind !== m.kind) patch.kind = next.kind;
+  return Object.keys(patch).length ? patch : null;
+}
+
+export function editMember(id: string, patch: MemberPatch) {
   return api<Member>(`/family/members/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
 }
 

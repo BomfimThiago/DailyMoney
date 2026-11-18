@@ -5,20 +5,25 @@ import { Swatches } from '@/components/categories/Swatches';
 import { DeleteConfirm, Field, Input } from '@/components/transactions/TxEditForm';
 import { Button } from '@/components/ui';
 import { errorText } from '@/lib/api';
+import { Segment } from '@/components/nav';
 import {
-  accountCount,
   addMember,
   deleteMember,
   deleteMemberHint,
   editMember,
+  freeMemberColor,
+  MEMBER_KINDS,
   memberNameError,
+  memberPatch,
+  memberSub,
+  type NewMember,
 } from '@/lib/people';
 import type { Account, Member } from '@/lib/types';
 
 import { styles } from './styles';
 
-// The people who own accounts: add, rename, recolour, remove. The person who signs in
-// can't be removed.
+// The people who own accounts: add, rename, say who they are, recolour, remove. The
+// person who signs in can't be removed.
 export function People({
   members,
   accounts,
@@ -29,6 +34,7 @@ export function People({
   onChanged: () => Promise<void> | void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   return (
     <View style={styles.section}>
       <Text style={styles.label}>PESSOAS</Text>
@@ -52,7 +58,7 @@ export function People({
                   {m.name}
                   {m.user_id ? ' (você)' : ''}
                 </Text>
-                <Text style={styles.sub}>{accountCount(m.id, accounts)}</Text>
+                <Text style={styles.sub}>{memberSub(m, accounts)}</Text>
               </View>
               <Pressable
                 onPress={() => setEditingId(m.id)}
@@ -66,57 +72,110 @@ export function People({
           ),
         )}
       </View>
-      <AddPerson members={members} onChanged={onChanged} />
+      {adding ? (
+        <View style={styles.list}>
+          <AddPerson members={members} onChanged={onChanged} onClose={() => setAdding(false)} />
+        </View>
+      ) : (
+        <Pressable
+          onPress={() => setAdding(true)}
+          testID="add-person"
+          accessibilityRole="button"
+          style={styles.addLink}
+        >
+          <Text style={styles.link}>+ Adicionar pessoa</Text>
+        </Pressable>
+      )}
     </View>
+  );
+}
+
+// Name, who they are and colour: the same fields to add a person and to edit one.
+function PersonFields({
+  value,
+  onChange,
+  problem,
+  nameLabel,
+}: {
+  value: NewMember;
+  onChange: (v: NewMember) => void;
+  problem: string | null;
+  nameLabel: string;
+}) {
+  return (
+    <>
+      <Field label="Nome" error={problem ?? undefined}>
+        <Input
+          value={value.name}
+          onChange={(name) => onChange({ ...value, name })}
+          label={nameLabel}
+          placeholder="Nome de quem divide as contas"
+          invalid={Boolean(problem)}
+          maxLength={80}
+        />
+      </Field>
+      <Field label="Quem é">
+        <Segment
+          options={MEMBER_KINDS}
+          value={value.kind}
+          onChange={(kind) => onChange({ ...value, kind })}
+          testPrefix="who"
+        />
+      </Field>
+      <Field label="Cor">
+        <Swatches value={value.color} onChange={(color) => onChange({ ...value, color })} />
+      </Field>
+    </>
   );
 }
 
 function AddPerson({
   members,
   onChanged,
+  onClose,
 }: {
   members: Member[];
   onChanged: () => Promise<void> | void;
+  onClose: () => void;
 }) {
-  const [name, setName] = useState('');
+  const [person, setPerson] = useState<NewMember>(() => ({
+    name: '',
+    kind: 'other',
+    color: freeMemberColor(members),
+  }));
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const problem = tried ? memberNameError(name, members) : null;
+  const problem = tried ? memberNameError(person.name, members) : null;
 
   const add = async () => {
     setTried(true);
-    if (memberNameError(name, members)) return;
+    if (memberNameError(person.name, members)) return;
     setBusy(true);
     setError(null);
     try {
-      await addMember(name);
+      await addMember(person);
       await onChanged();
-      setName('');
-      setTried(false);
+      onClose();
     } catch (e) {
       setError(errorText(e));
-    } finally {
       setBusy(false);
     }
   };
 
   return (
-    <View>
-      <View style={styles.add}>
-        <View style={styles.addInput}>
-          <Input
-            value={name}
-            onChange={setName}
-            label="Nome da pessoa"
-            placeholder="Nome de quem divide as contas"
-            invalid={Boolean(problem)}
-            maxLength={80}
-          />
-        </View>
-        <Button label="Adicionar" onPress={add} busy={busy} style={styles.addButton} />
+    <View style={[styles.editing, styles.rowFirst]}>
+      <PersonFields
+        value={person}
+        onChange={setPerson}
+        problem={problem}
+        nameLabel="Nome da pessoa"
+      />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <View style={styles.actions}>
+        <Button label="Cancelar" onPress={onClose} disabled={busy} style={styles.action} />
+        <Button primary label="Adicionar" onPress={add} busy={busy} style={styles.action} />
       </View>
-      {problem || error ? <Text style={styles.error}>{problem ?? error}</Text> : null}
     </View>
   );
 }
@@ -136,12 +195,11 @@ function EditPerson({
   onChanged: () => Promise<void> | void;
   onClose: () => void;
 }) {
-  const [name, setName] = useState(m.name);
-  const [color, setColor] = useState(m.color);
+  const [person, setPerson] = useState<NewMember>({ name: m.name, kind: m.kind, color: m.color });
   const [busy, setBusy] = useState<'save' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const problem = memberNameError(name, members, m.id);
+  const problem = memberNameError(person.name, members, m.id);
 
   const run = async (what: 'save' | 'delete', job: () => Promise<unknown>) => {
     setBusy(what);
@@ -158,27 +216,19 @@ function EditPerson({
 
   const save = () => {
     if (problem) return;
-    const patch: { name?: string; color?: string } = {};
-    if (name.trim() !== m.name) patch.name = name.trim();
-    if (color.toLowerCase() !== m.color.toLowerCase()) patch.color = color;
-    if (!patch.name && !patch.color) return onClose();
+    const patch = memberPatch(m, person);
+    if (!patch) return onClose();
     return run('save', () => editMember(m.id, patch));
   };
 
   return (
     <View style={[styles.editing, first && styles.rowFirst]}>
-      <Field label="Nome" error={problem ?? undefined}>
-        <Input
-          value={name}
-          onChange={setName}
-          label="Nome do responsável"
-          invalid={Boolean(problem)}
-          maxLength={80}
-        />
-      </Field>
-      <Field label="Cor">
-        <Swatches value={color} onChange={setColor} />
-      </Field>
+      <PersonFields
+        value={person}
+        onChange={setPerson}
+        problem={problem}
+        nameLabel="Nome do responsável"
+      />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {confirming ? (
         <DeleteConfirm

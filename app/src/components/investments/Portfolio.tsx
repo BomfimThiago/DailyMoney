@@ -7,18 +7,21 @@ import Svg, { Polyline } from 'react-native-svg';
 import { money, plain } from '@/lib/format';
 import {
   banksLine,
+  classSub,
   emptyText,
   finding,
   gainSub,
   gainText,
   historyPoints,
   historyRange,
+  ladderFinding,
   ladderHeights,
   maturingSub,
   percent,
   positionNote,
   positionSub,
   shade,
+  sourceNote,
   totalSub,
   undatedText,
 } from '@/lib/portfolio';
@@ -59,6 +62,7 @@ export function WidePortfolio({ p, twoColumns }: { p: Portfolio; twoColumns: boo
         <Text style={wide.cardTitle}>SEUS INVESTIMENTOS</Text>
         <Positions p={p} />
       </View>
+      <Text style={styles.foot}>{sourceNote(p)}</Text>
     </>
   );
 }
@@ -86,6 +90,7 @@ export function PhonePortfolio({ p }: { p: Portfolio }) {
       <Ladder p={p} />
       <Text style={styles.label}>Seus investimentos</Text>
       <Positions p={p} />
+      <Text style={styles.foot}>{sourceNote(p)}</Text>
     </>
   );
 }
@@ -165,8 +170,10 @@ function Ladder({ p }: { p: Portfolio }) {
     return <Text style={styles.sub}>Nenhum investimento com data de vencimento.</Text>;
   }
   const heights = ladderHeights(ladder.steps);
+  const peak = ladderFinding(p);
   return (
     <View style={styles.block}>
+      {peak ? <Text style={styles.sub}>{peak}</Text> : null}
       <Text style={styles.sub}>Quanto volta em cada ano, pelo saldo de hoje.</Text>
       <View style={styles.ladder}>
         {ladder.steps.map((s, i) => (
@@ -189,7 +196,13 @@ function Positions({ p }: { p: Portfolio }) {
     <View>
       {p.classes.map((c) => (
         <View key={c.key} style={styles.group}>
-          <Text style={styles.groupTitle}>{c.label}</Text>
+          <View style={styles.groupHead}>
+            <View style={styles.main}>
+              <Text style={styles.groupTitle}>{c.label}</Text>
+              <Text style={styles.groupSub}>{classSub(c)}</Text>
+            </View>
+            <Text style={styles.groupTotal}>{money(c.total, p.currency)}</Text>
+          </View>
           {c.positions.map((pos, i) => (
             <PositionRow key={pos.id} pos={pos} lens={p.currency} first={i === 0} />
           ))}

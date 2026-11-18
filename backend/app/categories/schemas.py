@@ -33,6 +33,9 @@ class CategoryCreate(BaseModel):
 class CategoryUpdate(BaseModel):
     name: Name | None = None
     color: Color | None = None
+    # Gasto, entrada or movimentação. Also applies to the lines already in it:
+    # movimentação takes them out of every total, gasto/entrada brings them back.
+    kind: CategoryKind | None = None
 
 
 class RuleOut(BaseModel):

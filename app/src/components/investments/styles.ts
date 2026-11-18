@@ -55,6 +55,13 @@ export const styles = StyleSheet.create({
   statLabel: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   statValue: { fontFamily: fonts.regular, fontSize: 16, color: colors.ink },
   empty: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },
+  banksLink: {
+    alignSelf: 'flex-start',
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    color: colors.muted,
+    paddingVertical: 10,
+  },
 });
 
 export const wide = StyleSheet.create({
@@ -64,6 +71,12 @@ export const wide = StyleSheet.create({
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   title: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink },
   section: { fontFamily: fonts.medium, fontSize: 15, color: colors.ink, marginTop: 8 },
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   sectionGap: { marginTop: 24 },
   chips: { flexDirection: 'row', gap: 6 },
   figures: { flexDirection: 'row', borderWidth: 1, borderColor: colors.line, borderRadius: 14 },
@@ -138,8 +151,11 @@ export const portfolio = StyleSheet.create({
   ladderValue: { fontFamily: fonts.regular, fontSize: 10, color: colors.muted },
   ladderBar: { width: '100%', borderRadius: 4, backgroundColor: colors.invest },
   ladderYear: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
-  group: { marginTop: 14 },
-  groupTitle: { fontFamily: fonts.medium, fontSize: 12, color: colors.muted, marginBottom: 2 },
+  group: { marginTop: 18 },
+  groupHead: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, marginBottom: 4 },
+  groupTitle: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
+  groupSub: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 1 },
+  groupTotal: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
   row: styles.row,
   first: styles.first,
   main: styles.main,

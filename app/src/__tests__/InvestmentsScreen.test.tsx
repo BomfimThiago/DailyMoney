@@ -13,6 +13,9 @@ jest.mock('expo-router', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
   return {
     Redirect: ({ href }: { href: string }) => <Text>{`redirect ${href}`}</Text>,
+    Link: ({ children, testID }: { children: string; testID?: string }) => (
+      <Text testID={testID}>{children}</Text>
+    ),
   };
 });
 jest.mock('@/lib/auth', () => ({ useAuth: jest.fn() }));
@@ -195,6 +198,10 @@ describe('the bank portfolio', () => {
     ).toBeTruthy();
     expect(screen.getByText('16/10/2026 a 16/11/2026')).toBeTruthy();
     expect(screen.getByText('2027')).toBeTruthy();
+    expect(screen.getByText('73% da carteira · 1 investimento')).toBeTruthy();
+    expect(screen.getByText(/^O maior volume volta em 2027/)).toBeTruthy();
+    expect(screen.getByText(/^Saldo líquido \(já sem IR e taxas\)/)).toBeTruthy();
+    expect(screen.getByTestId('banks-link')).toBeTruthy();
   });
 
   it('sits above the statements on a computer', async () => {

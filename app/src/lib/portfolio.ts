@@ -58,11 +58,44 @@ export function finding(p: Portfolio): string | null {
   return `${percent(top.share)} em ${inSentence(top)}, ${percent(second.share)} em ${inSentence(second)}.`;
 }
 
-// Below each position: "Nubank · 110% do CDI · vence 15/03/2028".
+// Below each position: "LCI123 · Nubank · Banco Exemplo · 110% do CDI · vence 15/03/2028".
+// The code only when it isn't the name; the issuer only when it adds something (not in
+// the name already, not the bank itself: "Banco Inter" at Inter).
 export function positionSub(pos: PortfolioPosition): string {
-  return [pos.bank, pos.rate_label, pos.due_date ? `vence ${fullDate(pos.due_date)}` : null]
+  const issuer = pos.issuer?.trim();
+  const showIssuer =
+    issuer &&
+    !pos.name.toLowerCase().includes(issuer.toLowerCase()) &&
+    !issuer.toLowerCase().includes(pos.bank.toLowerCase());
+  return [
+    pos.code && pos.code !== pos.name ? pos.code : null,
+    pos.bank,
+    showIssuer ? issuer : null,
+    pos.rate_label,
+    pos.due_date ? `vence ${fullDate(pos.due_date)}` : null,
+  ]
     .filter(Boolean)
     .join(' · ');
+}
+
+// Next to a type's name: "67% da carteira · 3 investimentos".
+export function classSub(c: Portfolio['classes'][number]): string {
+  return `${percent(c.share)} da carteira · ${plural(c.positions.length, 'investimento', 'investimentos')}`;
+}
+
+// Over the ladder: the year most money comes back.
+export function ladderFinding(p: Portfolio): string | null {
+  const steps = p.ladder?.steps.filter((s) => s.count) ?? [];
+  if (!steps.length) return null;
+  const peak = steps.reduce((a, b) => (Number(b.total) > Number(a.total) ? b : a));
+  const when = peak.label.endsWith('+') ? `de ${peak.year} em diante` : `em ${peak.label}`;
+  return `O maior volume volta ${when}: ${money(peak.total, p.currency)} em ${plural(peak.count, 'título', 'títulos')}.`;
+}
+
+// Under the portfolio: where the balances come from.
+export function sourceNote(p: Portfolio): string {
+  const day = p.value_date ? ` em ${shortDate(p.value_date)}` : '';
+  return `Saldo líquido (já sem IR e taxas) informado pelos bancos${day}, atualizado a cada sincronização.`;
 }
 
 // The gain under the balance, or the balance in its own currency when it was converted.

@@ -375,6 +375,20 @@ async def _change_category(
     category = await db.get(Category, category_id)
     if category is None or category.family_id != family_id:
         raise NotFoundError("Categoria não encontrada")
+    await follow_category(db, tx, category)
+    if apply_to_merchant and (key := merchant_key(tx.description)):
+        await db.execute(
+            insert(CategoryRule)
+            .values(id=uuid.uuid4(), family_id=family_id, merchant_key=key, category_id=category.id)
+            .on_conflict_do_update(
+                constraint="uq_rule_family_merchant", set_={"category_id": category.id}
+            )
+        )
+
+
+async def follow_category(db: AsyncSession, tx: Transaction, category: Category) -> None:
+    """Puts the line in the category, and on the side its kind says: a movimentação
+    category takes it out of spending and income, any other brings it back."""
     kind = TxKind.REGULAR
     if category.kind == CategoryKind.TRANSFER:
         kind = TxKind.TRANSFER
@@ -384,14 +398,6 @@ async def _change_category(
         await _unpair(db, tx)
     tx.kind = kind
     tx.category_id = category.id
-    if apply_to_merchant and (key := merchant_key(tx.description)):
-        await db.execute(
-            insert(CategoryRule)
-            .values(id=uuid.uuid4(), family_id=family_id, merchant_key=key, category_id=category.id)
-            .on_conflict_do_update(
-                constraint="uq_rule_family_merchant", set_={"category_id": category.id}
-            )
-        )
 
 
 def _moves_money(category: Category) -> bool:

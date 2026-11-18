@@ -5,6 +5,7 @@ import {
   countText,
   deleteHint,
   freeColor,
+  kindChangeNote,
   merchantLabel,
   nameError,
   ofKind,
@@ -59,5 +60,12 @@ describe('categories', () => {
   it('makes the learned merchant readable', () => {
     expect(merchantLabel('grupo ahorramas')).toBe('Grupo ahorramas');
     expect(merchantLabel('')).toBe('');
+  });
+});
+
+describe('kindChangeNote', () => {
+  it('says what changing the kind does to the lines already there', () => {
+    expect(kindChangeNote(category({ kind: 'expense' }))).toMatch(/^Trocar para movimentação/);
+    expect(kindChangeNote(category({ kind: 'transfer' }))).toMatch(/devolve aos totais/);
   });
 });

@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.families.models import Currency
+from app.families.models import Currency, MemberKind
 
 HEX_COLOR = r"^#[0-9a-fA-F]{6}$"
 
@@ -13,6 +13,7 @@ class MemberOut(BaseModel):
     id: uuid.UUID
     name: str
     color: str
+    kind: MemberKind
     user_id: uuid.UUID | None
 
 
@@ -37,11 +38,13 @@ class FamilyUpdate(BaseModel):
 class MemberCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     color: str | None = Field(default=None, pattern=HEX_COLOR)
+    kind: MemberKind = MemberKind.OTHER
 
 
 class MemberUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     color: str | None = Field(default=None, pattern=HEX_COLOR)
+    kind: MemberKind | None = None
 
 
 class MeOut(BaseModel):

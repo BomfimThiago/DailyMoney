@@ -100,8 +100,27 @@ async def update(
         category.name = data.name
     if data.color is not None:
         category.color = data.color
+    if data.kind is not None and data.kind != category.kind:
+        await _set_kind(db, category, data.kind)
     await _flush(db)
     return next(c for c in await overview(db, family_id) if c.id == category.id)
+
+
+async def _set_kind(db: AsyncSession, category: Category, kind: CategoryKind) -> None:
+    # Imported here: the transactions service already depends on this module.
+    from app.transactions.services.transaction_service import follow_category
+
+    category.kind = kind
+    lines = list(
+        await db.scalars(
+            select(Transaction).where(
+                Transaction.family_id == category.family_id,
+                Transaction.category_id == category.id,
+            )
+        )
+    )
+    for tx in lines:
+        await follow_category(db, tx, category)
 
 
 async def delete(db: AsyncSession, family_id: uuid.UUID, category_id: uuid.UUID) -> None:

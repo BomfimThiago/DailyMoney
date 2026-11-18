@@ -4,8 +4,12 @@ import {
   accountCount,
   choiceOf,
   deleteMemberHint,
+  freeMemberColor,
+  kindLabel,
   memberIdOf,
   memberNameError,
+  memberPatch,
+  memberSub,
   ownerOptions,
 } from '@/lib/people';
 import { account, member } from '@/testing/people';
@@ -60,5 +64,28 @@ describe('accountCount and deleteMemberHint', () => {
     expect(deleteMemberHint('m-thiago', accounts)).toBe('A conta passa a ser da Casa.');
     expect(deleteMemberHint('m-ana', accounts)).toBe('As 2 contas passam a ser da Casa.');
     expect(deleteMemberHint('m-x', accounts)).toBe('Ninguém mais usa esse nome.');
+  });
+});
+
+describe('who each person is', () => {
+  it('names the kind and counts the accounts', () => {
+    expect(kindLabel('spouse')).toBe('Cônjuge');
+    expect(memberSub(thiago, [account()])).toBe('Eu · 1 conta');
+    expect(memberSub({ ...ana, kind: 'family' }, [])).toBe('Família · Nenhuma conta');
+  });
+
+  it('picks a colour nobody uses yet', () => {
+    expect(freeMemberColor([member({ color: '#5F8F7B' })])).toBe('#4f9a9a');
+  });
+
+  it('sends only what changed', () => {
+    const base = { name: 'Thiago', kind: 'me' as const, color: '#8a8799' };
+    expect(memberPatch(thiago, base)).toBeNull();
+    expect(memberPatch(thiago, { ...base, name: ' Thi ', kind: 'other' })).toEqual({
+      name: 'Thi',
+      kind: 'other',
+    });
+    expect(memberPatch(thiago, { ...base, color: '#8A8799' })).toBeNull();
+    expect(memberPatch(thiago, { ...base, color: '#c7795a' })).toEqual({ color: '#c7795a' });
   });
 });

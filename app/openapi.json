@@ -3345,6 +3345,16 @@
               }
             ],
             "title": "Color"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoryKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -4668,11 +4678,20 @@
               }
             ],
             "title": "Color"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MemberKind",
+            "default": "other"
           }
         },
         "type": "object",
         "required": ["name"],
         "title": "MemberCreate"
+      },
+      "MemberKind": {
+        "type": "string",
+        "enum": ["me", "spouse", "family", "other"],
+        "title": "MemberKind"
       },
       "MemberOut": {
         "properties": {
@@ -4689,6 +4708,9 @@
             "type": "string",
             "title": "Color"
           },
+          "kind": {
+            "$ref": "#/components/schemas/MemberKind"
+          },
           "user_id": {
             "anyOf": [
               {
@@ -4703,7 +4725,7 @@
           }
         },
         "type": "object",
-        "required": ["id", "name", "color", "user_id"],
+        "required": ["id", "name", "color", "kind", "user_id"],
         "title": "MemberOut"
       },
       "MemberUpdate": {
@@ -4732,6 +4754,16 @@
               }
             ],
             "title": "Color"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MemberKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

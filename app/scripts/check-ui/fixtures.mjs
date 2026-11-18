@@ -159,8 +159,8 @@ const family = {
   month_start_day: 1,
   review_imports: true,
   members: [
-    { id: 'mem-1', name: 'Pessoa', color: '#8a8799', user_id: 'user-1' },
-    { id: 'mem-2', name: 'Ana', color: '#c7795a', user_id: null },
+    { id: 'mem-1', name: 'Pessoa', color: '#8a8799', kind: 'me', user_id: 'user-1' },
+    { id: 'mem-2', name: 'Ana', color: '#c7795a', kind: 'spouse', user_id: null },
   ],
 };
 
@@ -212,7 +212,9 @@ const portfolio = {
         position({
           id: 'p3',
           bank: 'Inter',
-          name: 'LCI Banco Inter',
+          name: 'LCI 2028',
+          code: 'LCI24A00123',
+          issuer: 'Banco Exemplo Sul',
           value: '5000.0000',
           gain: '320.0000',
           rate_label: '92% do CDI',

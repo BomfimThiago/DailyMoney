@@ -11,6 +11,21 @@ export const KINDS: { value: CategoryKind; label: string }[] = [
   { value: 'transfer', label: 'Movimentações' },
 ];
 
+// The kind of one category, in the singular (its detail).
+export const KIND_CHOICES: { value: CategoryKind; label: string }[] = [
+  { value: 'expense', label: 'Gasto' },
+  { value: 'income', label: 'Entrada' },
+  { value: 'transfer', label: 'Movimentação' },
+];
+
+// Under the kind choice: what changing it does to the lines already in the category.
+export function kindChangeNote(c: Category): string {
+  if (c.kind === 'transfer') {
+    return 'As transações desta categoria ficam fora de Gastos e Entradas. Trocar para gasto ou entrada as devolve aos totais.';
+  }
+  return 'Trocar para movimentação tira desta categoria todas as transações dos totais, inclusive as que já estão nela.';
+}
+
 const NOUN: Record<CategoryKind, string> = {
   expense: 'gasto',
   income: 'entrada',

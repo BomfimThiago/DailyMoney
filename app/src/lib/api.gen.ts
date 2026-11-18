@@ -1057,6 +1057,7 @@ export interface components {
       name?: string | null;
       /** Color */
       color?: string | null;
+      kind?: components['schemas']['CategoryKind'] | null;
     };
     /** ClassOut */
     ClassOut: {
@@ -1570,7 +1571,14 @@ export interface components {
       name: string;
       /** Color */
       color?: string | null;
+      /** @default other */
+      kind: components['schemas']['MemberKind'];
     };
+    /**
+     * MemberKind
+     * @enum {string}
+     */
+    MemberKind: 'me' | 'spouse' | 'family' | 'other';
     /** MemberOut */
     MemberOut: {
       /**
@@ -1582,6 +1590,7 @@ export interface components {
       name: string;
       /** Color */
       color: string;
+      kind: components['schemas']['MemberKind'];
       /** User Id */
       user_id: string | null;
     };
@@ -1591,6 +1600,7 @@ export interface components {
       name?: string | null;
       /** Color */
       color?: string | null;
+      kind?: components['schemas']['MemberKind'] | null;
     };
     /** MonthDashboard */
     MonthDashboard: {

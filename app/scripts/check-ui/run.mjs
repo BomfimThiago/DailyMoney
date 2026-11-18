@@ -711,6 +711,10 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Editar Ana' }).click();
     await seen('Excluir pessoa').waitFor();
     await shot('responsaveis-editar');
+    await page.getByRole('button', { name: 'Cancelar' }).filter({ visible: true }).first().click();
+    await page.getByTestId('add-person').filter({ visible: true }).click();
+    await seen('Quem é').waitFor();
+    await shot('responsaveis-adicionar');
     // Cartões: this month's bill (paid), the next one and the purchases with "3/10".
     await page.goto(`${base}/cartoes`);
     await seen('NUBANK CARTÃO').waitFor();
