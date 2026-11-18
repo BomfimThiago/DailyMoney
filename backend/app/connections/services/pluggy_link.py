@@ -21,7 +21,7 @@ from app.connections.services import pluggy, sync_service
 from app.connections.services.enablebanking import NotConfiguredError
 from app.core.config import settings
 from app.core.exceptions import AppError, NotFoundError
-from app.families.models import User
+from app.families.models import Member, User
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +131,7 @@ async def _connect(
         conn = BankConnection(
             family_id=pending.family_id,
             user_id=pending.user_id,
+            member_id=await _member_of(db, pending.user_id),
             provider=pluggy.PROVIDER,
             external_id=pending.item_id,
             bank=bank,
@@ -145,6 +146,15 @@ async def _connect(
         conn.last_error = None
     await db.flush()
     return conn
+
+
+async def _member_of(db: AsyncSession, user_id: uuid.UUID | None) -> uuid.UUID | None:
+    if user_id is None:
+        return None
+    member_id: uuid.UUID | None = await db.scalar(
+        select(Member.id).where(Member.user_id == user_id)
+    )
+    return member_id
 
 
 async def _quietly_delete(item_id: str) -> None:

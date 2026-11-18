@@ -19,6 +19,9 @@ class ConnectionOut(BaseModel):
     id: uuid.UUID
     provider: Literal["enablebanking", "pluggy"]
     bank: str
+    # Whose accounts these are; empty means the household ("Casa").
+    member_id: uuid.UUID | None
+    member_name: str | None
     accounts: list[ConnectedAccount]
     consent_expires_at: datetime | None
     last_sync_at: datetime | None
@@ -35,6 +38,11 @@ class ConnectionsOverview(BaseModel):
 
 class StartIn(BaseModel):
     bank: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)]
+    # Authorizing an existing connection again (its authorization ran out).
+    connection_id: uuid.UUID | None = None
+    # A new connection: whose accounts these are. Sent as null = the household ("Casa");
+    # left out = whoever is connecting.
+    member_id: uuid.UUID | None = None
 
 
 class StartOut(BaseModel):

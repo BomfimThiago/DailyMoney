@@ -225,7 +225,7 @@ function answer(url, method) {
   }
   if (method === 'POST' && p === '/connections/brazil/finish') {
     // Back from Meu Pluggy with Nubank authorized and read.
-    const connection = fixtures['/connections'].connections[1];
+    const connection = fixtures['/connections'].connections.find((c) => c.id === 'conn-nu');
     const accounts = [{ name: 'Nubank', new: 37, duplicate: 5, error: null }];
     return { status: 200, body: { status: 'connected', results: [{ connection, accounts }] } };
   }
@@ -670,7 +670,7 @@ async function checkScreens(page, tag) {
       await page.getByRole('button', { name: 'Sincronizar agora' }).first().click();
       await seen('Wise EUR: 4 novas, 2 já existiam').waitFor({ timeout: 3000 });
       await page.getByText('Desconectar', { exact: true }).first().click();
-      await seen('Parar de ler o Wise? As transações ficam.').waitFor({ timeout: 3000 });
+      await seen('Parar de ler o Wise de Pessoa? As transações ficam.').waitFor({ timeout: 3000 });
       await shot('conexoes-sincronizado');
       await page.getByRole('button', { name: 'Cancelar' }).click();
       // These two pages stay mounted like the tabs: going back and forth never blanks or
@@ -702,6 +702,16 @@ async function checkScreens(page, tag) {
       await page.waitForLoadState('networkidle');
       await shot('conexoes');
     }
+    // A bank already connected can be connected again with someone else's login.
+    await page.goto(`${base}/conexoes`);
+    await seen('Bancos conectados').waitFor();
+    await page.getByRole('button', { name: 'Outra conta' }).nth(1).click();
+    await seen('De quem são as contas?').waitFor({ timeout: 3000 });
+    await seen('Ana').first().waitFor({ timeout: 3000 });
+    await page.getByRole('button', { name: 'Continuar no Revolut' }).scrollIntoViewIfNeeded();
+    await shot('conexoes-outra-conta');
+    await page.getByRole('button', { name: 'Responsável pelas contas' }).click();
+    await shot('conexoes-outra-conta-escolher');
     // Conectar on the Brazil line opens Pluggy's own window over the page.
     await page.goto(`${base}/conexoes`);
     await seen('Bancos conectados').waitFor();

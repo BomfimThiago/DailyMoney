@@ -1,5 +1,6 @@
 import { fullDate } from './format';
-import type { Account, Connection, SyncResult } from './types';
+import { HOUSEHOLD, HOUSEHOLD_ID } from './people';
+import type { Account, Connection, Member, SyncResult } from './types';
 
 // An authorization this close to its end gets a warning.
 export const WARN_DAYS = 14;
@@ -42,6 +43,22 @@ export function automaticAccounts(connections: Connection[]): Map<string, string
     for (const a of c.accounts) if (a.account_id) automatic.set(a.account_id, c.bank);
   }
   return automatic;
+}
+
+// Whose accounts a connection reads: "Thiago", or the household.
+export function connectionOwner(c: Connection): string {
+  return c.member_name ?? HOUSEHOLD;
+}
+
+// For a new connection of `bank`: the first person who hasn't connected it yet, else the
+// one signed in (or whoever comes first).
+export function suggestedOwner(bank: string, connections: Connection[], members: Member[]): string {
+  const taken = new Set(
+    connections.filter((c) => c.bank === bank).map((c) => c.member_id ?? HOUSEHOLD_ID),
+  );
+  const me = members.find((m) => m.kind === 'me') ?? members[0];
+  const order = me ? [me, ...members.filter((m) => m.id !== me.id)] : members;
+  return (order.find((m) => !taken.has(m.id)) ?? me)?.id ?? HOUSEHOLD_ID;
 }
 
 export function connectedAccounts(c: Connection): string {

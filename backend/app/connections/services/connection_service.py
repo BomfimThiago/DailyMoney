@@ -3,7 +3,7 @@
 import logging
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from typing import Literal
+from typing import Any, Final, Literal
 
 import jwt
 from sqlalchemy import select
@@ -24,7 +24,7 @@ from app.connections.services.timestamps import instant
 from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
-from app.families.models import User
+from app.families.models import Member, User
 from app.portfolio.services import portfolio_service
 
 log = logging.getLogger(__name__)
@@ -34,6 +34,10 @@ EUROPEAN_BANKS = ("Wise", "Revolut", "CaixaBank")
 DEFAULT_COUNTRY = "ES"
 STATE_AUDIENCE = "enablebanking-auth"
 CALLBACK_PATH = "/conexoes/retorno"
+
+# The owner asked for: a member id, HOUSEHOLD, or None for whoever is connecting.
+HOUSEHOLD: Final = "casa"
+Owner = uuid.UUID | Literal["casa"] | None
 
 
 class BankNotFoundError(AppError):
@@ -74,7 +78,25 @@ async def get_connection(
     )
 
 
-async def start_authorization(user: User, bank: str, country: str = DEFAULT_COUNTRY) -> str:
+async def start_authorization(
+    db: AsyncSession,
+    user: User,
+    bank: str,
+    *,
+    connection_id: uuid.UUID | None = None,
+    owner: Owner = None,
+    country: str = DEFAULT_COUNTRY,
+) -> str:
+    """The bank's authorization page. With `connection_id` it renews that connection;
+    otherwise the bank's accounts become a new connection (or renew the one that already
+    reads them) whose new accounts belong to `owner`."""
+    claims: dict[str, str] = {}
+    if connection_id is not None:
+        conn = await get_connection(db, user.family_id, connection_id)
+        claims["conn"] = str(conn.id)
+    else:
+        member_id = await _member_choice(db, user, owner)
+        claims["member"] = str(member_id) if member_id else ""
     banks = await enablebanking.list_banks(country)
     aspsp = next((a for a in banks if canonical_bank(str(a["name"])) == bank), None)
     if aspsp is None:
@@ -94,6 +116,7 @@ async def start_authorization(user: User, bank: str, country: str = DEFAULT_COUN
             "aspsp": aspsp["name"],
             "country": country,
             "exp": now + timedelta(hours=1),
+            **claims,
         },
         settings.SECRET_KEY,
         algorithm="HS256",
@@ -101,6 +124,16 @@ async def start_authorization(user: User, bank: str, country: str = DEFAULT_COUN
     return await enablebanking.start_authorization(
         str(aspsp["name"]), country, valid_until.isoformat(), state, redirect_url()
     )
+
+
+async def _member_choice(db: AsyncSession, user: User, owner: Owner) -> uuid.UUID | None:
+    if owner == HOUSEHOLD:
+        return None
+    if not isinstance(owner, uuid.UUID):
+        mine: uuid.UUID | None = await db.scalar(select(Member.id).where(Member.user_id == user.id))
+        return mine
+    member = await get_in_family(db, Member, user.family_id, owner, "Responsável não encontrado")
+    return member.id
 
 
 def _read_state(state: str, user: User) -> dict[str, str]:
@@ -132,17 +165,12 @@ async def finish_authorization(
     bank = canonical_bank(name)
     until = instant((session.get("access") or {}).get("valid_until"))
 
-    conn = await db.scalar(
-        select(BankConnection).where(
-            BankConnection.family_id == user.family_id,
-            BankConnection.provider == enablebanking.PROVIDER,
-            BankConnection.bank == bank,
-        )
-    )
+    conn = await _connection_to_renew(db, user, claims, bank, session)
     if conn is None:
         conn = BankConnection(
             family_id=user.family_id,
             user_id=user.id,
+            member_id=await _member_from_state(db, user, claims),
             provider=enablebanking.PROVIDER,
             external_id=str(session["session_id"]),
             bank=bank,
@@ -164,6 +192,44 @@ async def finish_authorization(
     ]
     await db.flush()
     return conn
+
+
+async def _connection_to_renew(
+    db: AsyncSession, user: User, claims: dict[str, str], bank: str, session: dict[str, Any]
+) -> BankConnection | None:
+    """The connection this authorization renews: the one asked for, or the one already
+    reading the same accounts. Someone else's accounts at the same bank are a new one."""
+    if claims.get("conn"):
+        asked = await db.get(BankConnection, uuid.UUID(claims["conn"]))
+        if asked is not None and asked.family_id == user.family_id:
+            return asked
+    keys = {enablebanking.account_key(a) for a in session.get("accounts") or []}
+    same_bank = await db.scalars(
+        select(BankConnection)
+        .where(
+            BankConnection.family_id == user.family_id,
+            BankConnection.provider == enablebanking.PROVIDER,
+            BankConnection.bank == bank,
+        )
+        .order_by(BankConnection.created_at)
+    )
+    for conn in same_bank:
+        if keys & {a["key"] for a in sync_service.stored(conn)}:
+            return conn
+    return None
+
+
+async def _member_from_state(
+    db: AsyncSession, user: User, claims: dict[str, str]
+) -> uuid.UUID | None:
+    if "member" not in claims:
+        # Started before owners could be chosen: whoever is connecting.
+        return await _member_choice(db, user, None)
+    if not claims["member"]:
+        return None
+    member = await db.get(Member, uuid.UUID(claims["member"]))
+    # Removed while the bank was being authorized: the household.
+    return member.id if member is not None and member.family_id == user.family_id else None
 
 
 async def _quietly_close(session_id: str) -> None:
@@ -224,10 +290,13 @@ async def connection_out(db: AsyncSession, conn: BankConnection) -> ConnectionOu
                 is_card=a["is_card"],
             )
         )
+    member = await db.get(Member, conn.member_id) if conn.member_id else None
     return ConnectionOut(
         id=conn.id,
         provider="pluggy" if conn.provider == pluggy.PROVIDER else "enablebanking",
         bank=conn.bank,
+        member_id=member.id if member else None,
+        member_name=member.name if member else None,
         accounts=accounts,
         consent_expires_at=conn.consent_expires_at,
         last_sync_at=conn.last_sync_at,

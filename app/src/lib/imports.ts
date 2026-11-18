@@ -286,10 +286,14 @@ export function getConnections() {
 }
 
 // The bank's own page to authorize the app; it comes back to /conexoes/retorno.
-export function startConnection(bank: string) {
+// Which connection the authorization is for: an existing one to renew, or a new one
+// whose accounts belong to a person (null = the household). Nothing = whoever connects.
+export type ConnectionTarget = { connection_id: string } | { member_id: string | null };
+
+export function startConnection(bank: string, target?: ConnectionTarget) {
   return api<{ url: string }>('/connections/europe', {
     method: 'POST',
-    body: JSON.stringify({ bank }),
+    body: JSON.stringify({ bank, ...target }),
   });
 }
 

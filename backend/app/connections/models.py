@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Date, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -10,19 +10,21 @@ from app.db.base import Base, CreatedAt, UUIDPk
 
 
 class BankConnection(UUIDPk, CreatedAt, Base):
-    """A bank the family authorized the app to read (Enable Banking or Pluggy)."""
+    """A bank the family authorized the app to read (Enable Banking or Pluggy). The same
+    bank can be connected more than once: each person authorizes their own accounts."""
 
     __tablename__ = "bank_connection"
-    __table_args__ = (
-        UniqueConstraint("family_id", "provider", "bank", name="uq_bank_connection_bank"),
-    )
 
     family_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("family.id", ondelete="CASCADE"), index=True
     )
-    # Who connected it: new accounts from this bank belong to them.
+    # Who connected it.
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("app_user.id", ondelete="SET NULL")
+    )
+    # Whose accounts these are: new accounts from it belong to them; empty = "Casa".
+    member_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("member.id", ondelete="SET NULL")
     )
     # "enablebanking" or "pluggy".
     provider: Mapped[str] = mapped_column(String(20))

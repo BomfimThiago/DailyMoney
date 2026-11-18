@@ -28,6 +28,12 @@ export const styles = StyleSheet.create({
   muted: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },
   empty: { gap: 12, alignItems: 'flex-start' },
   line: { alignItems: 'center' },
+  bankLine: { flexDirection: 'column', alignItems: 'stretch', gap: 12 },
+  bankLineHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  choice: { gap: 8 },
+  choiceLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
+  choiceNote: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },
+  choiceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   cards: { gap: 12 },
   card: {
     borderWidth: 1,
@@ -39,6 +45,7 @@ export const styles = StyleSheet.create({
   },
   cardHead: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   bank: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink },
+  owner: { fontFamily: fonts.regular, color: colors.muted },
   status: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },
   warn: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.pendingText },
   error: {
