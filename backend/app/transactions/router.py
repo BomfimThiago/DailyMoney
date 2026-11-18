@@ -10,6 +10,7 @@ from app.families.models import Currency
 from app.transactions.models import TxKind
 from app.transactions.schemas import (
     Analysis,
+    CardBillsOverview,
     InvestmentOverview,
     KindUpdate,
     LatestMonth,
@@ -25,7 +26,12 @@ from app.transactions.schemas import (
     TransactionUpdate,
     TransferOverview,
 )
-from app.transactions.services import analysis_service, overview_service, transaction_service
+from app.transactions.services import (
+    analysis_service,
+    card_service,
+    overview_service,
+    transaction_service,
+)
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -70,6 +76,8 @@ async def _filters(
     direction: Direction | None = None,
     # Only the lines of accounts in this currency (not the currency shown).
     account_currency: Currency | None = None,
+    # A card's bill (YYYY-MM): the purchases charged in it, whatever day they were made.
+    card_bill: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
 ) -> transaction_service.Filters:
     if date_from and date_to and date_from > date_to:
         raise PeriodError("A data inicial é depois da final.")
@@ -84,6 +92,7 @@ async def _filters(
         q=q,
         direction=direction,
         account_currency=account_currency,
+        card_bill=card_bill,
     )
 
 
@@ -158,6 +167,14 @@ async def investments(
 @router.get("/transfers", response_model=TransferOverview)
 async def transfers(user: CurrentUser, db: DbSession, month: Month) -> TransferOverview:
     return await overview_service.transfers(db, user.family_id, month)
+
+
+@router.get("/card-bills", response_model=CardBillsOverview)
+async def card_bills(
+    user: CurrentUser, db: DbSession, month: Month, currency: ShowIn = None
+) -> CardBillsOverview:
+    """Each card's bill of the month (and whether it was paid) and the next one."""
+    return await card_service.card_bills(db, user.family_id, month, currency)
 
 
 @router.get("/review", response_model=ReviewQueue)

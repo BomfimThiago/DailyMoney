@@ -24,6 +24,9 @@ class ParsedRow:
     is_transfer: bool = False
     # Set by read_statement from the bank's flag and the description.
     kind: RowKind = "regular"
+    # Card purchases: the bill they are charged in (YYYY-MM) and the installment ("3/10").
+    card_bill: str | None = None
+    installment: str | None = None
 
 
 @dataclass(frozen=True)

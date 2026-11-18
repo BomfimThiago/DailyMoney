@@ -7,6 +7,7 @@ import type {
   BankRequest,
   BrazilFinish,
   BrazilStart,
+  CardBillsOverview,
   ConnectionsOverview,
   SyncResult,
   Category,
@@ -99,6 +100,8 @@ export interface TxFilters {
   // A free period instead of a month: from/to days, "YYYY-MM-DD", both inclusive.
   dateFrom?: string | null;
   dateTo?: string | null;
+  // A card's bill (YYYY-MM): its purchases, whatever day they were made.
+  cardBill?: string | null;
 }
 
 // "date" is by day, newest first; the others sort the whole list by that column.
@@ -123,6 +126,7 @@ function listParams(opts: ListQuery, q = new URLSearchParams()): URLSearchParams
     account_currency: opts.accountCurrency,
     date_from: opts.dateFrom,
     date_to: opts.dateTo,
+    card_bill: opts.cardBill,
     currency: opts.currency,
     sort: opts.sort === 'date' ? null : opts.sort,
   };
@@ -158,6 +162,10 @@ export function getSummary(month: string, currency: Currency) {
 
 export function getInvestments(month: string, currency: Currency) {
   return api<InvestmentOverview>(`/transactions/investments?month=${month}&currency=${currency}`);
+}
+
+export function getCardBills(month: string, currency: Currency) {
+  return api<CardBillsOverview>(`/transactions/card-bills?month=${month}&currency=${currency}`);
 }
 
 export function getPortfolio(currency: Currency) {

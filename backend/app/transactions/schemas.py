@@ -27,6 +27,9 @@ class TransactionOut(BaseModel):
     # When the screen shows another currency: the amount converted with its day's ECB rate.
     display_amount: Decimal | None = None
     display_currency: Currency | None = None
+    # Card purchases: the bill they are charged in (YYYY-MM) and the installment ("3/10").
+    card_bill: str | None = None
+    installment: str | None = None
 
 
 class TransactionPage(BaseModel):
@@ -326,3 +329,43 @@ class Analysis(BaseModel):
     month: str
     months: int
     currencies: list[CurrencyAnalysis]
+
+
+# ── credit card bills ────────────────────────────────────────────────────────
+
+
+class CardBill(BaseModel):
+    month: str  # YYYY-MM
+    # What the purchases charged in this bill add up to (refunds take off); positive.
+    total: Decimal
+    count: int
+
+
+class CardPayment(BaseModel):
+    date: date_
+    amount: Decimal
+
+
+class CardBills(BaseModel):
+    account_id: uuid.UUID
+    account_name: str
+    bank: str | None
+    # The card's own currency, or the one the screen asked for.
+    currency: Currency
+    bill: CardBill
+    next: CardBill
+    # Payments received on the card during the bill's month, oldest first.
+    payments: list[CardPayment]
+    paid: Decimal
+    # paid: payments cover the bill. open: nothing (or not all) paid yet and the month
+    # isn't over. unpaid: the month is over without payments covering it.
+    status: Literal["paid", "open", "unpaid", "empty"]
+    # Months with a bill on this card, newest first (to step through them).
+    months: list[str]
+
+
+class CardBillsOverview(BaseModel):
+    month: str
+    # False while no card line knows its bill yet (lines read before the app kept it).
+    bills_known: bool
+    cards: list[CardBills]

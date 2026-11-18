@@ -64,6 +64,8 @@ class Filters:
     q: str | None = None
     direction: Direction | None = None
     account_currency: Currency | None = None
+    # A card's bill (YYYY-MM): the purchases charged in it, whatever day they were made.
+    card_bill: str | None = None
 
 
 # The household ("Casa") has no member id; a filter for its lines uses this word instead.
@@ -99,6 +101,8 @@ async def _where(
         where.append(Transaction.member_id.is_(None))
     elif f.member is not None:
         where.append(Transaction.member_id == f.member)
+    if f.card_bill is not None:
+        where.append(Transaction.card_bill == f.card_bill)
     if f.q and (text := f.q.strip()):
         # The person's words are matched literally, so % and _ mean themselves.
         pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
@@ -498,6 +502,8 @@ def to_out(
         category_name=category_name,
         member_id=tx.member_id,
         review=tx.review,
+        card_bill=tx.card_bill,
+        installment=tx.installment,
     )
 
 

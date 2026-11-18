@@ -622,6 +622,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/card-bills': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Card Bills
+     * @description Each card's bill of the month (and whether it was paid) and the next one.
+     */
+    get: operations['card_bills_api_v1_transactions_card_bills_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/review': {
     parameters: {
       query?: never;
@@ -860,6 +880,60 @@ export interface components {
       connect_token: string;
       /** Connector Id */
       connector_id: number;
+    };
+    /** CardBill */
+    CardBill: {
+      /** Month */
+      month: string;
+      /** Total */
+      total: string;
+      /** Count */
+      count: number;
+    };
+    /** CardBills */
+    CardBills: {
+      /**
+       * Account Id
+       * Format: uuid
+       */
+      account_id: string;
+      /** Account Name */
+      account_name: string;
+      /** Bank */
+      bank: string | null;
+      currency: components['schemas']['Currency'];
+      bill: components['schemas']['CardBill'];
+      next: components['schemas']['CardBill'];
+      /** Payments */
+      payments: components['schemas']['CardPayment'][];
+      /** Paid */
+      paid: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: 'paid' | 'open' | 'unpaid' | 'empty';
+      /** Months */
+      months: string[];
+    };
+    /** CardBillsOverview */
+    CardBillsOverview: {
+      /** Month */
+      month: string;
+      /** Bills Known */
+      bills_known: boolean;
+      /** Cards */
+      cards: components['schemas']['CardBills'][];
+    };
+    /** CardPayment */
+    CardPayment: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Amount */
+      amount: string;
     };
     /** CategoryChange */
     CategoryChange: {
@@ -1768,6 +1842,10 @@ export interface components {
       /** Display Amount */
       display_amount?: string | null;
       display_currency?: components['schemas']['Currency'] | null;
+      /** Card Bill */
+      card_bill?: string | null;
+      /** Installment */
+      installment?: string | null;
     };
     /** TransactionPage */
     TransactionPage: {
@@ -2878,6 +2956,7 @@ export interface operations {
         q?: string | null;
         direction?: ('in' | 'out') | null;
         account_currency?: components['schemas']['Currency'] | null;
+        card_bill?: string | null;
       };
       header?: never;
       path?: never;
@@ -2919,6 +2998,7 @@ export interface operations {
         q?: string | null;
         direction?: ('in' | 'out') | null;
         account_currency?: components['schemas']['Currency'] | null;
+        card_bill?: string | null;
       };
       header?: never;
       path?: never;
@@ -3113,6 +3193,38 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransferOverview'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  card_bills_api_v1_transactions_card_bills_get: {
+    parameters: {
+      query: {
+        month: string;
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CardBillsOverview'];
         };
       };
       /** @description Validation Error */
