@@ -1,17 +1,16 @@
-import { useState } from 'react';
-import { Platform, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Platform, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
 import { TxDetail } from '@/components/TxDetail';
 import { TxTable } from '@/components/TxTable';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
-import { colors } from '@/theme';
 
-import { FilterMenu } from './FilterMenu';
+import { Filters } from './Filters';
 import { ReviewBody } from './Review';
 import { ListBody, MoreButton, showsReview, TabSegment, TransfersBody } from './parts';
 import { styles } from './styles';
+import { Totals } from './Totals';
 
 // Computer: a table with search and filters, and the detail beside it.
 export function WideTransactions({ page }: { page: TransactionsPage }) {
@@ -29,11 +28,12 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
           <View style={[styles.segmentBox, showsReview(page) && styles.segmentBoxThree]}>
             <TabSegment page={page} wide />
           </View>
-          {page.tab === 'lista' ? <Filters page={page} /> : null}
+          {page.tab === 'lista' ? <Filters page={page} wide /> : null}
         </View>
         {page.tab === 'lista' ? (
           <View style={styles.split}>
             <View style={styles.tableBox}>
+              <Totals page={page} wide />
               <ListBody page={page}>
                 {(items) => (
                   <>
@@ -63,36 +63,6 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
         )}
       </View>
     </ScrollView>
-  );
-}
-
-function Filters({ page }: { page: TransactionsPage }) {
-  const [focus, setFocus] = useState(false);
-  return (
-    <View style={styles.filters}>
-      <TextInput
-        value={page.search}
-        onChangeText={page.setSearch}
-        placeholder="Buscar descrição"
-        placeholderTextColor={colors.muted}
-        accessibilityLabel="Buscar descrição"
-        onFocus={() => setFocus(true)}
-        onBlur={() => setFocus(false)}
-        style={[styles.search, focus && styles.searchFocus]}
-      />
-      <FilterMenu
-        label="Categoria"
-        value={page.categoryId}
-        options={page.categories}
-        onChange={page.setCategoryId}
-      />
-      <FilterMenu
-        label="Conta"
-        value={page.accountId}
-        options={page.accounts}
-        onChange={page.setAccountId}
-      />
-    </View>
   );
 }
 

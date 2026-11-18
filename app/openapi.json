@@ -1422,6 +1422,23 @@
             }
           },
           {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member"
+            }
+          },
+          {
             "name": "q",
             "in": "query",
             "required": false,
@@ -1485,6 +1502,162 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/totals": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Totals",
+        "operationId": "totals_api_v1_transactions_totals_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "account_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Id"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TxKind"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "member",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Member"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionTotals"
                 }
               }
             }
@@ -2897,6 +3070,62 @@
         ],
         "title": "CurrencySummary"
       },
+      "CurrencyTotals": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "income": {
+            "type": "string",
+            "title": "Income"
+          },
+          "spending": {
+            "type": "string",
+            "title": "Spending"
+          },
+          "balance": {
+            "type": "string",
+            "title": "Balance"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Members"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/GroupTotal"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency",
+          "income",
+          "spending",
+          "balance",
+          "count",
+          "categories",
+          "members",
+          "accounts"
+        ],
+        "title": "CurrencyTotals"
+      },
       "FamilyOut": {
         "properties": {
           "id": {
@@ -3042,6 +3271,41 @@
         },
         "type": "object",
         "title": "GroupCounts"
+      },
+      "GroupTotal": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "income": {
+            "type": "string",
+            "title": "Income"
+          },
+          "spending": {
+            "type": "string",
+            "title": "Spending"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "income", "spending", "count"],
+        "title": "GroupTotal"
       },
       "HTTPValidationError": {
         "properties": {
@@ -4551,6 +4815,25 @@
         "type": "object",
         "required": ["total", "items"],
         "title": "TransactionPage"
+      },
+      "TransactionTotals": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "currencies": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotals"
+            },
+            "type": "array",
+            "title": "Currencies"
+          }
+        },
+        "type": "object",
+        "required": ["count", "currencies"],
+        "title": "TransactionTotals",
+        "description": "What the list shows with the same filters, added up (every page, not just one)."
       },
       "TransactionUpdate": {
         "properties": {

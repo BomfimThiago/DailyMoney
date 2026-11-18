@@ -15,6 +15,7 @@ import {
   getPortfolio,
   getReviewQueue,
   getSummary,
+  getTotals,
   getTransfers,
   listBankRequests,
   listAccounts,
@@ -26,6 +27,7 @@ import {
 } from './imports';
 import { useDisplayCurrency } from './displayCurrency';
 import { getFamily } from './people';
+import type { TxKind } from './types';
 
 // Server data for the money screens. Every key starts with "money" so one invalidation
 // after an import or a reclassified transaction refreshes all tabs, which stay mounted.
@@ -80,6 +82,9 @@ export function useRecent(month: string, enabled: boolean) {
 }
 
 // Spending and income (investments included, as Investimento), 50 at a time; on a computer also searched and filtered.
+// The same kinds as the list: transfers between the family's own accounts stay out.
+const LIST_KINDS: TxKind[] = ['regular', 'investment'];
+
 export function useRegular(month: string, enabled: boolean, filters: TxFilters = {}) {
   const { currency } = useDisplayCurrency();
   return useInfiniteQuery({
@@ -87,7 +92,7 @@ export function useRegular(month: string, enabled: boolean, filters: TxFilters =
     queryFn: ({ pageParam }) =>
       listTransactions({
         month,
-        kinds: ['regular', 'investment'],
+        kinds: LIST_KINDS,
         limit: PAGE,
         offset: pageParam,
         currency,
@@ -99,6 +104,18 @@ export function useRegular(month: string, enabled: boolean, filters: TxFilters =
       return loaded < last.total ? loaded : undefined;
     },
     enabled,
+  });
+}
+
+// Entradas, saídas and groups of every line the list shows with the same filters.
+export function useTotals(month: string, enabled: boolean, filters: TxFilters = {}) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'totals', month, filters, currency],
+    queryFn: () => getTotals({ month, kinds: LIST_KINDS, currency, ...filters }),
+    enabled,
+    // Changing a filter keeps the old figures until the new ones arrive, without a blink.
+    placeholderData: (previous) => previous,
   });
 }
 

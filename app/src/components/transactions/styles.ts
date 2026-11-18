@@ -37,6 +37,10 @@ export const styles = StyleSheet.create({
   segmentBox: { width: 360 },
   segmentBoxThree: { width: 500 },
   filters: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Phone: the search on its own line, the menus under it; above the list they open over.
+  filtersPhone: { marginTop: 16, gap: 8, zIndex: 10 },
+  menusPhone: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  searchPhone: { width: '100%' },
   search: {
     width: 220,
     borderWidth: 1,
@@ -59,6 +63,7 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
     maxWidth: 220,
   },
+  menuButtonShort: { maxWidth: 150 },
   menuButtonOn: { backgroundColor: colors.ink, borderColor: colors.ink },
   menuText: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
   menuTextOn: { color: colors.page },
@@ -79,6 +84,7 @@ export const styles = StyleSheet.create({
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
   },
+  menuLeft: { left: 0, right: undefined },
   menuItem: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 8 },
   menuItemOn: { backgroundColor: colors.ink },
   menuItemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },

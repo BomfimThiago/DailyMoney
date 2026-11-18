@@ -503,6 +503,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/totals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Totals */
+    get: operations['totals_api_v1_transactions_totals_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/summary': {
     parameters: {
       query?: never;
@@ -983,6 +1000,24 @@ export interface components {
       /** Left */
       left: string;
     };
+    /** CurrencyTotals */
+    CurrencyTotals: {
+      currency: components['schemas']['Currency'];
+      /** Income */
+      income: string;
+      /** Spending */
+      spending: string;
+      /** Balance */
+      balance: string;
+      /** Count */
+      count: number;
+      /** Categories */
+      categories: components['schemas']['GroupTotal'][];
+      /** Members */
+      members: components['schemas']['GroupTotal'][];
+      /** Accounts */
+      accounts: components['schemas']['GroupTotal'][];
+    };
     /** FamilyOut */
     FamilyOut: {
       /**
@@ -1039,6 +1074,19 @@ export interface components {
        * @default 0
        */
       skipped: number;
+    };
+    /** GroupTotal */
+    GroupTotal: {
+      /** Id */
+      id: string | null;
+      /** Name */
+      name: string;
+      /** Income */
+      income: string;
+      /** Spending */
+      spending: string;
+      /** Count */
+      count: number;
     };
     /** HTTPValidationError */
     HTTPValidationError: {
@@ -1632,6 +1680,16 @@ export interface components {
       total: number;
       /** Items */
       items: components['schemas']['TransactionOut'][];
+    };
+    /**
+     * TransactionTotals
+     * @description What the list shows with the same filters, added up (every page, not just one).
+     */
+    TransactionTotals: {
+      /** Count */
+      count: number;
+      /** Currencies */
+      currencies: components['schemas']['CurrencyTotals'][];
     };
     /** TransactionUpdate */
     TransactionUpdate: {
@@ -2715,6 +2773,7 @@ export interface operations {
         month?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
         category_id?: string | null;
+        member?: string | null;
         q?: string | null;
         limit?: number;
         offset?: number;
@@ -2733,6 +2792,43 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransactionPage'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  totals_api_v1_transactions_totals_get: {
+    parameters: {
+      query?: {
+        account_id?: string | null;
+        month?: string | null;
+        kind?: components['schemas']['TxKind'][] | null;
+        category_id?: string | null;
+        member?: string | null;
+        q?: string | null;
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TransactionTotals'];
         };
       };
       /** @description Validation Error */
