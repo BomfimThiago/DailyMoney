@@ -46,8 +46,15 @@ export const styles = StyleSheet.create({
     marginBottom: 16,
     zIndex: 9,
   },
-  clear: { paddingHorizontal: 6, paddingVertical: 8 },
-  clearText: { fontFamily: fonts.medium, fontSize: 13, color: colors.muted },
+  // Outlined in ink so it stands out from the filter buttons, without shouting.
+  clear: {
+    borderWidth: 1,
+    borderColor: colors.ink,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  clearText: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink },
   rangeBox: { gap: 6 },
   range: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   dateField: { flexDirection: 'row', alignItems: 'center', gap: 8 },

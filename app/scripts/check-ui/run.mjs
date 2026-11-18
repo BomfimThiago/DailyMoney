@@ -427,10 +427,11 @@ async function checkScreens(page, tag) {
       await item('Maiores gastos').click();
     }
     await page.waitForLoadState('networkidle');
-    await seen('Limpar filtros').waitFor();
+    await seen('✕ Limpar filtros').waitFor();
     await page.getByTestId('totals').filter({ visible: true }).waitFor();
     await shot('transacoes-estudo');
-    await seen('Limpar filtros').click();
+    // One tap undoes the filters and the period.
+    await seen('✕ Limpar filtros').click();
     if (tag === 'computador') {
       await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
       await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
@@ -438,9 +439,9 @@ async function checkScreens(page, tag) {
       await seen('Maiores gastos ▾').click();
       await item('Por dia').click();
     }
-    await seen(tag === 'computador' ? 'Período: Todo o período ▾' : 'Todo o período ▾').click();
-    await item('Mês').click();
-    await seen('TOTAL DO MÊS').waitFor();
+    await seen('TOTAL DO MÊS')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('Limpar filtros não voltou para o mês'));
 
     // A line opens its detail (beside the table, or as a sheet on a phone), where the
     // category can change.

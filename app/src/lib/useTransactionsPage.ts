@@ -136,6 +136,11 @@ function usePeriod() {
     toText,
     setToText,
     rangeError: period === 'range' ? range.error : null,
+    resetPeriod: () => {
+      setPeriod('month');
+      setFromText('');
+      setToText('');
+    },
     ready: ready && (period !== 'range' || range.error === null),
     listMonth: period === 'month' ? month : null,
     dates,
@@ -166,7 +171,14 @@ export function useTransactionsPage(aba: string | undefined) {
   const accounts = useAccounts(true);
   const family = useFamily(true);
   const items = pagedItems(regular.data?.pages);
-  const { filters: _filters, ...filterState } = f;
+  const { filters: _filters, clearFilters, ...filterState } = f;
+  // Anything that narrows the list away from "the month, as it is": one tap undoes it all.
+  const narrowed = f.filtered || period.period !== 'month' || withTransfers;
+  const clearAll = () => {
+    clearFilters();
+    period.resetPeriod();
+    setWithTransfers(false);
+  };
   return {
     tab,
     setTab,
@@ -176,6 +188,8 @@ export function useTransactionsPage(aba: string | undefined) {
     setSort,
     withTransfers,
     setWithTransfers,
+    narrowed,
+    clearAll,
     selectedId,
     setSelectedId,
     // The line open in the detail, from the list or from the lines waiting for review.

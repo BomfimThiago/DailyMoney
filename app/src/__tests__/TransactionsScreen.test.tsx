@@ -442,9 +442,23 @@ describe('TransactionsScreen: what the old app had', () => {
     await fireEvent.press(screen.getByText('Moeda ▾'));
     await fireEvent.press(screen.getByRole('menuitem', { name: 'EUR' }));
     expect(lastFilters()).toEqual({ ...NO_FILTERS, direction: 'out', accountCurrency: 'EUR' });
-    await fireEvent.press(screen.getByText('Limpar filtros'));
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
     expect(lastFilters()).toEqual(NO_FILTERS);
-    expect(screen.queryByText('Limpar filtros')).toBeNull();
+    expect(screen.queryByLabelText('Limpar filtros')).toBeNull();
+  });
+
+  it('clears the period and the transfers switch too, in one tap', async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    expect(screen.queryByLabelText('Limpar filtros')).toBeNull();
+    await fireEvent.press(screen.getByText('Período: Mês ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Todo o período' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transferências internas' }));
+    expect(lastView().month).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
+    expect(lastView().month).not.toBeNull();
+    expect(lastView().kinds).toEqual(['regular', 'investment']);
+    expect(screen.getByText('Período: Mês ▾')).toBeTruthy();
   });
 
   it('studies all the time there is, or the days between two dates', async () => {

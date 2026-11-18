@@ -75,14 +75,15 @@ export function Filters({ page, wide }: { page: TransactionsPage; wide: boolean 
         />
       )}
       <TransfersSwitch page={page} />
-      {page.filtered ? (
+      {page.narrowed ? (
         <Pressable
-          onPress={page.clearFilters}
+          onPress={page.clearAll}
           accessibilityRole="button"
+          accessibilityLabel="Limpar filtros"
           hitSlop={6}
           style={styles.clear}
         >
-          <Text style={styles.clearText}>Limpar filtros</Text>
+          <Text style={styles.clearText}>✕ Limpar filtros</Text>
         </Pressable>
       ) : null}
     </>
