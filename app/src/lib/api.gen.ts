@@ -520,6 +520,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/latest-month': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Latest Month */
+    get: operations['latest_month_api_v1_transactions_latest_month_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/summary': {
     parameters: {
       query?: never;
@@ -623,6 +640,23 @@ export interface paths {
      * @description Approve imported lines (they start counting) or turn them down.
      */
     post: operations['decide_api_v1_transactions_review_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/transactions/{tx_id}/currencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** In Every Currency */
+    get: operations['in_every_currency_api_v1_transactions__tx_id__currencies_get'];
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -952,6 +986,14 @@ export interface components {
      * @enum {string}
      */
     Currency: 'BRL' | 'USD' | 'EUR';
+    /** CurrencyAmount */
+    CurrencyAmount: {
+      currency: components['schemas']['Currency'];
+      /** Amount */
+      amount: string;
+      /** Rate */
+      rate: string;
+    };
     /** CurrencyAnalysis */
     CurrencyAnalysis: {
       currency: components['schemas']['Currency'];
@@ -1017,6 +1059,18 @@ export interface components {
       members: components['schemas']['GroupTotal'][];
       /** Accounts */
       accounts: components['schemas']['GroupTotal'][];
+      /** Days */
+      days: components['schemas']['DayTotal'][];
+    };
+    /** DayTotal */
+    DayTotal: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Total */
+      total: string;
     };
     /** FamilyOut */
     FamilyOut: {
@@ -1279,6 +1333,22 @@ export interface components {
       total: string;
       /** Count */
       count: number;
+    };
+    /** LatestMonth */
+    LatestMonth: {
+      /** Month */
+      month: string | null;
+    };
+    /**
+     * LineCurrencies
+     * @description A line in BRL, EUR and USD, converted with the ECB rate of its day.
+     */
+    LineCurrencies: {
+      currency: components['schemas']['Currency'];
+      /** Rate Date */
+      rate_date: string | null;
+      /** Amounts */
+      amounts: components['schemas']['CurrencyAmount'][];
     };
     /** MagicLinkRequest */
     MagicLinkRequest: {
@@ -2769,15 +2839,20 @@ export interface operations {
   list_transactions_api_v1_transactions_get: {
     parameters: {
       query?: {
+        limit?: number;
+        offset?: number;
+        currency?: components['schemas']['Currency'] | null;
+        sort?: 'date' | 'description' | '-description' | 'amount' | '-amount';
         account_id?: string | null;
         month?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
         category_id?: string | null;
         member?: string | null;
         q?: string | null;
-        limit?: number;
-        offset?: number;
-        currency?: components['schemas']['Currency'] | null;
+        direction?: ('in' | 'out') | null;
+        account_currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2808,13 +2883,17 @@ export interface operations {
   totals_api_v1_transactions_totals_get: {
     parameters: {
       query?: {
+        currency?: components['schemas']['Currency'] | null;
         account_id?: string | null;
         month?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
         kind?: components['schemas']['TxKind'][] | null;
         category_id?: string | null;
         member?: string | null;
         q?: string | null;
-        currency?: components['schemas']['Currency'] | null;
+        direction?: ('in' | 'out') | null;
+        account_currency?: components['schemas']['Currency'] | null;
       };
       header?: never;
       path?: never;
@@ -2838,6 +2917,26 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  latest_month_api_v1_transactions_latest_month_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LatestMonth'];
         };
       };
     };
@@ -3053,6 +3152,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ReviewResult'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  in_every_currency_api_v1_transactions__tx_id__currencies_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tx_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LineCurrencies'];
         };
       };
       /** @description Validation Error */

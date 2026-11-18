@@ -26,18 +26,23 @@ export function Totals({ page, wide }: { page: TransactionsPage; wide: boolean }
       style={[s.box, wide && s.boxWide, page.totals.isPlaceholderData && s.stale]}
       testID={page.totals.isPlaceholderData ? 'totals-updating' : 'totals'}
     >
-      <Figures t={t} filtered={page.filtered} wide={wide} />
+      <Figures t={t} label={totalsLabel(page)} wide={wide} />
       <Groups t={t} page={page} wide={wide} />
     </View>
   );
 }
 
-function Figures({ t, filtered, wide }: { t: CurrencyTotals; filtered: boolean; wide: boolean }) {
+function totalsLabel(page: TransactionsPage): string {
+  if (page.filtered) return 'TOTAL DO QUE ESTÁ FILTRADO';
+  return page.period === 'month' ? 'TOTAL DO MÊS' : 'TOTAL DO PERÍODO';
+}
+
+function Figures({ t, label, wide }: { t: CurrencyTotals; label: string; wide: boolean }) {
   const f = totalsFigures(t);
   return (
     <View style={s.figuresBox}>
       <View style={s.figuresHead}>
-        <Text style={s.label}>{filtered ? 'TOTAL DO QUE ESTÁ FILTRADO' : 'TOTAL DO MÊS'}</Text>
+        <Text style={s.label}>{label}</Text>
         <Text style={s.count}>{f.count}</Text>
       </View>
       <View style={[s.figures, !wide && s.figuresPhone]}>

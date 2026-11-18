@@ -64,7 +64,7 @@ export function ListBody({
       isError={regular.isError}
       loading={!items}
       value={items?.length ? items : null}
-      empty={emptyListText(page.filtered)}
+      empty={emptyListText(page.filtered, page.period)}
       textStyle={[styles.empty, styles.top]}
     >
       {children}

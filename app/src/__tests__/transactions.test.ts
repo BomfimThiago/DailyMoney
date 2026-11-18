@@ -5,11 +5,17 @@ import {
   accountOptions,
   categoryOptions,
   countText,
+  currencyOptions,
+  dayTotals,
   emptyListText,
   groupRows,
   GROUPS_SHOWN,
   isFiltered,
   memberOptions,
+  nextSort,
+  NO_FILTERS,
+  rangeOf,
+  sortArrow,
   totalsFigures,
   pagedItems,
   remaining,
@@ -45,6 +51,7 @@ const totals = (categories: GroupTotal[]): CurrencyTotals => ({
   categories,
   members: [group('Casa', '200')],
   accounts: [],
+  days: [],
 });
 
 describe('totals of what the list shows', () => {
@@ -111,12 +118,15 @@ describe('transaction pages', () => {
   });
 
   it('knows when a search or a filter is on', () => {
-    const none = { q: '  ', categoryId: null, accountId: null, memberId: null };
+    const none = { q: '  ', ...NO_FILTERS };
     expect(isFiltered(none)).toBe(false);
     expect(isFiltered({ ...none, q: 'uber' })).toBe(true);
     expect(isFiltered({ ...none, categoryId: 'c' })).toBe(true);
     expect(isFiltered({ ...none, accountId: 'a' })).toBe(true);
     expect(isFiltered({ ...none, memberId: 'casa' })).toBe(true);
+    expect(isFiltered({ ...none, direction: 'out' })).toBe(true);
+    expect(isFiltered({ ...none, accountCurrency: 'EUR' })).toBe(true);
+    expect(emptyListText(false, 'all')).toBe('Nenhum gasto ou entrada.');
     expect(emptyListText(true)).toBe('Nada encontrado com esses filtros.');
     expect(emptyListText(false)).toBe('Nenhum gasto ou entrada neste mês.');
   });
@@ -194,5 +204,45 @@ describe('transferLine', () => {
     const line = transferLine({ ...t, kind: 'exchange', to_amount: '18.0000', to_currency: 'EUR' });
     expect(line.sub).toBe('Câmbio · 8 nov');
     expect(line.arrived).toMatch(/18,00/);
+  });
+});
+
+describe('period, order and the extra filters', () => {
+  it('turns the typed De/Até into days, or says what is wrong', () => {
+    expect(rangeOf('01/10/2026', '15/10/2026')).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-15',
+      error: null,
+    });
+    expect(rangeOf('', '15/10/2026')).toEqual({ from: null, to: '2026-10-15', error: null });
+    expect(rangeOf('  ', '')).toEqual({ from: null, to: null, error: null });
+    expect(rangeOf('31/02/2026', '').error).toBe('Data inválida (ex.: 28/11/2026).');
+    expect(rangeOf('15/10/2026', '01/10/2026').error).toBe('A data inicial é depois da final.');
+  });
+
+  it('cycles a column header: ascending, descending, back to by day', () => {
+    expect(nextSort('date', 'amount')).toBe('amount');
+    expect(nextSort('amount', 'amount')).toBe('-amount');
+    expect(nextSort('-amount', 'amount')).toBe('date');
+    expect(nextSort('-amount', 'description')).toBe('description');
+    expect(sortArrow('description', 'description')).toBe(' ↑');
+    expect(sortArrow('-description', 'description')).toBe(' ↓');
+    expect(sortArrow('amount', 'description')).toBe('');
+  });
+
+  it("offers each account currency once and shows each day's total", () => {
+    const accounts = [
+      { id: 'a', currency: 'BRL' },
+      { id: 'b', currency: 'EUR' },
+      { id: 'c', currency: 'BRL' },
+    ] as Account[];
+    expect(currencyOptions(accounts)).toEqual([
+      { id: 'BRL', name: 'BRL' },
+      { id: 'EUR', name: 'EUR' },
+    ]);
+    expect(currencyOptions(undefined)).toEqual([]);
+    const t = { ...totals([]), days: [{ date: '2026-10-03', total: '-200.0000' }] };
+    expect(dayTotals(t)).toEqual({ '2026-10-03': '-R$\u00a0200,00' });
+    expect(dayTotals(undefined)).toEqual({});
   });
 });

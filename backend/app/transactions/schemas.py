@@ -43,6 +43,12 @@ class GroupTotal(BaseModel):
     count: int
 
 
+class DayTotal(BaseModel):
+    date: date_
+    # Income minus spending of that day (negative when more went out).
+    total: Decimal
+
+
 class CurrencyTotals(BaseModel):
     currency: Currency
     income: Decimal
@@ -54,6 +60,8 @@ class CurrencyTotals(BaseModel):
     categories: list[GroupTotal]
     members: list[GroupTotal]
     accounts: list[GroupTotal]
+    # Each day with lines, newest first: the total beside the day in the list.
+    days: list[DayTotal]
 
 
 class TransactionTotals(BaseModel):
@@ -62,6 +70,27 @@ class TransactionTotals(BaseModel):
     count: int
     # Only the currencies that have lines; just the chosen one when converted.
     currencies: list[CurrencyTotals]
+
+
+class LatestMonth(BaseModel):
+    # The month of the newest counted line; null when there are none yet.
+    month: str | None
+
+
+class CurrencyAmount(BaseModel):
+    currency: Currency
+    amount: Decimal
+    # 1 unit of the line's currency in this one, that day (8 places).
+    rate: Decimal
+
+
+class LineCurrencies(BaseModel):
+    """A line in BRL, EUR and USD, converted with the ECB rate of its day."""
+
+    currency: Currency
+    # The day of the rate used (the last published on or before the line's date).
+    rate_date: date_ | None
+    amounts: list[CurrencyAmount]
 
 
 class TransactionUpdate(BaseModel):

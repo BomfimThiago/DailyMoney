@@ -32,6 +32,10 @@ export type TransactionPage = S['TransactionPage'];
 export type TransactionTotals = S['TransactionTotals'];
 export type CurrencyTotals = S['CurrencyTotals'];
 export type GroupTotal = S['GroupTotal'];
+export type DayTotal = S['DayTotal'];
+// A line's amount in BRL, EUR and USD, with the ECB rate of its day.
+export type LineCurrencies = S['LineCurrencies'];
+export type LatestMonth = S['LatestMonth'];
 
 // Imported lines wait for approval ("pending") before they count anywhere.
 export type ReviewStatus = S['ReviewStatus'];
