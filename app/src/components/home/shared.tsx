@@ -34,7 +34,7 @@ export function NoAccounts({
   );
 }
 
-// "2 transferências para confirmar · Ver", opening the Transferências tab.
+// "2 transferências para confirmar · Ver", opening Transações with internal transfers shown.
 export function PendingLink({ count, style }: { count: number; style?: StyleProp<ViewStyle> }) {
   if (count <= 0) return null;
   return (

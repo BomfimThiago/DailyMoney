@@ -75,14 +75,15 @@ export function Filters({ page, wide }: { page: TransactionsPage; wide: boolean 
         />
       )}
       <TransfersSwitch page={page} />
-      {page.filtered ? (
+      {page.narrowed ? (
         <Pressable
-          onPress={page.clearFilters}
+          onPress={page.clearAll}
           accessibilityRole="button"
+          accessibilityLabel="Limpar filtros"
           hitSlop={6}
           style={styles.clear}
         >
-          <Text style={styles.clearText}>Limpar filtros</Text>
+          <Text style={styles.clearText}>✕ Limpar filtros</Text>
         </Pressable>
       ) : null}
     </>
@@ -113,11 +114,17 @@ function TransfersSwitch({ page }: { page: TransactionsPage }) {
     <Pressable
       onPress={() => page.setWithTransfers(!on)}
       accessibilityRole="checkbox"
+      accessibilityLabel="Transferências internas"
       accessibilityState={{ checked: on }}
-      style={[styles.menuButton, on && styles.menuButtonOn]}
+      style={[styles.menuButton, styles.switchButton, on && styles.menuButtonOn]}
     >
       <Text style={[styles.menuText, on && styles.menuTextOn]} numberOfLines={1}>
         {on ? '✓ ' : ''}Transferências internas
+        {page.toConfirm > 0 ? (
+          <Text style={on ? styles.menuTextOn : styles.toConfirm}>
+            {` · ${page.toConfirm} a confirmar`}
+          </Text>
+        ) : null}
       </Text>
     </Pressable>
   );

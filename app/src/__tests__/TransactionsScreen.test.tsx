@@ -205,7 +205,8 @@ describe('TransactionsScreen on the phone', () => {
   it('lists the month and opens a line as a sheet', async () => {
     await render(<TransactionsScreen />);
     expect(screen.getByText('Uber')).toBeTruthy();
-    expect(screen.getByText('2')).toBeTruthy();
+    // Only the list: no tabs while nothing waits for review.
+    expect(screen.queryByTestId('segment-lista')).toBeNull();
     expect(lastFilters()).toEqual(NO_FILTERS);
     await fireEvent.press(screen.getByText('Uber'));
     expect(screen.getByText('detalhe Uber')).toBeTruthy();
@@ -235,17 +236,16 @@ describe('TransactionsScreen on the phone', () => {
     expect(screen.queryByText(/Mostrar mais/)).toBeNull();
   });
 
-  it('switches to transfers, with their own states', async () => {
+  it('opens with internal transfers from the link, the waiting ones first', async () => {
     mockParams.mockReturnValue({ aba: 'transferencias' });
     await render(<TransactionsScreen />);
+    expect(lastView().kinds).toContain('pending');
     expect(screen.getByText('lista de transferências')).toBeTruthy();
-    transfers({ isError: true, data: undefined });
-    await render(<TransactionsScreen />);
-    expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
+    expect(screen.getByText(' · 2 a confirmar')).toBeTruthy();
+    // Without the answer there is nothing to show above the list.
     transfers({ data: undefined });
     await render(<TransactionsScreen />);
     expect(screen.queryByText('lista de transferências')).toBeNull();
-    expect(screen.queryByText('2')).toBeNull();
   });
 });
 
@@ -398,15 +398,6 @@ describe('TransactionsScreen on a computer', () => {
     await render(<TransactionsScreen />);
     expect(screen.queryByTestId('totals')).toBeNull();
   });
-
-  it('hides the filters on the transfers tab', async () => {
-    wide();
-    await render(<TransactionsScreen />);
-    await fireEvent.press(screen.getByTestId('segment-transferencias'));
-    expect(screen.getByText('lista de transferências')).toBeTruthy();
-    expect(screen.queryByLabelText('Buscar descrição')).toBeNull();
-    expect(lastTotals()[1]).toBe(false);
-  });
 });
 
 describe('TransactionsScreen on the phone: study the month', () => {
@@ -443,9 +434,23 @@ describe('TransactionsScreen: what the old app had', () => {
     await fireEvent.press(screen.getByText('Moeda ▾'));
     await fireEvent.press(screen.getByRole('menuitem', { name: 'EUR' }));
     expect(lastFilters()).toEqual({ ...NO_FILTERS, direction: 'out', accountCurrency: 'EUR' });
-    await fireEvent.press(screen.getByText('Limpar filtros'));
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
     expect(lastFilters()).toEqual(NO_FILTERS);
-    expect(screen.queryByText('Limpar filtros')).toBeNull();
+    expect(screen.queryByLabelText('Limpar filtros')).toBeNull();
+  });
+
+  it('clears the period and the transfers switch too, in one tap', async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    expect(screen.queryByLabelText('Limpar filtros')).toBeNull();
+    await fireEvent.press(screen.getByText('Período: Mês ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Todo o período' }));
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transferências internas' }));
+    expect(lastView().month).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Limpar filtros'));
+    expect(lastView().month).not.toBeNull();
+    expect(lastView().kinds).toEqual(['regular', 'investment']);
+    expect(screen.getByText('Período: Mês ▾')).toBeTruthy();
   });
 
   it('studies all the time there is, or the days between two dates', async () => {
@@ -492,7 +497,8 @@ describe('TransactionsScreen: what the old app had', () => {
     expect(lastView().kinds).toEqual(['regular', 'investment']);
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Transferências internas' }));
     expect(lastView().kinds).toEqual(['regular', 'investment', 'transfer', 'pending']);
-    expect(screen.getByText('✓ Transferências internas')).toBeTruthy();
+    expect(screen.getByText(/✓ Transferências internas/)).toBeTruthy();
+    expect(screen.getByText('lista de transferências')).toBeTruthy();
   });
 
   it('opens on the newest month with lines', async () => {

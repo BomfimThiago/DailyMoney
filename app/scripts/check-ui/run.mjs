@@ -269,7 +269,8 @@ function answer(url, method) {
     return { status: 200, body: { total: items.length, items } };
   }
   if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
-    const items = listed(url);
+    const waiting = url.searchParams.getAll('kind').includes('pending');
+    const items = [...listed(url), ...(waiting ? fixtures['/transactions/transfers'].pending : [])];
     return { status: 200, body: { total: items.length, items } };
   }
   if (p === '/transactions/totals') return { status: 200, body: totals(listed(url)) };
@@ -453,10 +454,11 @@ async function checkScreens(page, tag) {
       await item('Maiores gastos').click();
     }
     await page.waitForLoadState('networkidle');
-    await seen('Limpar filtros').waitFor();
+    await seen('✕ Limpar filtros').waitFor();
     await page.getByTestId('totals').filter({ visible: true }).waitFor();
     await shot('transacoes-estudo');
-    await seen('Limpar filtros').click();
+    // One tap undoes the filters and the period.
+    await seen('✕ Limpar filtros').click();
     if (tag === 'computador') {
       await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
       await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
@@ -464,9 +466,9 @@ async function checkScreens(page, tag) {
       await seen('Maiores gastos ▾').click();
       await item('Por dia').click();
     }
-    await seen(tag === 'computador' ? 'Período: Todo o período ▾' : 'Todo o período ▾').click();
-    await item('Mês').click();
-    await seen('TOTAL DO MÊS').waitFor();
+    await seen('TOTAL DO MÊS')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('Limpar filtros não voltou para o mês'));
 
     // A line opens its detail (beside the table, or as a sheet on a phone), where the
     // category can change.
@@ -553,10 +555,21 @@ async function checkScreens(page, tag) {
       await shot('transacoes-detalhe-rolado');
       await page.setViewportSize(size);
     }
-    await page.getByRole('tab', { name: /Transferências/ }).click();
+    // No Transferências tab: the switch shows them in the list, the waiting ones on top.
+    const transfersSwitch = page
+      .getByRole('checkbox', { name: 'Transferências internas' })
+      .filter({ visible: true });
+    await transfersSwitch.click();
     await seen('AGUARDANDO CONFIRMAR').waitFor();
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await seen('A confirmar')
+      .first()
+      .waitFor()
+      .catch(() => {});
     await seen('Saiu e não voltou').waitFor();
     await shot('transacoes-transferencias');
+    await transfersSwitch.click();
 
     // Imported lines waiting for approval, by bank read and statement.
     await page.getByRole('tab', { name: /revisar/i }).click();

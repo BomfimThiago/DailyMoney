@@ -42,7 +42,6 @@ describe('Transfers', () => {
     expect(screen.getByText(/Saiu do Nubank · 8 nov/)).toBeTruthy();
     expect(screen.getByText('Foi um gasto')).toBeTruthy();
     expect(screen.getByText('Foi um investimento')).toBeTruthy();
-    expect(screen.getByText('Nenhuma transferência neste mês.')).toBeTruthy();
   });
 
   it('asks about money in with the income wording', async () => {
@@ -77,33 +76,10 @@ describe('Transfers', () => {
     expect(onChanged).not.toHaveBeenCalled();
   });
 
-  it('lists confirmed moves, with both sides of an exchange', async () => {
+  it('shows nothing when no line waits to be confirmed', async () => {
     await render(
-      <Transfers
-        data={overview({
-          pending: [],
-          confirmed: [
-            {
-              id: 't1',
-              date: '2026-11-09',
-              description: 'Converted',
-              from_account: 'Wise BRL',
-              to_account: 'Wise USD',
-              amount: '1000.0000',
-              currency: 'BRL',
-              to_amount: '182.4800',
-              to_currency: 'USD',
-              kind: 'exchange',
-            },
-          ],
-        })}
-        month="2026-11"
-        onChanged={jest.fn()}
-      />,
+      <Transfers data={overview({ pending: [] })} month="2026-11" onChanged={jest.fn()} />,
     );
     expect(screen.queryByText('AGUARDANDO CONFIRMAR')).toBeNull();
-    expect(screen.getByText('Wise BRL → Wise USD')).toBeTruthy();
-    expect(screen.getByText('Câmbio · 9 nov')).toBeTruthy();
-    expect(screen.getByText(/US\$\s182,48/)).toBeTruthy();
   });
 });
