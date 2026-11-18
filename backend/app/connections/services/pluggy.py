@@ -10,6 +10,8 @@ Rules checked against real Meu Pluggy data in the old app:
   - `date` is an instant in UTC; the day that counts is the one in Brasília.
   - Paying the card bill moves money between the family's own products, so it is a
     transfer; otherwise the bill would count twice (the purchases and the payment).
+  - A card purchase brings the bill it falls into (`billForecastDate`) and, when split,
+    which installment it is; kept so the app can show each bill and "3/10".
   - Pluggy's own category marks money moving to the same person or to investments.
 """
 
@@ -26,6 +28,7 @@ import httpx
 from app.connections.services.timestamps import instant
 from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError
+from app.statements.parsing.cards import pluggy_card_details
 from app.statements.parsing.types import SUPPORTED_CURRENCIES, ParsedRow, RowError, RowKind
 
 PROVIDER = "pluggy"
@@ -285,6 +288,7 @@ def _row(tx: dict[str, Any], currency: str, card: bool, since: date) -> ParsedRo
     description = re.sub(r"\s+", " ", _text(tx))
     if not description:
         raise _Unreadable("Transação sem descrição")
+    bill, installment = pluggy_card_details(tx) if card else (None, None)
     return ParsedRow(
         date=day,
         description=description,
@@ -293,6 +297,8 @@ def _row(tx: dict[str, Any], currency: str, card: bool, since: date) -> ParsedRo
         raw=f"PLUGGY {tx.get('id')}",
         external_id=f"pluggy:{tx.get('id')}",
         kind=_kind(tx, card),
+        card_bill=bill,
+        installment=installment,
     )
 
 

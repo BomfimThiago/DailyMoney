@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fixtures, month } from './fixtures.mjs';
+import { cardPurchases, fixtures, month } from './fixtures.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.OUT ?? path.join(os.tmpdir(), 'dailymoney-check-ui');
@@ -264,6 +264,10 @@ function answer(url, method) {
     const body = inCurrencies(p.split('/')[2]);
     return body ? { status: 200, body } : { status: 404, body: {} };
   }
+  if (p === '/transactions' && url.searchParams.get('card_bill')) {
+    const items = cardPurchases[url.searchParams.get('card_bill')] ?? [];
+    return { status: 200, body: { total: items.length, items } };
+  }
   if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
     const items = listed(url);
     return { status: 200, body: { total: items.length, items } };
@@ -367,6 +371,13 @@ async function checkScreens(page, tag) {
     await page.getByText(tag === 'celular' ? 'Últimos movimentos' : 'RITMO DO MÊS').waitFor();
     await page.waitForLoadState('networkidle');
     await shot('inicio');
+    // Further down Início: the spending split by person and the month's flow.
+    await page.getByRole('radio', { name: 'Pessoa' }).filter({ visible: true }).first().click();
+    const flow = page.getByText('FLUXO DO MÊS').filter({ visible: true }).first();
+    await flow.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(200);
+    await shot('inicio-fluxo');
+    await page.getByRole('radio', { name: 'Categoria' }).filter({ visible: true }).first().click();
 
     // Tabs stay mounted, so the same text can exist on a hidden tab: wait for the visible one.
     const seen = (text) => page.getByText(text).filter({ visible: true }).first();
@@ -687,6 +698,15 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Editar Ana' }).click();
     await seen('Excluir pessoa').waitFor();
     await shot('responsaveis-editar');
+    // Cartões: this month's bill (paid), the next one and the purchases with "3/10".
+    await page.goto(`${base}/cartoes`);
+    await seen('NUBANK CARTÃO').waitFor();
+    await seen('Tok&Stok').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('cartoes');
+    await page.getByTestId('segment-next').filter({ visible: true }).click();
+    await seen('Amazon').waitFor();
+    await shot('cartoes-proxima');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();

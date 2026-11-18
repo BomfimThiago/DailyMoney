@@ -32,8 +32,9 @@ from app.imports.schemas import (
 from app.imports.services.dedup import NEAR_DAYS, Existing, Incoming, find_duplicates, source_keys
 from app.imports.services.self_transfer import looks_like_self_transfer
 from app.imports.services.transfers import MAX_DAYS, Candidate, pair_transfers
+from app.statements.parsing.cards import installment_in_text
 from app.statements.parsing.reader import read_statement
-from app.statements.parsing.types import ParsedStatement
+from app.statements.parsing.types import ParsedRow, ParsedStatement
 from app.transactions.models import ReviewStatus, Transaction, TxKind
 from app.transactions.services import transaction_service
 
@@ -57,6 +58,8 @@ class _Row:
     source_key: str
     external_id: str | None
     kind: TxKind
+    card_bill: str | None = None
+    installment: str | None = None
 
 
 @dataclass
@@ -110,6 +113,9 @@ async def store_statement(
             "source_key": key,
             "external_id": r.external_id[:200] if r.external_id else None,
             "kind": r.kind,
+            "card_bill": r.card_bill,
+            "installment": r.installment
+            or (installment_in_text(r.description) if statement.is_card else None),
         }
         for r, key in zip(statement.rows, keys, strict=True)
     ]
@@ -257,6 +263,8 @@ def _rows(imp: StatementImport) -> list[_Row]:
             external_id=r["external_id"],
             # Previews saved before kinds existed only had the bank's transfer flag.
             kind=TxKind(r.get("kind") or ("transfer" if r.get("bank_transfer") else "regular")),
+            card_bill=r.get("card_bill"),
+            installment=r.get("installment"),
         )
         for r in (imp.rows or [])
     ]
@@ -630,6 +638,8 @@ async def _save_row(
         kind=kind,
         transfer_pair_id=p.pair_id,
         review=review,
+        card_bill=row.card_bill,
+        installment=row.installment,
     )
     db.add(tx)
     if p.pair_id:
@@ -648,6 +658,36 @@ async def _mark_pair(
     other.transfer_pair_id = tx.id
     if transfer_category is not None:
         other.category_id = transfer_category.id
+
+
+async def fill_card_details(db: AsyncSession, account_id: uuid.UUID, rows: list[ParsedRow]) -> int:
+    """Stored lines learn the bill and installment the bank now says they have.
+
+    Lines read before the app kept bills (or whose bill the bank moved) are found by the
+    bank's id; nothing else about them changes. Returns how many lines changed.
+    """
+    said = {
+        row.external_id[:200]: (row.card_bill, row.installment)
+        for row in rows
+        if row.external_id and (row.card_bill or row.installment)
+    }
+    if not said:
+        return 0
+    stored = await db.scalars(
+        select(Transaction).where(
+            Transaction.account_id == account_id, Transaction.external_id.in_(said)
+        )
+    )
+    changed = 0
+    for tx in stored:
+        bill, installment = said[tx.external_id or ""]
+        bill = bill or tx.card_bill
+        installment = installment or tx.installment
+        if (tx.card_bill, tx.installment) != (bill, installment):
+            tx.card_bill, tx.installment = bill, installment
+            changed += 1
+    await db.flush()
+    return changed
 
 
 async def waiting_review(db: AsyncSession, import_id: uuid.UUID) -> int:

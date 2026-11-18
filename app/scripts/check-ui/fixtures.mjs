@@ -271,7 +271,58 @@ const portfolio = {
   })),
 };
 
+// A Nubank card: this month's bill (purchases made last month, one split in 10), paid,
+// and next month's bill filling up.
+const card = {
+  id: 'acc-nu-card',
+  name: 'Nubank cartão',
+  bank: 'Nubank',
+  currency: 'BRL',
+  is_card: true,
+  member_id: 'mem-1',
+};
+const prev = ym(-1);
+const next = ym(1);
+const cardTx = (date, description, amount, category, bill, installment = null) => ({
+  ...tx(card, 1, description, amount, 'regular', category),
+  date,
+  card_bill: bill,
+  installment,
+});
+export const cardPurchases = {
+  [month]: [
+    cardTx(`${prev}-27`, 'Zara', '-389.90', 'Roupas', month),
+    cardTx(`${prev}-24`, 'Tok&Stok', '-249.00', 'Casa', month, '3/10'),
+    cardTx(`${prev}-19`, 'Posto Shell', '-210.00', 'Transporte', month),
+    cardTx(`${prev}-15`, 'Spotify', '-21.90', 'Assinaturas', month),
+    cardTx(`${prev}-11`, 'Decolar', '-612.00', 'Viagem', month, '2/6'),
+  ],
+  [next]: [
+    cardTx(day(9), 'Amazon', '-159.90', 'Compras', next),
+    cardTx(day(6), 'Tok&Stok', '-249.00', 'Casa', next, '4/10'),
+    cardTx(day(3), 'Decolar', '-612.00', 'Viagem', next, '3/6'),
+  ],
+};
+
 export const fixtures = {
+  '/transactions/card-bills': {
+    month,
+    bills_known: true,
+    cards: [
+      {
+        account_id: card.id,
+        account_name: card.name,
+        bank: card.bank,
+        currency: 'BRL',
+        bill: { month, total: '1482.80', count: 5 },
+        next: { month: next, total: '1020.90', count: 3 },
+        payments: [{ date: day(10), amount: '1482.80' }],
+        paid: '1482.80',
+        status: 'paid',
+        months: [next, month, prev],
+      },
+    ],
+  },
   '/portfolio': portfolio,
   '/auth/me': {
     id: 'user-1',
@@ -405,6 +456,23 @@ export const fixtures = {
         previous_daily: previousDaily,
         categories: shares('category_name'),
         accounts: shares('account_name'),
+        // Nubank is Pessoa's, Inter belongs to the household.
+        people: Object.entries(
+          spent.reduce((acc, t) => {
+            const who = t.account_name === 'Nubank' ? 'Pessoa' : 'Casa';
+            return { ...acc, [who]: (acc[who] ?? 0) - Number(t.amount) };
+          }, {}),
+        )
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, amount]) => ({ name, amount: amount.toFixed(2) })),
+        banks: shares('account_name'),
+        income_categories: [
+          { name: 'Renda', amount: '8000.00' },
+          { name: 'Outros', amount: '500.00' },
+          { name: 'Investimento', amount: '300.00' },
+        ],
+        previous_income: '8200.00',
+        previous_spending: '6100.00',
       },
       {
         currency: 'EUR',
@@ -412,6 +480,11 @@ export const fixtures = {
         previous_daily: previousDaily.map(() => '0.00'),
         categories: [{ name: 'Outros', amount: '120.00' }],
         accounts: [{ name: 'Wise EUR', amount: '120.00' }],
+        people: [{ name: 'Casa', amount: '120.00' }],
+        banks: [{ name: 'Wise', amount: '120.00' }],
+        income_categories: [],
+        previous_income: '0.00',
+        previous_spending: '0.00',
       },
     ],
   },

@@ -1618,6 +1618,23 @@
               ],
               "title": "Account Currency"
             }
+          },
+          {
+            "name": "card_bill",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Bill"
+            }
           }
         ],
         "responses": {
@@ -1885,6 +1902,23 @@
                 }
               ],
               "title": "Account Currency"
+            }
+          },
+          {
+            "name": "card_bill",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Card Bill"
             }
           }
         ],
@@ -2334,6 +2368,70 @@
             "HTTPBearer": []
           }
         ]
+      }
+    },
+    "/api/v1/transactions/card-bills": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Card Bills",
+        "description": "Each card's bill of the month (and whether it was paid) and the next one.",
+        "operationId": "card_bills_api_v1_transactions_card_bills_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$",
+              "examples": ["2026-10"],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardBillsOverview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/transactions/review": {
@@ -3011,6 +3109,133 @@
         "required": ["connect_token", "connector_id"],
         "title": "BrazilStartOut"
       },
+      "CardBill": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": ["month", "total", "count"],
+        "title": "CardBill"
+      },
+      "CardBills": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Account Id"
+          },
+          "account_name": {
+            "type": "string",
+            "title": "Account Name"
+          },
+          "bank": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bank"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "bill": {
+            "$ref": "#/components/schemas/CardBill"
+          },
+          "next": {
+            "$ref": "#/components/schemas/CardBill"
+          },
+          "payments": {
+            "items": {
+              "$ref": "#/components/schemas/CardPayment"
+            },
+            "type": "array",
+            "title": "Payments"
+          },
+          "paid": {
+            "type": "string",
+            "title": "Paid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["paid", "open", "unpaid", "empty"],
+            "title": "Status"
+          },
+          "months": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Months"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "account_name",
+          "bank",
+          "currency",
+          "bill",
+          "next",
+          "payments",
+          "paid",
+          "status",
+          "months"
+        ],
+        "title": "CardBills"
+      },
+      "CardBillsOverview": {
+        "properties": {
+          "month": {
+            "type": "string",
+            "title": "Month"
+          },
+          "bills_known": {
+            "type": "boolean",
+            "title": "Bills Known"
+          },
+          "cards": {
+            "items": {
+              "$ref": "#/components/schemas/CardBills"
+            },
+            "type": "array",
+            "title": "Cards"
+          }
+        },
+        "type": "object",
+        "required": ["month", "bills_known", "cards"],
+        "title": "CardBillsOverview"
+      },
+      "CardPayment": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": ["date", "amount"],
+        "title": "CardPayment"
+      },
       "CategoryChange": {
         "properties": {
           "name": {
@@ -3460,6 +3685,40 @@
             },
             "type": "array",
             "title": "Accounts"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "People",
+            "default": []
+          },
+          "banks": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Banks",
+            "default": []
+          },
+          "income_categories": {
+            "items": {
+              "$ref": "#/components/schemas/SpendingShare"
+            },
+            "type": "array",
+            "title": "Income Categories",
+            "default": []
+          },
+          "previous_income": {
+            "type": "string",
+            "title": "Previous Income",
+            "default": "0"
+          },
+          "previous_spending": {
+            "type": "string",
+            "title": "Previous Spending",
+            "default": "0"
           }
         },
         "type": "object",
@@ -5449,6 +5708,28 @@
                 "type": "null"
               }
             ]
+          },
+          "card_bill": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Card Bill"
+          },
+          "installment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installment"
           }
         },
         "type": "object",

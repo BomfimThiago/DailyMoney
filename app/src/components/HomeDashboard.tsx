@@ -1,7 +1,10 @@
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { CardBillLink } from '@/components/cards/CardBills';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { Breakdown } from '@/components/home/Breakdown';
+import { Comparison } from '@/components/home/Comparison';
+import { Flow } from '@/components/home/Flow';
 import { Pace } from '@/components/home/Pace';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from '@/components/home/shared';
 import { SpendingCalendar } from '@/components/home/SpendingCalendar';
@@ -65,6 +68,7 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
       <Figures month={home.month} start={start} shown={shown} dash={dash} />
       <ReviewLink count={summary.to_review} />
       <PendingLink count={summary.pending_transfers} />
+      <CardBillLink />
       <Loadable
         isError={query.isError}
         loading={!dash}
@@ -73,22 +77,34 @@ function MonthView({ home, summary }: { home: Home; summary: MonthSummary }) {
         error="Não consegui carregar os gráficos. Tente de novo."
         textStyle={[styles.muted, styles.loading]}
       >
-        {(d) => <Charts month={home.month} start={start ?? ''} dash={d} />}
+        {(d) => <Charts month={home.month} start={start ?? ''} shown={shown} dash={d} />}
       </Loadable>
     </>
   );
 }
 
-function Charts({ month, start, dash }: { month: string; start: string; dash: CurrencyDashboard }) {
+function Charts({
+  month,
+  start,
+  shown,
+  dash,
+}: {
+  month: string;
+  start: string;
+  shown: CurrencySummary;
+  dash: CurrencyDashboard;
+}) {
   const width = contentWidthFor(useWindowDimensions().width);
   const twoColumns = width >= TWO_COLUMNS;
   return (
     <>
+      <Comparison month={month} shown={shown} dash={dash} withCurrent />
       <Pace month={month} start={start} dash={dash} width={width} />
       <View style={[styles.pair, !twoColumns && styles.stack]}>
         <Breakdown dash={dash} />
         <SpendingCalendar start={start} dash={dash} />
       </View>
+      <Flow dash={dash} width={width} />
     </>
   );
 }

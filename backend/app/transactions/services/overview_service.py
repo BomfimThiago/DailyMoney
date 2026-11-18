@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import Account
 from app.categories.models import Category
-from app.families.models import Currency, Family
+from app.families.models import Currency, Family, Member
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
 from app.statements.parsing.own_moves import product_name
@@ -109,27 +109,48 @@ async def _count(db: AsyncSession, family_id: uuid.UUID, *where: object) -> int:
 
 
 OTHER_CATEGORY = "Outros"
+HOUSEHOLD = "Casa"
+
+_Sums = dict[Currency, dict[str, Decimal]]
+
+
+def _sums() -> _Sums:
+    return defaultdict(lambda: defaultdict(lambda: ZERO))
+
+
+def _shares(sums: dict[str, Decimal]) -> list[SpendingShare]:
+    return [
+        SpendingShare(name=name, amount=amount)
+        for name, amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
 
 
 async def month_dashboard(
     db: AsyncSession, family_id: uuid.UUID, month: str, currency: Currency | None = None
 ) -> MonthDashboard:
-    """Spending per day (this month and the one before), by category and by account."""
+    """Spending per day (this month and the one before); spending by category, account,
+    person and bank; income by category; and the month before's totals."""
     start_day = await month_start_day(db, family_id)
     lo, hi = month_range(month, start_day)
     prev_lo, prev_hi = month_range(shift(month, -1), start_day)
     conv = await converter(db, currency, prev_lo, hi)
     rows = await db.execute(
         select(
-            Transaction.currency, Transaction.date, Transaction.amount, Account.name, Category.name
+            Transaction.currency,
+            Transaction.date,
+            Transaction.amount,
+            Account.name,
+            Account.bank,
+            Category.name,
+            Member.name,
         )
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
+        .outerjoin(Member, Member.id == func.coalesce(Transaction.member_id, Account.member_id))
         .where(
             Transaction.family_id == family_id,
             APPROVED,
             Transaction.kind.in_(COUNTED),
-            Transaction.amount < 0,
             Transaction.date.between(prev_lo, hi),
         )
     )
@@ -138,23 +159,26 @@ async def month_dashboard(
     previous: dict[Currency, list[Decimal]] = defaultdict(
         lambda: [ZERO] * ((prev_hi - prev_lo).days + 1)
     )
-    by_category: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
-    by_account: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
-    for original, day, amount, account_name, category_name in rows:
+    prev_income: dict[Currency, Decimal] = defaultdict(lambda: ZERO)
+    by_category, by_account, by_person, by_bank, income = (_sums() for _ in range(5))
+    for original, day, raw, account_name, bank, category_name, person in rows:
         currency = conv.currency(original)
-        spent = -conv(amount, original, day)
+        amount = conv(raw, original, day)
         if day < lo:
-            previous[currency][(day - prev_lo).days] += spent
+            if amount > 0:
+                prev_income[currency] += amount
+            else:
+                previous[currency][(day - prev_lo).days] -= amount
             continue
+        if amount > 0:
+            income[currency][category_name or OTHER_CATEGORY] += amount
+            continue
+        spent = -amount
         daily[currency][(day - lo).days] += spent
         by_category[currency][category_name or OTHER_CATEGORY] += spent
         by_account[currency][account_name] += spent
-
-    def shares(sums: dict[str, Decimal]) -> list[SpendingShare]:
-        return [
-            SpendingShare(name=name, amount=amount)
-            for name, amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0]))
-        ]
+        by_person[currency][person or HOUSEHOLD] += spent
+        by_bank[currency][bank] += spent
 
     return MonthDashboard(
         month=month,
@@ -165,8 +189,13 @@ async def month_dashboard(
                 currency=c,
                 daily=daily[c],
                 previous_daily=previous[c],
-                categories=shares(by_category[c]),
-                accounts=shares(by_account[c]),
+                categories=_shares(by_category[c]),
+                accounts=_shares(by_account[c]),
+                people=_shares(by_person[c]),
+                banks=_shares(by_bank[c]),
+                income_categories=_shares(income[c]),
+                previous_income=prev_income[c],
+                previous_spending=sum(previous[c], ZERO),
             )
             for c in await _currencies(db, family_id, currency)
         ],

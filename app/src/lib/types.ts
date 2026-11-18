@@ -65,6 +65,11 @@ export type InvestmentProduct = S['InvestmentProduct'];
 export type InvestmentMonth = S['InvestmentMonth'];
 export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
+// Credit card bills: the bill of a month (paid or not) and the next one, per card.
+export type CardBill = S['CardBill'];
+export type CardBills = S['CardBills'];
+export type CardBillsOverview = S['CardBillsOverview'];
+
 // The bank's own investment balances (Pluggy), as read on the last sync.
 export type Portfolio = S['PortfolioOut'];
 export type PortfolioClass = S['ClassOut'];
