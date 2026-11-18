@@ -1352,6 +1352,56 @@
         ],
         "parameters": [
           {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": ["date", "description", "-description", "amount", "-amount"],
+              "type": "string",
+              "default": "date",
+              "title": "Sort"
+            }
+          },
+          {
             "name": "account_id",
             "in": "query",
             "required": false,
@@ -1383,6 +1433,40 @@
                 }
               ],
               "title": "Month"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
             }
           },
           {
@@ -1456,30 +1540,24 @@
             }
           },
           {
-            "name": "limit",
+            "name": "direction",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 200,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
+              "anyOf": [
+                {
+                  "enum": ["in", "out"],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
             }
           },
           {
-            "name": "offset",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0,
-              "title": "Offset"
-            }
-          },
-          {
-            "name": "currency",
+            "name": "account_currency",
             "in": "query",
             "required": false,
             "schema": {
@@ -1491,7 +1569,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Currency"
+              "title": "Account Currency"
             }
           }
         ],
@@ -1531,6 +1609,22 @@
         ],
         "parameters": [
           {
+            "name": "currency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Currency"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Currency"
+            }
+          },
+          {
             "name": "account_id",
             "in": "query",
             "required": false,
@@ -1562,6 +1656,40 @@
                 }
               ],
               "title": "Month"
+            }
+          },
+          {
+            "name": "date_from",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "name": "date_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
             }
           },
           {
@@ -1635,7 +1763,24 @@
             }
           },
           {
-            "name": "currency",
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": ["in", "out"],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "name": "account_currency",
             "in": "query",
             "required": false,
             "schema": {
@@ -1647,7 +1792,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Currency"
+              "title": "Account Currency"
             }
           }
         ],
@@ -1673,6 +1818,30 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/transactions/latest-month": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Latest Month",
+        "operationId": "latest_month_api_v1_transactions_latest_month_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LatestMonth"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/v1/transactions/summary": {
@@ -2065,6 +2234,52 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReviewResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/transactions/{tx_id}/currencies": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "In Every Currency",
+        "operationId": "in_every_currency_api_v1_transactions__tx_id__currencies_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tx_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Tx Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineCurrencies"
                 }
               }
             }
@@ -2913,6 +3128,24 @@
         "enum": ["BRL", "USD", "EUR"],
         "title": "Currency"
       },
+      "CurrencyAmount": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "rate": {
+            "type": "string",
+            "title": "Rate"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "amount", "rate"],
+        "title": "CurrencyAmount"
+      },
       "CurrencyAnalysis": {
         "properties": {
           "currency": {
@@ -3111,6 +3344,13 @@
             },
             "type": "array",
             "title": "Accounts"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/DayTotal"
+            },
+            "type": "array",
+            "title": "Days"
           }
         },
         "type": "object",
@@ -3122,9 +3362,26 @@
           "count",
           "categories",
           "members",
-          "accounts"
+          "accounts",
+          "days"
         ],
         "title": "CurrencyTotals"
+      },
+      "DayTotal": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "total": {
+            "type": "string",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": ["date", "total"],
+        "title": "DayTotal"
       },
       "FamilyOut": {
         "properties": {
@@ -3785,6 +4042,54 @@
         "type": "object",
         "required": ["label", "year", "total", "count"],
         "title": "LadderStepOut"
+      },
+      "LatestMonth": {
+        "properties": {
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month"
+          }
+        },
+        "type": "object",
+        "required": ["month"],
+        "title": "LatestMonth"
+      },
+      "LineCurrencies": {
+        "properties": {
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "rate_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Date"
+          },
+          "amounts": {
+            "items": {
+              "$ref": "#/components/schemas/CurrencyAmount"
+            },
+            "type": "array",
+            "title": "Amounts"
+          }
+        },
+        "type": "object",
+        "required": ["currency", "rate_date", "amounts"],
+        "title": "LineCurrencies",
+        "description": "A line in BRL, EUR and USD, converted with the ECB rate of its day."
       },
       "MagicLinkRequest": {
         "properties": {

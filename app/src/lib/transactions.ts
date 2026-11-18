@@ -1,14 +1,18 @@
 // What the transactions page derives from its answers, kept apart from the page for tests.
 import { dayMonth, money } from './format';
+import type { TxSort } from './imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from './people';
+import { parseDate } from './txEdit';
 import type {
   Account,
   Category,
+  Currency,
   CurrencyTotals,
   Member,
   Transaction,
   TransactionPage,
   Transfer,
+  TxKind,
 } from './types';
 
 export type Option = { id: string; name: string };
@@ -39,13 +43,115 @@ export function remaining(pages: TransactionPage[] | undefined): number {
   return pages[pages.length - 1].total - shown;
 }
 
-export function isFiltered(f: {
+// The filters the page holds, apart from the period.
+export interface PageFilters {
   q: string;
   categoryId: string | null;
   accountId: string | null;
   memberId: string | null;
-}) {
-  return f.q.trim() !== '' || f.categoryId !== null || f.accountId !== null || f.memberId !== null;
+  direction: 'in' | 'out' | null;
+  accountCurrency: Currency | null;
+}
+
+export const NO_FILTERS: Omit<PageFilters, 'q'> = {
+  categoryId: null,
+  accountId: null,
+  memberId: null,
+  direction: null,
+  accountCurrency: null,
+};
+
+export function isFiltered(f: PageFilters) {
+  const { q, ...menus } = f;
+  return q.trim() !== '' || Object.values(menus).some((v) => v !== null);
+}
+
+// ── period: a month, everything, or the days between two dates ─────────────
+
+export type PeriodKind = 'month' | 'all' | 'range';
+
+export const PERIODS: { id: PeriodKind; name: string }[] = [
+  { id: 'month', name: 'Mês' },
+  { id: 'all', name: 'Todo o período' },
+  { id: 'range', name: 'Entre datas' },
+];
+
+// The typed De/Até ("28/11/2026") as days for the API. An empty field leaves that side
+// open; a wrong one, or De after Até, gives the error to show instead of asking.
+export function rangeOf(
+  fromText: string,
+  toText: string,
+): { from: string | null; to: string | null; error: string | null } {
+  const side = (text: string) => (text.trim() === '' ? null : parseDate(text));
+  const from = side(fromText);
+  const to = side(toText);
+  const bad = (text: string, day: string | null) => text.trim() !== '' && day === null;
+  if (bad(fromText, from) || bad(toText, to)) {
+    return { from: null, to: null, error: 'Data inválida (ex.: 28/11/2026).' };
+  }
+  if (from && to && from > to) {
+    return { from: null, to: null, error: 'A data inicial é depois da final.' };
+  }
+  return { from, to, error: null };
+}
+
+export const TYPE_OPTIONS: Option[] = [
+  { id: 'out', name: 'Gastos' },
+  { id: 'in', name: 'Entradas' },
+];
+
+// The currencies the family's accounts are in, once each.
+export function currencyOptions(accounts: Account[] | undefined): Option[] {
+  const seen = [...new Set((accounts ?? []).map((a) => a.currency))];
+  return seen.map((c) => ({ id: c, name: c }));
+}
+
+// ── what the list asks for ────────────────────────────────────────────────
+
+// Transfers between the family's own accounts stay out of the list unless asked for.
+export const LIST_KINDS: TxKind[] = ['regular', 'investment'];
+export const ALL_KINDS: TxKind[] = ['regular', 'investment', 'transfer', 'pending'];
+
+// What the list asks for besides the filters: the month (null for a free period or all of
+// it), which kinds of line and the order.
+export interface ListView {
+  month: string | null;
+  kinds: TxKind[];
+  sort: TxSort;
+}
+
+// ── order ────────────────────────────────────────────────────────────────────
+
+export type SortColumn = 'description' | 'amount';
+
+// Clicking a column header: ascending, then descending, then back to by day.
+export function nextSort(current: TxSort, column: SortColumn): TxSort {
+  if (current === column) return `-${column}`;
+  if (current === `-${column}`) return 'date';
+  return column;
+}
+
+// The arrow beside a header while the list is sorted by it.
+export function sortArrow(current: TxSort, column: SortColumn): string {
+  if (current === column) return ' ↑';
+  if (current === `-${column}`) return ' ↓';
+  return '';
+}
+
+// The phone has no headers to click, so the same orders come in a menu.
+export const SORT_OPTIONS: { id: TxSort; name: string }[] = [
+  { id: 'date', name: 'Por dia' },
+  { id: 'amount', name: 'Maiores gastos' },
+  { id: '-amount', name: 'Maiores entradas' },
+  { id: 'description', name: 'De A a Z' },
+  { id: '-description', name: 'De Z a A' },
+];
+
+// What each day of the list adds up to (spending and income, transfers out), ready to show.
+export function dayTotals(t: CurrencyTotals | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of t?.days ?? []) out[d.date] = money(d.total, t!.currency, true);
+  return out;
 }
 
 // Transfers have their own tab, so they are not a category to filter the list by.
@@ -135,8 +241,9 @@ export function groupRows(
   };
 }
 
-export function emptyListText(filtered: boolean): string {
-  return filtered ? 'Nada encontrado com esses filtros.' : 'Nenhum gasto ou entrada neste mês.';
+export function emptyListText(filtered: boolean, period: PeriodKind = 'month'): string {
+  if (filtered) return 'Nada encontrado com esses filtros.';
+  return period === 'month' ? 'Nenhum gasto ou entrada neste mês.' : 'Nenhum gasto ou entrada.';
 }
 
 const TRANSFER_SUB: Record<Transfer['kind'], (t: Transfer) => string> = {

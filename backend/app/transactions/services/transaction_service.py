@@ -1,6 +1,8 @@
 import uuid
-from datetime import timedelta
+from dataclasses import dataclass, replace
+from datetime import date, timedelta
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -19,9 +21,13 @@ from app.imports.models import StatementImport
 from app.imports.services.transfers import MAX_DAYS
 from app.transactions.models import ReviewStatus, Transaction, TxKind
 from app.transactions.schemas import (
+    CurrencyAmount,
     CurrencyTotals,
+    DayTotal,
     GroupTotal,
     KindUpdate,
+    LatestMonth,
+    LineCurrencies,
     ReviewDecision,
     ReviewGroup,
     ReviewQueue,
@@ -31,7 +37,34 @@ from app.transactions.schemas import (
     TransactionTotals,
     TransactionUpdate,
 )
-from app.transactions.services.months import month_range
+from app.transactions.services.months import month_of, month_range
+
+Direction = Literal["in", "out"]
+# How the list is ordered: by day (newest first), or by description or amount ("-" = reverse).
+Sort = Literal["date", "description", "-description", "amount", "-amount"]
+_ORDER = {
+    "description": (func.lower(Transaction.description).asc(),),
+    "-description": (func.lower(Transaction.description).desc(),),
+    "amount": (Transaction.amount.asc(),),
+    "-amount": (Transaction.amount.desc(),),
+}
+
+
+@dataclass(frozen=True)
+class Filters:
+    """The filters of the list (Transações), shared by the page and its totals."""
+
+    account_id: uuid.UUID | None = None
+    month: str | None = None
+    date_from: date | None = None
+    date_to: date | None = None
+    kinds: list[TxKind] | None = None
+    category_id: uuid.UUID | None = None
+    member: uuid.UUID | str | None = None
+    q: str | None = None
+    direction: Direction | None = None
+    account_currency: Currency | None = None
+
 
 # The household ("Casa") has no member id; a filter for its lines uses this word instead.
 HOUSEHOLD = "casa"
@@ -40,33 +73,33 @@ NO_CATEGORY = "Sem categoria"
 
 
 async def _where(
-    db: AsyncSession,
-    family_id: uuid.UUID,
-    *,
-    account_id: uuid.UUID | None,
-    month: str | None,
-    kinds: list[TxKind] | None,
-    category_id: uuid.UUID | None,
-    member: uuid.UUID | str | None,
-    q: str | None,
-    review: ReviewStatus,
+    db: AsyncSession, family_id: uuid.UUID, f: Filters, review: ReviewStatus
 ) -> list[ColumnElement[bool]]:
-    """The filters of the transactions list, shared by the page and its totals."""
     where = [Transaction.family_id == family_id, Transaction.review == review]
-    if account_id is not None:
-        where.append(Transaction.account_id == account_id)
-    if month is not None:
-        lo, hi = month_range(month, await month_start_day(db, family_id))
+    if f.account_id is not None:
+        where.append(Transaction.account_id == f.account_id)
+    if f.month is not None:
+        lo, hi = month_range(f.month, await month_start_day(db, family_id))
         where.append(Transaction.date.between(lo, hi))
-    if kinds:
-        where.append(Transaction.kind.in_(kinds))
-    if category_id is not None:
-        where.append(Transaction.category_id == category_id)
-    if member == HOUSEHOLD:
+    if f.date_from is not None:
+        where.append(Transaction.date >= f.date_from)
+    if f.date_to is not None:
+        where.append(Transaction.date <= f.date_to)
+    if f.direction == "out":
+        where.append(Transaction.amount < 0)
+    elif f.direction == "in":
+        where.append(Transaction.amount > 0)
+    if f.account_currency is not None:
+        where.append(Transaction.currency == f.account_currency)
+    if f.kinds:
+        where.append(Transaction.kind.in_(f.kinds))
+    if f.category_id is not None:
+        where.append(Transaction.category_id == f.category_id)
+    if f.member == HOUSEHOLD:
         where.append(Transaction.member_id.is_(None))
-    elif member is not None:
-        where.append(Transaction.member_id == member)
-    if q and (text := q.strip()):
+    elif f.member is not None:
+        where.append(Transaction.member_id == f.member)
+    if f.q and (text := f.q.strip()):
         # The person's words are matched literally, so % and _ mean themselves.
         pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         where.append(Transaction.description.ilike(pattern, escape="\\"))
@@ -76,40 +109,37 @@ async def _where(
 async def list_transactions(
     db: AsyncSession,
     family_id: uuid.UUID,
+    filters: Filters | None = None,
     *,
-    account_id: uuid.UUID | None = None,
-    month: str | None = None,
-    kinds: list[TxKind] | None = None,
-    category_id: uuid.UUID | None = None,
-    member: uuid.UUID | str | None = None,
-    q: str | None = None,
     limit: int = 50,
     offset: int = 0,
     currency: Currency | None = None,
     review: ReviewStatus = ReviewStatus.APPROVED,
+    sort: Sort = "date",
 ) -> TransactionPage:
-    where = await _where(
-        db,
-        family_id,
-        account_id=account_id,
-        month=month,
-        kinds=kinds,
-        category_id=category_id,
-        member=member,
-        q=q,
-        review=review,
-    )
+    where = await _where(db, family_id, filters or Filters(), review)
     total = await db.scalar(select(func.count()).select_from(Transaction).where(*where))
-    rows = await db.execute(
+    query = (
         select(Transaction, Account.name, Category.name)
         .join(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .where(*where)
-        .order_by(Transaction.date.desc(), Transaction.created_at.desc(), Transaction.id)
-        .limit(limit)
-        .offset(offset)
     )
-    found = list(rows)
+    if currency is not None and sort in ("amount", "-amount"):
+        # Amounts in several currencies sort only once converted, so the page is picked here.
+        ids = await _by_converted_amount(db, where, currency, descending=sort == "-amount")
+        page = ids[offset : offset + limit]
+        rows = await db.execute(query.where(Transaction.id.in_(page)))
+        place = {id_: n for n, id_ in enumerate(page)}
+        found = sorted(rows, key=lambda r: place[r[0].id])
+    else:
+        order = _ORDER.get(sort, (Transaction.date.desc(), Transaction.created_at.desc()))
+        rows = await db.execute(
+            query.where(*where)
+            .order_by(*order, Transaction.date.desc(), Transaction.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        found = list(rows)
     dates = [tx.date for tx, _, _ in found]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
     return TransactionPage(
@@ -119,6 +149,29 @@ async def list_transactions(
             for tx, account_name, category_name in found
         ],
     )
+
+
+async def _by_converted_amount(
+    db: AsyncSession,
+    where: list[ColumnElement[bool]],
+    currency: Currency,
+    *,
+    descending: bool,
+) -> list[uuid.UUID]:
+    """Every matching line's id, ordered by its amount in the chosen currency."""
+    lines = list(
+        await db.execute(
+            select(Transaction.id, Transaction.amount, Transaction.currency, Transaction.date)
+            .where(*where)
+            .order_by(Transaction.date.desc(), Transaction.id)
+        )
+    )
+    dates = [line.date for line in lines]
+    conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
+    amount = {line.id: conv(line.amount, line.currency, line.date) for line in lines}
+    # A stable sort keeps the newest first among equal amounts.
+    ordered = sorted(lines, key=lambda line: amount[line.id], reverse=descending)
+    return [line.id for line in ordered]
 
 
 class _Sum:
@@ -152,14 +205,18 @@ def _biggest_first(groups: dict[object, _Sum]) -> list[GroupTotal]:
 class _CurrencySum:
     def __init__(self) -> None:
         self.all = _Sum()
+        self.days: dict[date, Decimal] = {}
         self.by: dict[str, dict[object, _Sum]] = {
             "categories": {},
             "members": {},
             "accounts": {},
         }
 
-    def add(self, amount: Decimal, keys: dict[str, tuple[uuid.UUID | None, str]]) -> None:
+    def add(
+        self, amount: Decimal, day: date, keys: dict[str, tuple[uuid.UUID | None, str]]
+    ) -> None:
         self.all.add(amount)
+        self.days[day] = self.days.get(day, Decimal("0")) + amount
         for dimension, (key, name) in keys.items():
             self.by[dimension].setdefault(key, _Sum(key, name)).add(amount)
 
@@ -173,33 +230,27 @@ class _CurrencySum:
             categories=_biggest_first(self.by["categories"]),
             members=_biggest_first(self.by["members"]),
             accounts=_biggest_first(self.by["accounts"]),
+            days=[DayTotal(date=d, total=t) for d, t in sorted(self.days.items(), reverse=True)],
         )
+
+
+# Only spending and income are added up: money between the family's own accounts, and what
+# still waits to be confirmed as such, may be listed but never counts.
+COUNTED = (TxKind.REGULAR, TxKind.INVESTMENT)
 
 
 async def totals(
     db: AsyncSession,
     family_id: uuid.UUID,
-    *,
-    account_id: uuid.UUID | None = None,
-    month: str | None = None,
-    kinds: list[TxKind] | None = None,
-    category_id: uuid.UUID | None = None,
-    member: uuid.UUID | str | None = None,
-    q: str | None = None,
+    filters: Filters | None = None,
     currency: Currency | None = None,
 ) -> TransactionTotals:
-    """Entradas and saídas of every line the list would show, and the same by group."""
-    where = await _where(
-        db,
-        family_id,
-        account_id=account_id,
-        month=month,
-        kinds=kinds,
-        category_id=category_id,
-        member=member,
-        q=q,
-        review=ReviewStatus.APPROVED,
-    )
+    """Entradas and saídas of every line the list would show, by group and by day."""
+    f = filters or Filters()
+    counted = [k for k in (f.kinds or COUNTED) if k in COUNTED]
+    if not counted:
+        return TransactionTotals(count=0, currencies=[])
+    where = await _where(db, family_id, replace(f, kinds=counted), ReviewStatus.APPROVED)
     rows = list(
         await db.execute(
             select(
@@ -229,11 +280,44 @@ async def totals(
             "members": (member_id, person or HOUSEHOLD_NAME),
             "accounts": (acc_id, acc),
         }
-        sums.setdefault(shown, _CurrencySum()).add(conv(amount, original, day), keys)
+        sums.setdefault(shown, _CurrencySum()).add(conv(amount, original, day), day, keys)
     return TransactionTotals(
         count=len(rows),
         currencies=[s.totals(c) for c, s in sorted(sums.items(), key=lambda kv: kv[0].value)],
     )
+
+
+async def latest_month(db: AsyncSession, family_id: uuid.UUID) -> LatestMonth:
+    """The month of the newest line that counts, so Transações opens where the data is."""
+    last = await db.scalar(
+        select(func.max(Transaction.date)).where(
+            Transaction.family_id == family_id,
+            Transaction.review == ReviewStatus.APPROVED,
+            Transaction.kind.in_(COUNTED),
+        )
+    )
+    if last is None:
+        return LatestMonth(month=None)
+    return LatestMonth(month=month_of(last, await month_start_day(db, family_id)))
+
+
+async def in_every_currency(
+    db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID
+) -> LineCurrencies:
+    """A line's amount in BRL, EUR and USD with the ECB rate of its day."""
+    tx = await _get(db, family_id, tx_id)
+    conv = await converter(db, tx.currency, tx.date, tx.date)
+    amounts = []
+    for target in Currency:
+        to = replace(conv, target=target)
+        amounts.append(
+            CurrencyAmount(
+                currency=target,
+                amount=to(tx.amount, tx.currency, tx.date),
+                rate=to.rate(tx.currency, tx.date),
+            )
+        )
+    return LineCurrencies(currency=tx.currency, rate_date=conv.rate_day(tx.date), amounts=amounts)
 
 
 async def _get(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> Transaction:

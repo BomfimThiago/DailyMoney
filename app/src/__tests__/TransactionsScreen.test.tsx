@@ -9,6 +9,7 @@ import {
   useAccounts,
   useCategories,
   useFamily,
+  useLatestMonth,
   useRegular,
   useReviewQueue,
   useTotals,
@@ -34,6 +35,7 @@ jest.mock('@/lib/queries', () => ({
   useReviewQueue: jest.fn(),
   useTotals: jest.fn(),
   useFamily: jest.fn(),
+  useLatestMonth: jest.fn(),
   useRefreshMoney: () => mockRefreshMoney,
 }));
 jest.mock('@/lib/imports', () => ({ decideReview: jest.fn() }));
@@ -74,6 +76,7 @@ const sums: TransactionTotals = {
       accounts: [
         { id: 'a1', name: 'Nubank', spending: '1023.9000', income: '8500.0000', count: 3 },
       ],
+      days: [{ date: '2026-11-20', total: '8476.1000' }],
     },
   ],
 };
@@ -161,12 +164,30 @@ beforeEach(() => {
     typeof useAccounts
   >);
   mockTotals.mockReturnValue({ data: sums } as ReturnType<typeof useTotals>);
+  jest.mocked(useLatestMonth).mockReturnValue({
+    data: { month: null },
+    isPending: false,
+  } as unknown as ReturnType<typeof useLatestMonth>);
   mockFamily.mockReturnValue({
     data: { members: [{ id: 'm1', name: 'Thiago' }] },
   } as ReturnType<typeof useFamily>);
 });
 
-const NO_FILTERS = { q: '', categoryId: null, accountId: null, memberId: null };
+const NO_FILTERS = {
+  q: '',
+  categoryId: null,
+  accountId: null,
+  memberId: null,
+  direction: null,
+  accountCurrency: null,
+  dateFrom: null,
+  dateTo: null,
+};
+
+const lastView = () => {
+  const calls = mockRegular.mock.calls;
+  return calls[calls.length - 1][0];
+};
 
 const lastTotals = () => {
   const calls = mockTotals.mock.calls;
@@ -395,5 +416,101 @@ describe('TransactionsScreen on the phone: study the month', () => {
     await fireEvent.press(screen.getByRole('menuitem', { name: 'Transporte' }));
     expect(lastFilters()).toEqual({ ...NO_FILTERS, categoryId: 'c1' });
     expect(lastTotals()[2]).toEqual({ ...NO_FILTERS, categoryId: 'c1' });
+  });
+});
+
+describe('TransactionsScreen: what the old app had', () => {
+  it("shows each day's total and who each line belongs to", async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    expect(screen.getByText('RESPONSÁVEL')).toBeTruthy();
+    expect(screen.getByText('+R$\u00a08.476,10')).toBeTruthy();
+    expect(screen.getAllByText('Casa').length).toBeGreaterThan(0);
+  });
+
+  it('filters by type and currency, and clears everything at once', async () => {
+    wide();
+    mockAccounts.mockReturnValue({
+      data: [
+        { id: 'a1', name: 'Nubank', currency: 'BRL' },
+        { id: 'a2', name: 'Revolut', currency: 'EUR' },
+      ],
+    } as ReturnType<typeof useAccounts>);
+    await render(<TransactionsScreen />);
+    await fireEvent.press(screen.getByText('Tipo ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Gastos' }));
+    await fireEvent.press(screen.getByText('Moeda ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'EUR' }));
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, direction: 'out', accountCurrency: 'EUR' });
+    await fireEvent.press(screen.getByText('Limpar filtros'));
+    expect(lastFilters()).toEqual(NO_FILTERS);
+    expect(screen.queryByText('Limpar filtros')).toBeNull();
+  });
+
+  it('studies all the time there is, or the days between two dates', async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    expect(lastView().month).toMatch(/^\d{4}-\d{2}$/);
+    await fireEvent.press(screen.getByText('Período: Mês ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Todo o período' }));
+    expect(lastView().month).toBeNull();
+    expect(screen.getByText('TOTAL DO PERÍODO')).toBeTruthy();
+    expect(screen.queryByLabelText('Mês anterior')).toBeNull();
+
+    await fireEvent.press(screen.getByText('Período: Todo o período ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Entre datas' }));
+    await fireEvent.changeText(screen.getByLabelText('De'), '01/10/2026');
+    await fireEvent.changeText(screen.getByLabelText('Até'), '15/10/2026');
+    expect(lastFilters()).toEqual({ ...NO_FILTERS, dateFrom: '2026-10-01', dateTo: '2026-10-15' });
+    const asked = mockRegular.mock.calls.length;
+    await fireEvent.changeText(screen.getByLabelText('De'), '20/10/2026');
+    expect(screen.getByText('A data inicial é depois da final.')).toBeTruthy();
+    // A wrong period is not asked for.
+    expect(mockRegular.mock.calls[mockRegular.mock.calls.length - 1][1]).toBe(false);
+    expect(mockRegular.mock.calls.length).toBeGreaterThan(asked);
+  });
+
+  it('sorts by clicking a column and goes back to by day', async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    await fireEvent.press(screen.getByLabelText('Ordenar por valor'));
+    expect(lastView().sort).toBe('amount');
+    expect(screen.getByText('DATA')).toBeTruthy();
+    expect(screen.getByText('VALOR ↑')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Ordenar por valor'));
+    expect(lastView().sort).toBe('-amount');
+    await fireEvent.press(screen.getByLabelText('Ordenar por valor'));
+    expect(lastView().sort).toBe('date');
+    await fireEvent.press(screen.getByLabelText('Ordenar por descrição'));
+    expect(lastView().sort).toBe('description');
+  });
+
+  it('lists internal transfers when asked, without counting them', async () => {
+    wide();
+    await render(<TransactionsScreen />);
+    expect(lastView().kinds).toEqual(['regular', 'investment']);
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Transferências internas' }));
+    expect(lastView().kinds).toEqual(['regular', 'investment', 'transfer', 'pending']);
+    expect(screen.getByText('✓ Transferências internas')).toBeTruthy();
+  });
+
+  it('opens on the newest month with lines', async () => {
+    jest.mocked(useLatestMonth).mockReturnValue({
+      data: { month: '2026-03' },
+      isPending: false,
+    } as ReturnType<typeof useLatestMonth>);
+    await render(<TransactionsScreen />);
+    expect(lastView().month).toBe('2026-03');
+    await fireEvent.press(screen.getByLabelText('Próximo mês'));
+    expect(lastView().month).toBe('2026-04');
+  });
+
+  it('orders the phone list from a menu, with day headings only by day', async () => {
+    await render(<TransactionsScreen />);
+    expect(screen.getByText('+R$\u00a08.476,10')).toBeTruthy();
+    await fireEvent.press(screen.getByText('Por dia ▾'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Maiores gastos' }));
+    expect(lastView().sort).toBe('amount');
+    expect(screen.queryByText('+R$\u00a08.476,10')).toBeNull();
   });
 });

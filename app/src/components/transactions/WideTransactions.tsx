@@ -6,7 +6,7 @@ import { TxDetail } from '@/components/TxDetail';
 import { TxTable } from '@/components/TxTable';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
 
-import { Filters } from './Filters';
+import { Filters, PeriodMenu, RangeFields } from './Filters';
 import { ReviewBody } from './Review';
 import { ListBody, MoreButton, showsReview, TabSegment, TransfersBody } from './parts';
 import { styles } from './styles';
@@ -21,15 +21,20 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
           <Text style={styles.title}>Transações</Text>
           <View style={styles.headRight}>
             <CurrencyChips />
-            <MonthNav month={page.month} onChange={page.setMonth} compact />
+            {page.tab === 'lista' ? <PeriodMenu page={page} /> : null}
+            {page.tab !== 'lista' || page.period === 'month' ? (
+              <MonthNav month={page.month} onChange={page.setMonth} compact />
+            ) : (
+              <RangeFields page={page} />
+            )}
           </View>
         </View>
         <View style={styles.toolbar}>
           <View style={[styles.segmentBox, showsReview(page) && styles.segmentBoxThree]}>
             <TabSegment page={page} wide />
           </View>
-          {page.tab === 'lista' ? <Filters page={page} wide /> : null}
         </View>
+        {page.tab === 'lista' ? <Filters page={page} wide /> : null}
         {page.tab === 'lista' ? (
           <View style={styles.split}>
             <View style={styles.tableBox}>
@@ -41,6 +46,10 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
                       items={items}
                       selectedId={page.selectedId}
                       onSelect={(t) => page.setSelectedId(t.id)}
+                      sort={page.sort}
+                      onSort={page.setSort}
+                      days={page.days}
+                      members={page.members}
                     />
                     <MoreButton page={page} />
                   </>

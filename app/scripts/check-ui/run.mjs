@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fixtures } from './fixtures.mjs';
+import { fixtures, month } from './fixtures.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.OUT ?? path.join(os.tmpdir(), 'dailymoney-check-ui');
@@ -98,13 +98,38 @@ function listed(url) {
   const get = (k) => url.searchParams.get(k);
   const q = (get('q') ?? '').toLowerCase();
   const member = get('member');
-  return fixtures.regular.items.filter(
+  const currencyOf = (t) => fixtures['/accounts'].find((a) => a.id === t.account_id)?.currency;
+  const out = get('direction') === 'out';
+  const items = fixtures.regular.items.filter(
     (t) =>
       t.description.toLowerCase().includes(q) &&
       (!get('category_id') || t.category_id === get('category_id')) &&
       (!get('account_id') || t.account_id === get('account_id')) &&
-      (!member || (member === 'casa' ? t.member_id === null : t.member_id === member)),
+      (!member || (member === 'casa' ? t.member_id === null : t.member_id === member)) &&
+      (!get('direction') || Number(t.amount) < 0 === out) &&
+      (!get('account_currency') || currencyOf(t) === get('account_currency')) &&
+      (!get('date_from') || t.date >= get('date_from')) &&
+      (!get('date_to') || t.date <= get('date_to')),
   );
+  const sort = get('sort');
+  if (!sort) return items;
+  const desc = sort.startsWith('-');
+  const key = sort.replace('-', '');
+  const value = (t) => (key === 'amount' ? Number(t.amount) : t.description.toLowerCase());
+  return [...items].sort((a, b) => (value(a) < value(b) ? -1 : 1) * (desc ? -1 : 1));
+}
+
+// A line in the three currencies (the samples: one euro is 6 reais or 1.2 dollars).
+function inCurrencies(id) {
+  const queued = fixtures['/transactions/review'].groups.flatMap((g) => g.items);
+  const t = [...fixtures.regular.items, ...queued].find((x) => x.id === id);
+  if (!t) return null;
+  const perEur = { EUR: 1, BRL: 6, USD: 1.2 };
+  const amounts = ['BRL', 'EUR', 'USD'].map((c) => {
+    const rate = perEur[c] / perEur[t.currency];
+    return { currency: c, amount: (Number(t.amount) * rate).toFixed(4), rate: rate.toFixed(8) };
+  });
+  return { currency: t.currency, rate_date: t.date, amounts };
 }
 
 // The totals the API answers for those lines (amounts already in BRL in the samples).
@@ -147,6 +172,14 @@ function totals(items) {
         categories: by('category_id', (t) => t.category_name ?? 'Sem categoria'),
         members: by('member_id', (t) => names[t.member_id] ?? 'Casa'),
         accounts: by('account_id', (t) => t.account_name),
+        days: [...new Set(items.map((t) => t.date))].map((date) => {
+          const day = sum(
+            items.filter((t) => t.date === date),
+            null,
+            '',
+          );
+          return { date, total: (day.income - day.spending).toFixed(2) };
+        }),
       },
     ],
   };
@@ -220,7 +253,12 @@ function answer(url, method) {
   if (answered && p === '/transactions/transfers') {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
   }
-  if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular,investment') {
+  if (p === '/transactions/latest-month') return { status: 200, body: { month } };
+  if (p.endsWith('/currencies')) {
+    const body = inCurrencies(p.split('/')[2]);
+    return body ? { status: 200, body } : { status: 404, body: {} };
+  }
+  if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
     const items = listed(url);
     return { status: 200, body: { total: items.length, items } };
   }
@@ -364,6 +402,37 @@ async function checkScreens(page, tag) {
       .getByRole('menuitem', { name: 'Todas', exact: true })
       .filter({ visible: true })
       .click();
+    await seen('TOTAL DO MÊS').waitFor();
+
+    // Study like the old app: all the time there is, only gastos, biggest first.
+    const item = (name) =>
+      page.getByRole('menuitem', { name, exact: true }).filter({ visible: true });
+    await seen(tag === 'computador' ? 'Período: Mês ▾' : 'Mês ▾').click();
+    await item('Todo o período').click();
+    await seen('TOTAL DO PERÍODO').waitFor();
+    await seen('Tipo ▾').click();
+    await item('Gastos').click();
+    if (tag === 'computador') {
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+      await seen('VALOR ↑').waitFor();
+    } else {
+      await seen('Por dia ▾').click();
+      await item('Maiores gastos').click();
+    }
+    await page.waitForLoadState('networkidle');
+    await seen('Limpar filtros').waitFor();
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await shot('transacoes-estudo');
+    await seen('Limpar filtros').click();
+    if (tag === 'computador') {
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+    } else {
+      await seen('Maiores gastos ▾').click();
+      await item('Por dia').click();
+    }
+    await seen(tag === 'computador' ? 'Período: Todo o período ▾' : 'Todo o período ▾').click();
+    await item('Mês').click();
     await seen('TOTAL DO MÊS').waitFor();
 
     // A line opens its detail (beside the table, or as a sheet on a phone), where the

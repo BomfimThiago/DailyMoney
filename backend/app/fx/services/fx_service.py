@@ -23,6 +23,8 @@ from app.fx.services import frankfurter
 log = logging.getLogger(__name__)
 
 PLACES = Decimal("0.0001")
+# Exchange rates are shown with 8 places, like interest rates.
+RATE_PLACES = Decimal("0.00000001")
 # The ECB publishes every business day: a week back always reaches a published rate.
 LOOKBACK = timedelta(days=7)
 ONE_DAY = timedelta(days=1)
@@ -46,13 +48,27 @@ class Converter:
     days: list[date] = field(default_factory=list)
     rates: list[dict[Currency, Decimal]] = field(default_factory=list)
 
+    def _index(self, on: date) -> int:
+        return max(bisect_right(self.days, on) - 1, 0)
+
+    def rate_day(self, on: date) -> date | None:
+        """The day whose published rate converts a line dated `on`."""
+        return self.days[self._index(on)] if self.target and self.days else None
+
+    def rate(self, currency: Currency, on: date) -> Decimal:
+        """How much of the target one unit of `currency` was worth on that day."""
+        if self.target is None or currency == self.target:
+            return Decimal(1)
+        per_eur = self.rates[self._index(on)]
+        return (_per_eur(per_eur, self.target) / _per_eur(per_eur, currency)).quantize(RATE_PLACES)
+
     def currency(self, original: Currency) -> Currency:
         return self.target or original
 
     def __call__(self, amount: Decimal, currency: Currency, on: date) -> Decimal:
         if self.target is None or currency == self.target:
             return amount
-        per_eur = self.rates[max(bisect_right(self.days, on) - 1, 0)]
+        per_eur = self.rates[self._index(on)]
         euros = amount / _per_eur(per_eur, currency)
         return (euros * _per_eur(per_eur, self.target)).quantize(PLACES)
 
