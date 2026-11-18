@@ -27,6 +27,7 @@ from app.core.exceptions import AppError, ConflictError
 from app.families.models import Currency, Member, User
 from app.imports.schemas import AccountChoice
 from app.imports.services import import_service
+from app.portfolio.services import portfolio_service
 from app.statements.parsing.reader import finish_rows
 from app.statements.parsing.types import Format, ParsedRow, ParsedStatement, RowError
 from app.transactions.models import Transaction
@@ -94,12 +95,29 @@ async def sync_connection(db: AsyncSession, conn: BankConnection) -> SyncResult:
                 outcome.error = f"Falha ao ler esta conta ({type(exc).__name__})."
         conn.accounts = [dict(a) for a in accounts]
         failures = [f"{a.name}: {a.error}" for a in result.accounts if a.error]
+        if conn.provider == pluggy.PROVIDER:
+            failures += await _sync_investments(db, conn)
         conn.last_error = " · ".join(failures)[:1000] or None
     except AppError as exc:
         conn.last_error = exc.detail[:1000]
     conn.last_sync_at = datetime.now(UTC)
     await db.flush()
     return result
+
+
+async def _sync_investments(db: AsyncSession, conn: BankConnection) -> list[str]:
+    """The bank's investment balances; failing here must not lose the lines just read."""
+    try:
+        async with db.begin_nested():
+            errors = await portfolio_service.sync_investments(db, conn, date.today())
+    except AppError as exc:
+        return [f"Investimentos: {exc.detail}"]
+    except Exception as exc:
+        log.exception("bank sync failed for the investments")
+        return [f"Investimentos: falha ao ler ({type(exc).__name__})."]
+    if errors:
+        return [f"Investimentos: {len(errors)} ilegível(is): {errors[0]}"]
+    return []
 
 
 async def _check(conn: BankConnection) -> None:

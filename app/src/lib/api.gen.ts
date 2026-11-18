@@ -503,6 +503,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/totals': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Totals */
+    get: operations['totals_api_v1_transactions_totals_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/transactions/latest-month': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Latest Month */
+    get: operations['latest_month_api_v1_transactions_latest_month_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/summary': {
     parameters: {
       query?: never;
@@ -632,6 +666,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/{tx_id}/currencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** In Every Currency */
+    get: operations['in_every_currency_api_v1_transactions__tx_id__currencies_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/{tx_id}': {
     parameters: {
       query?: never;
@@ -660,6 +711,26 @@ export interface paths {
     get?: never;
     /** Set Kind */
     put: operations['set_kind_api_v1_transactions__tx_id__kind_put'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/portfolio': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Portfolio
+     * @description The investments of the connected banks, in one currency (the family's by default).
+     */
+    get: operations['portfolio_api_v1_portfolio_get'];
+    put?: never;
     post?: never;
     delete?: never;
     options?: never;
@@ -770,6 +841,13 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+    };
+    /** BankTotal */
+    BankTotal: {
+      /** Bank */
+      bank: string;
+      /** Total */
+      total: string;
     };
     /** Body_upload_api_v1_imports_post */
     Body_upload_api_v1_imports_post: {
@@ -914,6 +992,19 @@ export interface components {
       /** Color */
       color?: string | null;
     };
+    /** ClassOut */
+    ClassOut: {
+      /** Key */
+      key: string;
+      /** Label */
+      label: string;
+      /** Total */
+      total: string;
+      /** Share */
+      share: string;
+      /** Positions */
+      positions: components['schemas']['PositionOut'][];
+    };
     /** ConfirmRequest */
     ConfirmRequest: {
       /** Accounts */
@@ -969,6 +1060,14 @@ export interface components {
      * @enum {string}
      */
     Currency: 'BRL' | 'USD' | 'EUR';
+    /** CurrencyAmount */
+    CurrencyAmount: {
+      currency: components['schemas']['Currency'];
+      /** Amount */
+      amount: string;
+      /** Rate */
+      rate: string;
+    };
     /** CurrencyAnalysis */
     CurrencyAnalysis: {
       currency: components['schemas']['Currency'];
@@ -1016,6 +1115,36 @@ export interface components {
       invested_out: string;
       /** Left */
       left: string;
+    };
+    /** CurrencyTotals */
+    CurrencyTotals: {
+      currency: components['schemas']['Currency'];
+      /** Income */
+      income: string;
+      /** Spending */
+      spending: string;
+      /** Balance */
+      balance: string;
+      /** Count */
+      count: number;
+      /** Categories */
+      categories: components['schemas']['GroupTotal'][];
+      /** Members */
+      members: components['schemas']['GroupTotal'][];
+      /** Accounts */
+      accounts: components['schemas']['GroupTotal'][];
+      /** Days */
+      days: components['schemas']['DayTotal'][];
+    };
+    /** DayTotal */
+    DayTotal: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
+      /** Total */
+      total: string;
     };
     /** FamilyOut */
     FamilyOut: {
@@ -1074,6 +1203,19 @@ export interface components {
        */
       skipped: number;
     };
+    /** GroupTotal */
+    GroupTotal: {
+      /** Id */
+      id: string | null;
+      /** Name */
+      name: string;
+      /** Income */
+      income: string;
+      /** Spending */
+      spending: string;
+      /** Count */
+      count: number;
+    };
     /** HTTPValidationError */
     HTTPValidationError: {
       /** Detail */
@@ -1089,6 +1231,16 @@ export interface components {
       count: number;
       /** Previous Count */
       previous_count: number;
+      /** Total */
+      total: string;
+    };
+    /** HistoryPoint */
+    HistoryPoint: {
+      /**
+       * Date
+       * Format: date
+       */
+      date: string;
       /** Total */
       total: string;
     };
@@ -1232,6 +1384,46 @@ export interface components {
        */
       kind: 'regular' | 'investment' | 'transfer';
     };
+    /** LadderOut */
+    LadderOut: {
+      /** Steps */
+      steps: components['schemas']['LadderStepOut'][];
+      /** Dated Total */
+      dated_total: string;
+      /** Dated Count */
+      dated_count: number;
+      /** Undated Total */
+      undated_total: string;
+      /** Undated Count */
+      undated_count: number;
+    };
+    /** LadderStepOut */
+    LadderStepOut: {
+      /** Label */
+      label: string;
+      /** Year */
+      year: number;
+      /** Total */
+      total: string;
+      /** Count */
+      count: number;
+    };
+    /** LatestMonth */
+    LatestMonth: {
+      /** Month */
+      month: string | null;
+    };
+    /**
+     * LineCurrencies
+     * @description A line in BRL, EUR and USD, converted with the ECB rate of its day.
+     */
+    LineCurrencies: {
+      currency: components['schemas']['Currency'];
+      /** Rate Date */
+      rate_date: string | null;
+      /** Amounts */
+      amounts: components['schemas']['CurrencyAmount'][];
+    };
     /** MagicLinkRequest */
     MagicLinkRequest: {
       /**
@@ -1244,6 +1436,15 @@ export interface components {
     MagicLinkVerify: {
       /** Token */
       token: string;
+    };
+    /** MaturingOut */
+    MaturingOut: {
+      /** Months */
+      months: number;
+      /** Count */
+      count: number;
+      /** Total */
+      total: string;
     };
     /** MeOut */
     MeOut: {
@@ -1344,6 +1545,64 @@ export interface components {
       amount: string;
       /** Merchants */
       merchants: string[];
+    };
+    /**
+     * PortfolioOut
+     * @description The investments of the connected banks, as the bank reported them on the last read.
+     */
+    PortfolioOut: {
+      currency: components['schemas']['Currency'];
+      /** Total */
+      total: string;
+      /** Count */
+      count: number;
+      /** Value Date */
+      value_date: string | null;
+      /** Closed */
+      closed: number;
+      /** Has Source */
+      has_source: boolean;
+      tracked: components['schemas']['TrackedOut'] | null;
+      /** Classes */
+      classes: components['schemas']['ClassOut'][];
+      /** Banks */
+      banks: components['schemas']['BankTotal'][];
+      maturing: components['schemas']['MaturingOut'];
+      ladder: components['schemas']['LadderOut'] | null;
+      /** History */
+      history: components['schemas']['HistoryPoint'][];
+    };
+    /** PositionOut */
+    PositionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Bank */
+      bank: string;
+      /** Name */
+      name: string;
+      /** Issuer */
+      issuer: string | null;
+      /** Code */
+      code: string | null;
+      currency: components['schemas']['Currency'];
+      /** Balance */
+      balance: string;
+      /** Value */
+      value: string;
+      /** Gain */
+      gain: string | null;
+      /** Rate Label */
+      rate_label: string | null;
+      /** Due Date */
+      due_date: string | null;
+      /**
+       * Value Date
+       * Format: date
+       */
+      value_date: string;
     };
     /** PreviewGroup */
     PreviewGroup: {
@@ -1508,6 +1767,20 @@ export interface components {
        */
       token_type: string;
     };
+    /**
+     * TrackedOut
+     * @description Only the positions whose amount put in is known.
+     */
+    TrackedOut: {
+      /** Invested */
+      invested: string;
+      /** Value */
+      value: string;
+      /** Gain */
+      gain: string;
+      /** Gain Pct */
+      gain_pct: string | null;
+    };
     /** TransactionOut */
     TransactionOut: {
       /**
@@ -1555,6 +1828,16 @@ export interface components {
       total: number;
       /** Items */
       items: components['schemas']['TransactionOut'][];
+    };
+    /**
+     * TransactionTotals
+     * @description What the list shows with the same filters, added up (every page, not just one).
+     */
+    TransactionTotals: {
+      /** Count */
+      count: number;
+      /** Currencies */
+      currencies: components['schemas']['CurrencyTotals'][];
     };
     /** TransactionUpdate */
     TransactionUpdate: {
@@ -2634,15 +2917,21 @@ export interface operations {
   list_transactions_api_v1_transactions_get: {
     parameters: {
       query?: {
-        account_id?: string | null;
-        month?: string | null;
-        kind?: components['schemas']['TxKind'][] | null;
-        category_id?: string | null;
-        q?: string | null;
-        card_bill?: string | null;
         limit?: number;
         offset?: number;
         currency?: components['schemas']['Currency'] | null;
+        sort?: 'date' | 'description' | '-description' | 'amount' | '-amount';
+        account_id?: string | null;
+        month?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        kind?: components['schemas']['TxKind'][] | null;
+        category_id?: string | null;
+        member?: string | null;
+        q?: string | null;
+        direction?: ('in' | 'out') | null;
+        account_currency?: components['schemas']['Currency'] | null;
+        card_bill?: string | null;
       };
       header?: never;
       path?: never;
@@ -2666,6 +2955,68 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  totals_api_v1_transactions_totals_get: {
+    parameters: {
+      query?: {
+        currency?: components['schemas']['Currency'] | null;
+        account_id?: string | null;
+        month?: string | null;
+        date_from?: string | null;
+        date_to?: string | null;
+        kind?: components['schemas']['TxKind'][] | null;
+        category_id?: string | null;
+        member?: string | null;
+        q?: string | null;
+        direction?: ('in' | 'out') | null;
+        account_currency?: components['schemas']['Currency'] | null;
+        card_bill?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TransactionTotals'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  latest_month_api_v1_transactions_latest_month_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LatestMonth'];
         };
       };
     };
@@ -2926,6 +3277,37 @@ export interface operations {
       };
     };
   };
+  in_every_currency_api_v1_transactions__tx_id__currencies_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tx_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['LineCurrencies'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   delete_transaction_api_v1_transactions__tx_id__delete: {
     parameters: {
       query?: never;
@@ -3012,6 +3394,37 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['TransactionOut'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  portfolio_api_v1_portfolio_get: {
+    parameters: {
+      query?: {
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PortfolioOut'];
         };
       };
       /** @description Validation Error */

@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
 from app.families.models import User
+from app.portfolio.services import portfolio_service
 
 log = logging.getLogger(__name__)
 
@@ -173,9 +174,11 @@ async def _quietly_close(session_id: str) -> None:
 
 
 async def disconnect(db: AsyncSession, conn: BankConnection) -> None:
-    """Stops reading the bank. Transactions already read stay."""
+    """Stops reading the bank. Transactions already read stay; its investments stop
+    counting, with their history kept."""
     if conn.provider == enablebanking.PROVIDER:
         await _quietly_close(conn.external_id)
+    await portfolio_service.close_connection(db, conn, date.today())
     await db.delete(conn)
     await db.flush()
 

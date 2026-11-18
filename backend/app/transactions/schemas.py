@@ -37,6 +37,65 @@ class TransactionPage(BaseModel):
     items: list[TransactionOut]
 
 
+class GroupTotal(BaseModel):
+    # Null: lines with no category, or the whole household ("Casa").
+    id: uuid.UUID | None
+    name: str
+    income: Decimal
+    spending: Decimal
+    count: int
+
+
+class DayTotal(BaseModel):
+    date: date_
+    # Income minus spending of that day (negative when more went out).
+    total: Decimal
+
+
+class CurrencyTotals(BaseModel):
+    currency: Currency
+    income: Decimal
+    spending: Decimal
+    # income − spending
+    balance: Decimal
+    count: int
+    # The same lines added up by category, by Responsável and by account; biggest first.
+    categories: list[GroupTotal]
+    members: list[GroupTotal]
+    accounts: list[GroupTotal]
+    # Each day with lines, newest first: the total beside the day in the list.
+    days: list[DayTotal]
+
+
+class TransactionTotals(BaseModel):
+    """What the list shows with the same filters, added up (every page, not just one)."""
+
+    count: int
+    # Only the currencies that have lines; just the chosen one when converted.
+    currencies: list[CurrencyTotals]
+
+
+class LatestMonth(BaseModel):
+    # The month of the newest counted line; null when there are none yet.
+    month: str | None
+
+
+class CurrencyAmount(BaseModel):
+    currency: Currency
+    amount: Decimal
+    # 1 unit of the line's currency in this one, that day (8 places).
+    rate: Decimal
+
+
+class LineCurrencies(BaseModel):
+    """A line in BRL, EUR and USD, converted with the ECB rate of its day."""
+
+    currency: Currency
+    # The day of the rate used (the last published on or before the line's date).
+    rate_date: date_ | None
+    amounts: list[CurrencyAmount]
+
+
 class TransactionUpdate(BaseModel):
     # Only the fields sent change. The currency follows the account, so it is not here.
     category_id: uuid.UUID | None = None

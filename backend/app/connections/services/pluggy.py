@@ -204,6 +204,17 @@ async def list_transactions(account_id: str) -> list[dict[str, Any]]:
     raise PluggyError("A Pluggy não terminou de listar as transações.")
 
 
+async def list_investments(item_id: str) -> list[dict[str, Any]]:
+    """Every investment Pluggy knows for the item, open and already withdrawn."""
+    found: list[dict[str, Any]] = []
+    for page in range(1, 51):
+        data = await _get(f"/investments?itemId={item_id}&page={page}&pageSize=500")
+        found.extend(data.get("results") or [])
+        if page >= int(data.get("totalPages") or 1):
+            return found
+    raise PluggyError("A Pluggy não terminou de listar os investimentos.")
+
+
 def is_card(account: dict[str, Any]) -> bool:
     return account.get("type") == "CREDIT"
 

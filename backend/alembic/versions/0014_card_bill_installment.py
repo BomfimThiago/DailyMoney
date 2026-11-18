@@ -1,7 +1,7 @@
 """card bill month and installment on transactions
 
 Revision ID: 4e9b7c1d2a83
-Revises: 8d3f6a2b1c55
+Revises: c41e8b7d2a90
 Create Date: 2026-11-17 17:00:00
 
 """
@@ -14,7 +14,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "4e9b7c1d2a83"
-down_revision: Union[str, Sequence[str], None] = "8d3f6a2b1c55"
+down_revision: Union[str, Sequence[str], None] = "c41e8b7d2a90"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
