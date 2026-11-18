@@ -48,6 +48,10 @@ class BankServiceError(AppError):
     code = "BANK_SERVICE"
 
 
+class WrongPeriodError(BankServiceError):
+    """The bank refuses the dates asked for (CaixaBank: more than 90 days back)."""
+
+
 class NotConfiguredError(AppError):
     status_code = 503
     code = "BANK_NOT_CONFIGURED"
@@ -111,7 +115,8 @@ def _error(res: httpx.Response) -> AppError:
     if code in _EXPIRED:
         return ConflictError("O banco não autoriza mais a leitura. Conecte de novo.")
     detail = f" {code}" if code else ""
-    return BankServiceError(
+    kind = WrongPeriodError if code == "WRONG_TRANSACTIONS_PERIOD" else BankServiceError
+    return kind(
         f"A Enable Banking respondeu {res.status_code}{detail}: {message or res.text[:200]}"
     )
 

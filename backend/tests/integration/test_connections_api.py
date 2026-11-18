@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import Iterator
+from datetime import date, timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -51,6 +52,9 @@ class FakeEnableBanking:
         self.state = ""
         self.session_status = "AUTHORIZED"
         self.deleted: list[str] = []
+        # Like CaixaBank: an older start than this is refused.
+        self.oldest_start: date | None = None
+        self.starts: list[date] = []
         self.transactions: dict[str, list[dict[str, Any]]] = {
             "acc-eur": [
                 # Already sent in the Wise statement: a duplicate.
@@ -114,7 +118,19 @@ class FakeEnableBanking:
         if path.startswith("/accounts/"):
             uid = path.split("/")[2]
             txs = self.transactions[uid]
-            key = parse_qs(urlparse(str(request.url)).query).get("continuation_key")
+            query = parse_qs(urlparse(str(request.url)).query)
+            key = query.get("continuation_key")
+            start = date.fromisoformat(query["date_from"][0])
+            if not key:
+                self.starts.append(start)
+            if self.oldest_start and start < self.oldest_start:
+                return httpx.Response(
+                    422,
+                    json={
+                        "error": "WRONG_TRANSACTIONS_PERIOD",
+                        "message": "Wrong transactions period requested",
+                    },
+                )
             # Two pages, to follow the continuation key.
             if not key:
                 return httpx.Response(200, json={"transactions": txs[:2], "continuation_key": "p2"})
@@ -204,6 +220,30 @@ async def test_connect_wise_reads_into_the_existing_account_without_duplicates(
     assert renewed["connection"]["id"] == conn_id
     assert renewed["accounts"][0]["new"] == 1
     assert len((await client.get("/api/v1/connections", headers=h)).json()["connections"]) == 1
+
+
+async def test_a_bank_that_refuses_old_dates_is_read_from_its_last_90_days(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    # CaixaBank refuses a start more than 90 days back; after "Apagar todas as
+    # transações" the app asks again from the connection's first day, a year back.
+    fake_eb.oldest_start = date.today() - timedelta(days=90)
+    h = auth(await login(client))
+    result = await _connect_wise(client, h, fake_eb)
+    eur = result["accounts"][0]
+    assert (eur["new"], eur["error"]) == (3, None)
+    assert result["connection"]["last_error"] is None
+    year_back, safe = date.today() - timedelta(days=365), date.today() - timedelta(days=89)
+    assert fake_eb.starts == [year_back, safe, year_back, safe]
+
+
+async def test_a_refused_period_inside_90_days_is_still_shown(
+    client: AsyncClient, fake_eb: FakeEnableBanking
+) -> None:
+    fake_eb.oldest_start = date.today()
+    h = auth(await login(client))
+    eur = (await _connect_wise(client, h, fake_eb))["accounts"][0]
+    assert eur["error"].startswith("A Enable Banking respondeu 422 WRONG_TRANSACTIONS_PERIOD")
 
 
 async def test_expired_authorization_is_shown(
