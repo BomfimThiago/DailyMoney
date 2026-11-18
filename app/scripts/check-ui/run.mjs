@@ -473,6 +473,13 @@ async function checkScreens(page, tag) {
     await fields().waitFor();
     await page.waitForTimeout(400); // the sheet fades in
     await shot('transacoes-detalhe');
+    // The panel scrolls by itself, but a second bar beside the page's one looks broken.
+    const panelBar = await page
+      .getByTestId('detail-panel')
+      .filter({ visible: true })
+      // Headless Chromium hides every bar, so ask what a real browser would draw.
+      .evaluateAll((els) => els.some((el) => getComputedStyle(el).scrollbarWidth !== 'none'));
+    if (panelBar) flag('o painel do detalhe mostra uma barra de rolagem própria');
     if (await button('Editar').count()) flag('o detalhe ainda pede para apertar Editar');
     // Only the chosen category shows; the list opens from the dropdown.
     if (

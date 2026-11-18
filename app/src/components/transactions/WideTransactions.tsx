@@ -75,7 +75,8 @@ export function WideTransactions({ page }: { page: TransactionsPage }) {
 }
 
 // The panel stays in view while the table scrolls (sticky on the web), so a line picked
-// far down is edited right where it is; a panel taller than the window scrolls by itself.
+// far down is edited right where it is. A panel taller than the window scrolls by itself,
+// without a bar of its own: a second bar beside the page's one looked like a broken page.
 function DetailPanel({ page }: { page: TransactionsPage }) {
   const { height } = useWindowDimensions();
   const follow =
@@ -84,7 +85,12 @@ function DetailPanel({ page }: { page: TransactionsPage }) {
       : null;
   return (
     <View style={[styles.panel, follow]}>
-      <ScrollView contentContainerStyle={styles.panelBody} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.panelBody}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        testID="detail-panel"
+      >
         <Text style={styles.panelTitle}>DETALHE</Text>
         {page.selected ? (
           <TxDetail key={page.selected.id} t={page.selected} onChanged={page.refreshMoney} />
