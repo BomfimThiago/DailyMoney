@@ -5,9 +5,11 @@ import { MonthNav } from '@/components/nav';
 import { TxRow } from '@/components/TxRow';
 import type { TransactionsPage } from '@/lib/useTransactionsPage';
 
+import { Filters } from './Filters';
 import { ListBody, MoreButton, Sheet, TabSegment, TransfersBody } from './parts';
 import { ReviewBody } from './Review';
 import { styles } from './styles';
+import { Totals } from './Totals';
 
 // Phone: a list, and the detail opens as a sheet.
 export function PhoneTransactions({ page }: { page: TransactionsPage }) {
@@ -21,6 +23,8 @@ export function PhoneTransactions({ page }: { page: TransactionsPage }) {
           </View>
           <CurrencyChips style={styles.currencies} />
           <TabSegment page={page} />
+          {page.tab === 'lista' ? <Filters page={page} wide={false} /> : null}
+          {page.tab === 'lista' ? <Totals page={page} wide={false} /> : null}
           {page.tab === 'lista' ? (
             <ListBody page={page}>
               {(items) => (

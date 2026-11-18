@@ -13,6 +13,6 @@ export default signedInPage(Transactions);
 function Transactions() {
   const { aba } = useLocalSearchParams<{ aba?: string }>();
   const wide = useWindowDimensions().width >= WIDE_MIN;
-  const page = useTransactionsPage(wide, aba);
+  const page = useTransactionsPage(aba);
   return wide ? <WideTransactions page={page} /> : <PhoneTransactions page={page} />;
 }

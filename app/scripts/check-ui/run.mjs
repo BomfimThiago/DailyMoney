@@ -93,6 +93,65 @@ function shiftedDashboard(body) {
   };
 }
 
+// The list's lines with the search and filters of the URL, like the real API.
+function listed(url) {
+  const get = (k) => url.searchParams.get(k);
+  const q = (get('q') ?? '').toLowerCase();
+  const member = get('member');
+  return fixtures.regular.items.filter(
+    (t) =>
+      t.description.toLowerCase().includes(q) &&
+      (!get('category_id') || t.category_id === get('category_id')) &&
+      (!get('account_id') || t.account_id === get('account_id')) &&
+      (!member || (member === 'casa' ? t.member_id === null : t.member_id === member)),
+  );
+}
+
+// The totals the API answers for those lines (amounts already in BRL in the samples).
+function totals(items) {
+  const names = Object.fromEntries(fixtures['/family'].members.map((m) => [m.id, m.name]));
+  const sum = (lines, id, name) => {
+    let income = 0;
+    let spending = 0;
+    for (const t of lines) {
+      const v = Number(t.display_amount ?? t.amount);
+      if (v > 0) income += v;
+      else spending -= v;
+    }
+    return {
+      id,
+      name,
+      income: income.toFixed(2),
+      spending: spending.toFixed(2),
+      count: lines.length,
+    };
+  };
+  const by = (key, nameOf) => {
+    const groups = new Map();
+    for (const t of items) groups.set(t[key], [...(groups.get(t[key]) ?? []), t]);
+    return [...groups]
+      .map(([id, lines]) => sum(lines, id, nameOf(lines[0])))
+      .sort((a, b) => b.spending - a.spending || b.income - a.income);
+  };
+  const all = sum(items, null, '');
+  if (!items.length) return { count: 0, currencies: [] };
+  return {
+    count: items.length,
+    currencies: [
+      {
+        currency: 'BRL',
+        income: all.income,
+        spending: all.spending,
+        balance: (all.income - all.spending).toFixed(2),
+        count: items.length,
+        categories: by('category_id', (t) => t.category_name ?? 'Sem categoria'),
+        members: by('member_id', (t) => names[t.member_id] ?? 'Casa'),
+        accounts: by('account_id', (t) => t.account_name),
+      },
+    ],
+  };
+}
+
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
   if (method === 'PUT' && p.endsWith('/kind')) {
@@ -162,10 +221,10 @@ function answer(url, method) {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
   }
   if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular,investment') {
-    const q = (url.searchParams.get('q') ?? '').toLowerCase();
-    const items = fixtures.regular.items.filter((t) => t.description.toLowerCase().includes(q));
+    const items = listed(url);
     return { status: 200, body: { total: items.length, items } };
   }
+  if (p === '/transactions/totals') return { status: 200, body: totals(listed(url)) };
   if (p in fixtures) return { status: 200, body: fixtures[p] };
   return { status: 404, body: { detail: `sem dado de exemplo para ${p}` } };
 }
@@ -284,6 +343,28 @@ async function checkScreens(page, tag) {
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
     await shot('transacoes-lista');
+
+    // Filtering adds up only what is left, grouped by what was filtered: by Responsável
+    // on a computer, by category on a phone.
+    const [menu, pick, back] =
+      tag === 'computador'
+        ? ['Responsável', 'Ana', 'Responsável: Ana']
+        : ['Categoria', 'Mercado', 'Mercado'];
+    await seen(`${menu} ▾`).click();
+    await page.getByRole('menuitem', { name: pick, exact: true }).filter({ visible: true }).click();
+    await seen('TOTAL DO QUE ESTÁ FILTRADO')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('o total não seguiu o filtro'));
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await seen(tag === 'computador' ? 'Salário' : 'Pão de Açúcar').waitFor();
+    await shot('transacoes-filtro');
+    await seen(`${back} ▾`).click();
+    await page
+      .getByRole('menuitem', { name: 'Todas', exact: true })
+      .filter({ visible: true })
+      .click();
+    await seen('TOTAL DO MÊS').waitFor();
 
     // A line opens its detail (beside the table, or as a sheet on a phone), where the
     // category can change.

@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +19,8 @@ from app.imports.models import StatementImport
 from app.imports.services.transfers import MAX_DAYS
 from app.transactions.models import ReviewStatus, Transaction, TxKind
 from app.transactions.schemas import (
+    CurrencyTotals,
+    GroupTotal,
     KindUpdate,
     ReviewDecision,
     ReviewGroup,
@@ -26,25 +28,30 @@ from app.transactions.schemas import (
     ReviewResult,
     TransactionOut,
     TransactionPage,
+    TransactionTotals,
     TransactionUpdate,
 )
 from app.transactions.services.months import month_range
 
+# The household ("Casa") has no member id; a filter for its lines uses this word instead.
+HOUSEHOLD = "casa"
+HOUSEHOLD_NAME = "Casa"
+NO_CATEGORY = "Sem categoria"
 
-async def list_transactions(
+
+async def _where(
     db: AsyncSession,
     family_id: uuid.UUID,
     *,
-    account_id: uuid.UUID | None = None,
-    month: str | None = None,
-    kinds: list[TxKind] | None = None,
-    category_id: uuid.UUID | None = None,
-    q: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
-    currency: Currency | None = None,
-    review: ReviewStatus = ReviewStatus.APPROVED,
-) -> TransactionPage:
+    account_id: uuid.UUID | None,
+    month: str | None,
+    kinds: list[TxKind] | None,
+    category_id: uuid.UUID | None,
+    member: uuid.UUID | str | None,
+    q: str | None,
+    review: ReviewStatus,
+) -> list[ColumnElement[bool]]:
+    """The filters of the transactions list, shared by the page and its totals."""
     where = [Transaction.family_id == family_id, Transaction.review == review]
     if account_id is not None:
         where.append(Transaction.account_id == account_id)
@@ -55,10 +62,43 @@ async def list_transactions(
         where.append(Transaction.kind.in_(kinds))
     if category_id is not None:
         where.append(Transaction.category_id == category_id)
+    if member == HOUSEHOLD:
+        where.append(Transaction.member_id.is_(None))
+    elif member is not None:
+        where.append(Transaction.member_id == member)
     if q and (text := q.strip()):
         # The person's words are matched literally, so % and _ mean themselves.
         pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
         where.append(Transaction.description.ilike(pattern, escape="\\"))
+    return where
+
+
+async def list_transactions(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    *,
+    account_id: uuid.UUID | None = None,
+    month: str | None = None,
+    kinds: list[TxKind] | None = None,
+    category_id: uuid.UUID | None = None,
+    member: uuid.UUID | str | None = None,
+    q: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    currency: Currency | None = None,
+    review: ReviewStatus = ReviewStatus.APPROVED,
+) -> TransactionPage:
+    where = await _where(
+        db,
+        family_id,
+        account_id=account_id,
+        month=month,
+        kinds=kinds,
+        category_id=category_id,
+        member=member,
+        q=q,
+        review=review,
+    )
     total = await db.scalar(select(func.count()).select_from(Transaction).where(*where))
     rows = await db.execute(
         select(Transaction, Account.name, Category.name)
@@ -78,6 +118,121 @@ async def list_transactions(
             to_out(tx, account_name, category_name, conv)
             for tx, account_name, category_name in found
         ],
+    )
+
+
+class _Sum:
+    def __init__(self, id: uuid.UUID | None = None, name: str = "") -> None:
+        self.id, self.name = id, name
+        self.income = self.spending = Decimal("0")
+        self.count = 0
+
+    def add(self, amount: Decimal) -> None:
+        if amount > 0:
+            self.income += amount
+        else:
+            self.spending -= amount
+        self.count += 1
+
+    def group(self) -> GroupTotal:
+        return GroupTotal(
+            id=self.id,
+            name=self.name,
+            income=self.income,
+            spending=self.spending,
+            count=self.count,
+        )
+
+
+def _biggest_first(groups: dict[object, _Sum]) -> list[GroupTotal]:
+    ordered = sorted(groups.values(), key=lambda g: (-g.spending, -g.income, g.name))
+    return [g.group() for g in ordered]
+
+
+class _CurrencySum:
+    def __init__(self) -> None:
+        self.all = _Sum()
+        self.by: dict[str, dict[object, _Sum]] = {
+            "categories": {},
+            "members": {},
+            "accounts": {},
+        }
+
+    def add(self, amount: Decimal, keys: dict[str, tuple[uuid.UUID | None, str]]) -> None:
+        self.all.add(amount)
+        for dimension, (key, name) in keys.items():
+            self.by[dimension].setdefault(key, _Sum(key, name)).add(amount)
+
+    def totals(self, currency: Currency) -> CurrencyTotals:
+        return CurrencyTotals(
+            currency=currency,
+            income=self.all.income,
+            spending=self.all.spending,
+            balance=self.all.income - self.all.spending,
+            count=self.all.count,
+            categories=_biggest_first(self.by["categories"]),
+            members=_biggest_first(self.by["members"]),
+            accounts=_biggest_first(self.by["accounts"]),
+        )
+
+
+async def totals(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    *,
+    account_id: uuid.UUID | None = None,
+    month: str | None = None,
+    kinds: list[TxKind] | None = None,
+    category_id: uuid.UUID | None = None,
+    member: uuid.UUID | str | None = None,
+    q: str | None = None,
+    currency: Currency | None = None,
+) -> TransactionTotals:
+    """Entradas and saídas of every line the list would show, and the same by group."""
+    where = await _where(
+        db,
+        family_id,
+        account_id=account_id,
+        month=month,
+        kinds=kinds,
+        category_id=category_id,
+        member=member,
+        q=q,
+        review=ReviewStatus.APPROVED,
+    )
+    rows = list(
+        await db.execute(
+            select(
+                Transaction.amount,
+                Transaction.currency,
+                Transaction.date,
+                Transaction.category_id,
+                Category.name,
+                Transaction.member_id,
+                Member.name,
+                Transaction.account_id,
+                Account.name,
+            )
+            .join(Account, Account.id == Transaction.account_id)
+            .outerjoin(Category, Category.id == Transaction.category_id)
+            .outerjoin(Member, Member.id == Transaction.member_id)
+            .where(*where)
+        )
+    )
+    dates = [row.date for row in rows]
+    conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
+    sums: dict[Currency, _CurrencySum] = {}
+    for amount, original, day, cat_id, cat, member_id, person, acc_id, acc in rows:
+        shown = conv.currency(original)
+        keys = {
+            "categories": (cat_id, cat or NO_CATEGORY),
+            "members": (member_id, person or HOUSEHOLD_NAME),
+            "accounts": (acc_id, acc),
+        }
+        sums.setdefault(shown, _CurrencySum()).add(conv(amount, original, day), keys)
+    return TransactionTotals(
+        count=len(rows),
+        currencies=[s.totals(c) for c, s in sorted(sums.items(), key=lambda kv: kv[0].value)],
     )
 
 

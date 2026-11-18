@@ -12,11 +12,17 @@ export function FilterMenu({
   value,
   options,
   onChange,
+  align = 'right',
+  short = false,
 }: {
   label: string;
   value: string | null;
   options: Option[];
   onChange: (id: string | null) => void;
+  // Which edge of the button the list lines up with, so it stays inside a phone screen.
+  align?: 'left' | 'right';
+  // A phone shows only the choice ("Mercado"), so the three menus stay on one line.
+  short?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const current = options.find((o) => o.id === value);
@@ -30,15 +36,16 @@ export function FilterMenu({
       <Pressable
         onPress={() => setOpen(!open)}
         accessibilityRole="button"
+        accessibilityLabel={short && current ? `${label}: ${current.name}` : undefined}
         accessibilityState={{ expanded: open }}
-        style={[styles.menuButton, current && styles.menuButtonOn]}
+        style={[styles.menuButton, short && styles.menuButtonShort, current && styles.menuButtonOn]}
       >
         <Text style={[styles.menuText, current && styles.menuTextOn]} numberOfLines={1}>
-          {current ? `${label}: ${current.name}` : label} ▾
+          {current ? (short ? current.name : `${label}: ${current.name}`) : label} ▾
         </Text>
       </Pressable>
       {open ? (
-        <View style={styles.menu} accessibilityRole="menu">
+        <View style={[styles.menu, align === 'left' && styles.menuLeft]} accessibilityRole="menu">
           <MenuItem label="Todas" on={value === null} onPress={() => pick(null)} />
           {options.map((o) => (
             <MenuItem key={o.id} label={o.name} on={o.id === value} onPress={() => pick(o.id)} />

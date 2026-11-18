@@ -24,6 +24,7 @@ import type {
   ReviewResult,
   Transaction,
   TransactionPage,
+  TransactionTotals,
   TransferOverview,
   TxKind,
 } from './types';
@@ -87,29 +88,36 @@ export interface TxFilters {
   q?: string;
   categoryId?: string | null;
   accountId?: string | null;
+  // A member's id, or "casa" for the lines of the whole household.
+  memberId?: string | null;
 }
 
-export function listTransactions(
-  opts: {
-    limit?: number;
-    offset?: number;
-    month?: string;
-    kinds?: TxKind[];
-    currency?: Currency;
-  } & TxFilters = {},
-) {
-  const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
+type ListQuery = { month?: string; kinds?: TxKind[]; currency?: Currency } & TxFilters;
+
+// The filters of the list as query parameters; the totals take exactly the same ones.
+function listParams(opts: ListQuery, q = new URLSearchParams()): URLSearchParams {
   const optional = {
-    offset: opts.offset ? String(opts.offset) : undefined,
     month: opts.month,
     q: opts.q?.trim(),
     category_id: opts.categoryId,
     account_id: opts.accountId,
+    member: opts.memberId,
     currency: opts.currency,
   };
   for (const [key, value] of Object.entries(optional)) if (value) q.set(key, value);
   for (const k of opts.kinds ?? []) q.append('kind', k);
-  return api<TransactionPage>(`/transactions?${q.toString()}`);
+  return q;
+}
+
+export function listTransactions(opts: { limit?: number; offset?: number } & ListQuery = {}) {
+  const q = new URLSearchParams({ limit: String(opts.limit ?? 20) });
+  if (opts.offset) q.set('offset', String(opts.offset));
+  return api<TransactionPage>(`/transactions?${listParams(opts, q).toString()}`);
+}
+
+// Entradas and saídas of everything the list shows with these filters, and by group.
+export function getTotals(opts: ListQuery) {
+  return api<TransactionTotals>(`/transactions/totals?${listParams(opts).toString()}`);
 }
 
 // With a currency, every amount comes converted into it (ECB rate of each line's day).

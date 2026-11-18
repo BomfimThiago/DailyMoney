@@ -17,6 +17,7 @@ from app.transactions.schemas import (
     ReviewResult,
     TransactionOut,
     TransactionPage,
+    TransactionTotals,
     TransactionUpdate,
     TransferOverview,
 )
@@ -28,6 +29,19 @@ Month = Annotated[str, Query(pattern=r"^\d{4}-\d{2}$", examples=["2026-10"])]
 # Show every amount in this currency (each line converted with its day's ECB rate).
 # Without it, amounts stay in each account's own currency.
 ShowIn = Annotated[Currency | None, Query()]
+# A Responsável: a member's id, or "casa" for the lines of the whole household.
+MemberFilter = Annotated[
+    str | None,
+    Query(
+        pattern=r"^(casa|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$"
+    ),
+]
+
+
+def _member(value: str | None) -> uuid.UUID | str | None:
+    if value is None or value == transaction_service.HOUSEHOLD:
+        return value
+    return uuid.UUID(value)
 
 
 @router.get("", response_model=TransactionPage)
@@ -38,6 +52,7 @@ async def list_transactions(
     month: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
     kind: Annotated[list[TxKind] | None, Query()] = None,
     category_id: uuid.UUID | None = None,
+    member: MemberFilter = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -50,9 +65,35 @@ async def list_transactions(
         month=month,
         kinds=kind,
         category_id=category_id,
+        member=_member(member),
         q=q,
         limit=limit,
         offset=offset,
+        currency=currency,
+    )
+
+
+@router.get("/totals", response_model=TransactionTotals)
+async def totals(
+    user: CurrentUser,
+    db: DbSession,
+    account_id: uuid.UUID | None = None,
+    month: Annotated[str | None, Query(pattern=r"^\d{4}-\d{2}$")] = None,
+    kind: Annotated[list[TxKind] | None, Query()] = None,
+    category_id: uuid.UUID | None = None,
+    member: MemberFilter = None,
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    currency: ShowIn = None,
+) -> TransactionTotals:
+    return await transaction_service.totals(
+        db,
+        user.family_id,
+        account_id=account_id,
+        month=month,
+        kinds=kind,
+        category_id=category_id,
+        member=_member(member),
+        q=q,
         currency=currency,
     )
 

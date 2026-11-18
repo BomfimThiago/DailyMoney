@@ -28,6 +28,10 @@ export type TxKind = S['TxKind'];
 // Amounts are decimals sent as strings: never do arithmetic on them in the app.
 export type Transaction = S['TransactionOut'];
 export type TransactionPage = S['TransactionPage'];
+// What the list shows with its filters, added up, and by category, Responsável and account.
+export type TransactionTotals = S['TransactionTotals'];
+export type CurrencyTotals = S['CurrencyTotals'];
+export type GroupTotal = S['GroupTotal'];
 
 // Imported lines wait for approval ("pending") before they count anywhere.
 export type ReviewStatus = S['ReviewStatus'];

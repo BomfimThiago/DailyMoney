@@ -5,13 +5,22 @@ import { useMonthState } from './monthStart';
 import {
   useAccounts,
   useCategories,
+  useFamily,
   useRefreshMoney,
   useRegular,
   useReviewQueue,
+  useTotals,
   useTransfers,
 } from './queries';
 import { reviewItems } from './review';
-import { accountOptions, categoryOptions, isFiltered, pagedItems } from './transactions';
+import {
+  accountOptions,
+  categoryOptions,
+  type GroupBy,
+  isFiltered,
+  memberOptions,
+  pagedItems,
+} from './transactions';
 
 export type Tab = 'lista' | 'transferencias' | 'revisar';
 
@@ -45,21 +54,38 @@ export function useTabFromLink(aba: string | undefined) {
   return [tab, setTab] as const;
 }
 
-// Search and filters only exist on a computer; the phone always lists the whole month.
-export function useTransactionsPage(wide: boolean, aba: string | undefined) {
+// A filter that also groups the totals by its own dimension once it is picked: filter by
+// Moradia and the totals show by category; by a person, they show by Responsável.
+function useFilter(setGroupBy: (by: GroupBy) => void, by: GroupBy) {
+  const [value, setValue] = useState<string | null>(null);
+  const set = (id: string | null) => {
+    setValue(id);
+    if (id !== null) setGroupBy(by);
+  };
+  return [value, set] as const;
+}
+
+// Transações is a page to study the month: whatever the filters leave on screen is also
+// added up (entradas, saídas, and by category, Responsável or account), on both layouts.
+export function useTransactionsPage(aba: string | undefined) {
   const [tab, setTab] = useTabFromLink(aba);
   const [month, setMonth] = useMonthState();
   const [search, setSearch] = useState('');
   const q = useDebounced(search, 300);
-  const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [accountId, setAccountId] = useState<string | null>(null);
+  const [groupBy, setGroupBy] = useState<GroupBy>('categories');
+  const [categoryId, setCategoryId] = useFilter(setGroupBy, 'categories');
+  const [accountId, setAccountId] = useFilter(setGroupBy, 'accounts');
+  const [memberId, setMemberId] = useFilter(setGroupBy, 'members');
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const filters = { q, categoryId, accountId };
-  const regular = useRegular(month, true, wide ? filters : {});
+  const filters = { q, categoryId, accountId, memberId };
+  const onList = tab === 'lista';
+  const regular = useRegular(month, true, filters);
+  const totals = useTotals(month, onList, filters);
   const transfers = useTransfers(month, true);
   const review = useReviewQueue(true);
-  const categories = useCategories(wide);
-  const accounts = useAccounts(wide);
+  const categories = useCategories(true);
+  const accounts = useAccounts(true);
+  const family = useFamily(true);
   const items = pagedItems(regular.data?.pages);
   return {
     tab,
@@ -72,6 +98,10 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
     setCategoryId,
     accountId,
     setAccountId,
+    memberId,
+    setMemberId,
+    groupBy,
+    setGroupBy,
     selectedId,
     setSelectedId,
     // The line open in the detail, from the list or from the lines waiting for review.
@@ -79,11 +109,13 @@ export function useTransactionsPage(wide: boolean, aba: string | undefined) {
       [...(items ?? []), ...reviewItems(review.data)].find((t) => t.id === selectedId) ?? null,
     items,
     regular,
+    totals,
     transfers,
     review,
     categories: categoryOptions(categories.data),
     accounts: accountOptions(accounts.data),
-    filtered: wide && isFiltered(filters),
+    members: memberOptions(family.data?.members),
+    filtered: isFiltered(filters),
     refreshMoney: useRefreshMoney(),
   };
 }

@@ -34,6 +34,36 @@ class TransactionPage(BaseModel):
     items: list[TransactionOut]
 
 
+class GroupTotal(BaseModel):
+    # Null: lines with no category, or the whole household ("Casa").
+    id: uuid.UUID | None
+    name: str
+    income: Decimal
+    spending: Decimal
+    count: int
+
+
+class CurrencyTotals(BaseModel):
+    currency: Currency
+    income: Decimal
+    spending: Decimal
+    # income − spending
+    balance: Decimal
+    count: int
+    # The same lines added up by category, by Responsável and by account; biggest first.
+    categories: list[GroupTotal]
+    members: list[GroupTotal]
+    accounts: list[GroupTotal]
+
+
+class TransactionTotals(BaseModel):
+    """What the list shows with the same filters, added up (every page, not just one)."""
+
+    count: int
+    # Only the currencies that have lines; just the chosen one when converted.
+    currencies: list[CurrencyTotals]
+
+
 class TransactionUpdate(BaseModel):
     # Only the fields sent change. The currency follows the account, so it is not here.
     category_id: uuid.UUID | None = None
