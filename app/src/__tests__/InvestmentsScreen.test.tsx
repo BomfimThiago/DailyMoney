@@ -4,9 +4,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import InvestmentsScreen from '@/app/(tabs)/investimentos';
 import { useAuth } from '@/lib/auth';
 import { currentMonth } from '@/lib/format';
-import { useInvestments } from '@/lib/queries';
+import { useInvestments, usePortfolio } from '@/lib/queries';
 import { withCurrency } from '@/testing/currency';
 import { overview } from '@/testing/investments';
+import { emptyPortfolio, portfolio } from '@/testing/portfolio';
 
 jest.mock('expo-router', () => {
   const { Text } = jest.requireActual<typeof import('react-native')>('react-native');
@@ -19,10 +20,16 @@ jest.mock('@/lib/api', () => ({
   ...jest.requireActual<typeof import('@/lib/api')>('@/lib/api'),
   api: jest.fn(() => Promise.resolve({})),
 }));
-jest.mock('@/lib/queries', () => ({ useInvestments: jest.fn() }));
+jest.mock('@/lib/queries', () => ({ useInvestments: jest.fn(), usePortfolio: jest.fn() }));
 
 const mockAuth = jest.mocked(useAuth);
 const mockInvestments = jest.mocked(useInvestments);
+const mockPortfolio = jest.mocked(usePortfolio);
+
+const holding = (o: Partial<ReturnType<typeof usePortfolio>>) =>
+  mockPortfolio.mockReturnValue({ data: undefined, isError: false, ...o } as ReturnType<
+    typeof usePortfolio
+  >);
 
 const answer = (o: Partial<ReturnType<typeof useInvestments>>) =>
   mockInvestments.mockReturnValue({ data: undefined, isError: false, ...o } as ReturnType<
@@ -45,7 +52,11 @@ beforeEach(() => {
     state: { status: 'signedIn', me: { family: { display_currency: 'BRL' } } },
   } as ReturnType<typeof useAuth>);
   answer({ data: overview({ month: currentMonth() }) });
+  holding({ data: emptyPortfolio() });
 });
+
+// The phone opens on the bank's portfolio; the statements' products are the next tab.
+const products = () => fireEvent.press(screen.getByTestId('segment-produtos'));
 
 describe('InvestmentsScreen session', () => {
   it('waits for the session, then sends signed-out people to login', async () => {
@@ -62,12 +73,15 @@ describe('InvestmentsScreen on the phone', () => {
   it('shows loading, error and empty states', async () => {
     answer({});
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     expect(screen.queryByText('Seus produtos')).toBeNull();
     answer({ isError: true });
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
     answer({ data: overview({ totals: [] }) });
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     expect(
       screen.getByText('Nenhuma aplicação ou resgate nos extratos enviados até agora.'),
     ).toBeTruthy();
@@ -75,6 +89,7 @@ describe('InvestmentsScreen on the phone', () => {
 
   it('shows the total, the month and the products', async () => {
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     expect(text('R$ 4.000,00')).toBeTruthy();
     expect(text('+R$ 1.500,00')).toBeTruthy();
     expect(screen.getByText('RDB')).toBeTruthy();
@@ -84,6 +99,7 @@ describe('InvestmentsScreen on the phone', () => {
 
   it('switches currency and says when the month had no moves', async () => {
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     await fireEvent.press(screen.getByText('EUR'));
     expect(screen.getAllByText(money('€ 300,00')).length).toBeGreaterThan(0);
     expect(screen.getByText(/^Nenhum movimento em /)).toBeTruthy();
@@ -92,6 +108,7 @@ describe('InvestmentsScreen on the phone', () => {
 
   it('shows movements with the month figures', async () => {
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     await fireEvent.press(screen.getByTestId('segment-movimentos'));
     expect(screen.getByText('Investido por mês (aplicado menos resgatado)')).toBeTruthy();
     expect(screen.getByText('Resgatado')).toBeTruthy();
@@ -101,6 +118,7 @@ describe('InvestmentsScreen on the phone', () => {
   it('leaves out the figures and movements when the month is empty', async () => {
     answer({ data: overview({ history: [], movements: [] }) });
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     await fireEvent.press(screen.getByTestId('segment-movimentos'));
     expect(screen.queryByText('Resgatado')).toBeNull();
     expect(screen.getByText('Nenhuma aplicação ou resgate neste mês.')).toBeTruthy();
@@ -108,6 +126,7 @@ describe('InvestmentsScreen on the phone', () => {
 
   it('asks for another month when the arrow is pressed', async () => {
     await render(withCurrency(<InvestmentsScreen />));
+    await products();
     await fireEvent.press(screen.getByLabelText('Mês anterior'));
     const months = mockInvestments.mock.calls.map((c) => c[0]);
     expect(months[months.length - 1]).not.toBe(currentMonth());
@@ -146,5 +165,68 @@ describe('InvestmentsScreen on a computer', () => {
       .mockReturnValue({ width: 960, height: 900, scale: 1, fontScale: 1 });
     await render(withCurrency(<InvestmentsScreen />));
     expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
+  });
+});
+
+describe('the bank portfolio', () => {
+  it('opens the phone on it, with loading, error and empty states', async () => {
+    holding({});
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(screen.queryByText('Saldo no banco')).toBeNull();
+    holding({ isError: true });
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(screen.getByText('Não consegui carregar. Tente de novo.')).toBeTruthy();
+    holding({ data: emptyPortfolio() });
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(screen.getByText(/^Conecte o Nubank ou o Inter/)).toBeTruthy();
+    expect(screen.queryByLabelText('Mês anterior')).toBeNull();
+  });
+
+  it('shows the balance, the types, the maturities and each investment on the phone', async () => {
+    holding({ data: portfolio() });
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(text('R$ 1.500,00')).toBeTruthy();
+    expect(screen.getByText(/\(\+10,0%\)$/)).toBeTruthy();
+    expect(screen.getByText('73% em renda fixa, 27% em ETFs.')).toBeTruthy();
+    expect(screen.getByText('BOVA11')).toBeTruthy();
+    expect(screen.getByText('Nubank · 110% do CDI · vence 15/03/2027')).toBeTruthy();
+    expect(
+      screen.getByText('1 investimento resgatado ou encerrado não aparece aqui.'),
+    ).toBeTruthy();
+    expect(screen.getByText('16/10/2026 a 16/11/2026')).toBeTruthy();
+    expect(screen.getByText('2027')).toBeTruthy();
+  });
+
+  it('sits above the statements on a computer', async () => {
+    wide();
+    holding({
+      data: portfolio({
+        closed: 2,
+        tracked: null,
+        ladder: null,
+        history: [],
+        classes: portfolio().classes.slice(0, 1),
+      }),
+    });
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(screen.getByText('SALDO NO BANCO')).toBeTruthy();
+    expect(screen.getByText('—')).toBeTruthy();
+    expect(screen.getByText('Tudo em renda fixa.')).toBeTruthy();
+    expect(screen.getByText('Nenhum investimento com data de vencimento.')).toBeTruthy();
+    expect(
+      screen.getByText('2 investimentos resgatados ou encerrados não aparecem aqui.'),
+    ).toBeTruthy();
+    expect(screen.getByText('SEUS PRODUTOS')).toBeTruthy();
+    holding({ data: emptyPortfolio({ has_source: true }) });
+    await render(withCurrency(<InvestmentsScreen />));
+    expect(screen.getByText(/ainda não informou/)).toBeTruthy();
+  });
+
+  it('draws the history once it knows its width', async () => {
+    holding({ data: portfolio() });
+    await render(withCurrency(<InvestmentsScreen />));
+    const chart = screen.getByLabelText(/^De R\$/);
+    await fireEvent(chart, 'layout', { nativeEvent: { layout: { width: 300, height: 96 } } });
+    expect(screen.getByLabelText(/^De R\$/)).toBeTruthy();
   });
 });

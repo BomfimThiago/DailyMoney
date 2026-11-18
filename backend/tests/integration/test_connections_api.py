@@ -287,6 +287,8 @@ def fake_pluggy(request: httpx.Request) -> httpx.Response:
                 ]
             },
         )
+    if path == "/investments":
+        return httpx.Response(200, json={"results": [], "totalPages": 1})
     if path == "/v2/transactions":
         account = request.url.params["accountId"]
         if account == "nu-acc":

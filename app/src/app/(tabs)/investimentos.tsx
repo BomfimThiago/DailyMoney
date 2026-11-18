@@ -10,6 +10,7 @@ import {
   Stat,
 } from '@/components/investments/parts';
 import { CurrencyChips } from '@/components/CurrencyChips';
+import { PhonePortfolio, WidePortfolio } from '@/components/investments/Portfolio';
 import { styles, wide } from '@/components/investments/styles';
 import { MonthNav, Segment } from '@/components/nav';
 import { Loadable, signedInPage } from '@/components/states';
@@ -19,14 +20,16 @@ import { money, monthLabel, shortMonth } from '@/lib/format';
 import { type InvestmentView, investmentView, monthMoves, monthTotals } from '@/lib/investments';
 import { useMonthState } from '@/lib/monthStart';
 import { useDisplayCurrency } from '@/lib/displayCurrency';
-import { useInvestments } from '@/lib/queries';
+import { useInvestments, usePortfolio } from '@/lib/queries';
+import type { Portfolio } from '@/lib/types';
 
-type Tab = 'produtos' | 'movimentos';
+type Tab = 'carteira' | 'produtos' | 'movimentos';
 
 const EMPTY = 'Nenhuma aplicação ou resgate nos extratos enviados até agora.';
 
-// Investimentos, variant A (by product) with variant B's movements as a second view. On a
-// computer both views sit side by side, under the month's figures.
+// Investimentos: first the bank's own portfolio (balance of each investment, read from the
+// connected banks), then what went in and out according to the statements: variant A (by
+// product) with variant B's movements. On a computer it is all one page.
 export default signedInPage(Investments);
 
 function Investments() {
@@ -34,12 +37,19 @@ function Investments() {
   const [month, setMonth] = useMonthState();
   const { currency } = useDisplayCurrency();
   const query = useInvestments(month, true);
+  const portfolioQuery = usePortfolio();
   const view = query.data ? investmentView(query.data, currency) : null;
   const page = {
     month,
     setMonth,
     view,
     load: { isError: query.isError, loading: !query.data, value: view, empty: EMPTY },
+    portfolio: {
+      isError: portfolioQuery.isError,
+      loading: !portfolioQuery.data,
+      value: portfolioQuery.data,
+      empty: '',
+    },
   };
   return width >= WIDE_MIN ? (
     <WideInvestments {...page} twoColumns={contentWidth(width) >= TWO_COLUMNS} />
@@ -53,13 +63,14 @@ type PageProps = {
   setMonth: (m: string) => void;
   view: InvestmentView | null;
   load: { isError: boolean; loading: boolean; value: InvestmentView | null; empty: string };
+  portfolio: { isError: boolean; loading: boolean; value: Portfolio | undefined; empty: string };
 };
 
 function WideInvestments({
   month,
   setMonth,
-  view,
   load,
+  portfolio,
   twoColumns,
 }: PageProps & { twoColumns: boolean }) {
   return (
@@ -72,6 +83,9 @@ function WideInvestments({
             <MonthNav month={month} onChange={setMonth} compact />
           </View>
         </View>
+        <Text style={wide.section}>Carteira no banco</Text>
+        <Loadable {...portfolio}>{(p) => <WidePortfolio p={p} twoColumns={twoColumns} />}</Loadable>
+        <Text style={[wide.section, wide.sectionGap]}>Aplicações e resgates dos extratos</Text>
         <Loadable {...load}>
           {(v) => <WideBody v={v} month={month} twoColumns={twoColumns} />}
         </Loadable>
@@ -133,36 +147,39 @@ function WideFigures({ v, month }: { v: InvestmentView; month: string }) {
   );
 }
 
-function PhoneInvestments({ month, setMonth, load }: PageProps) {
-  const [tab, setTab] = useState<Tab>('produtos');
+function PhoneInvestments({ month, setMonth, load, portfolio }: PageProps) {
+  const [tab, setTab] = useState<Tab>('carteira');
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.column}>
           <View style={styles.head}>
             <Text style={styles.title}>Investimentos</Text>
-            <MonthNav month={month} onChange={setMonth} compact />
+            {tab === 'carteira' ? null : <MonthNav month={month} onChange={setMonth} compact />}
           </View>
-          <Loadable {...load}>
-            {(v) => (
-              <>
-                <CurrencyChips style={styles.chips} />
-                <Segment
-                  options={[
-                    { value: 'produtos', label: 'Produtos' },
-                    { value: 'movimentos', label: 'Movimentos' },
-                  ]}
-                  value={tab}
-                  onChange={setTab}
-                />
-                {tab === 'produtos' ? (
+          <CurrencyChips style={styles.chips} />
+          <Segment
+            options={[
+              { value: 'carteira', label: 'Carteira' },
+              { value: 'produtos', label: 'Produtos' },
+              { value: 'movimentos', label: 'Movimentos' },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+          {tab === 'carteira' ? (
+            <Loadable {...portfolio}>{(p) => <PhonePortfolio p={p} />}</Loadable>
+          ) : (
+            <Loadable {...load}>
+              {(v) =>
+                tab === 'produtos' ? (
                   <ProductsTab v={v} month={month} />
                 ) : (
                   <MovementsTab v={v} month={month} />
-                )}
-              </>
-            )}
-          </Loadable>
+                )
+              }
+            </Loadable>
+          )}
         </View>
       </ScrollView>
     </View>

@@ -4,10 +4,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Small } from '@/components/transactions/Review';
 import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
-import { fullDate, isIncome } from '@/lib/format';
+import { fullDate, isIncome, money } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
-import { ownerName } from '@/lib/people';
-import { useFamily } from '@/lib/queries';
+import { useLineCurrencies } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
@@ -19,7 +18,6 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
   const [deleting, setDeleting] = useState(false);
   const incoming = isIncome(t.amount);
   const amount = lineAmounts(t);
-  const members = useFamily(true).data?.members ?? [];
 
   return (
     <View style={styles.box}>
@@ -33,8 +31,8 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       <View style={styles.facts}>
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
-        <Fact label="Responsável" value={ownerName(t.member_id, members)} />
       </View>
+      <InCurrencies t={t} />
       {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
 
       <View style={styles.rule} />
@@ -56,6 +54,40 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       )}
     </View>
   );
+}
+
+// The line in reais, euros and dollars, each with the ECB rate of its day, like the old
+// app's detail. A failed answer just leaves the block out: the rest of the detail stands.
+function InCurrencies({ t }: { t: Transaction }) {
+  const { data } = useLineCurrencies(t.id);
+  if (!data) return null;
+  return (
+    <View style={styles.currencies} accessibilityLabel="Nas três moedas">
+      <Text style={styles.currenciesLabel}>NAS TRÊS MOEDAS</Text>
+      {data.amounts.map((a) => (
+        <View key={a.currency} style={styles.currencyRow}>
+          <Text style={styles.currencyAmount}>{money(a.amount, a.currency, true)}</Text>
+          <Text style={styles.currencyRate}>
+            {a.currency === data.currency
+              ? 'no extrato'
+              : `1 ${data.currency} = ${rateText(a.rate)} ${a.currency}`}
+          </Text>
+        </View>
+      ))}
+      {data.rate_date ? (
+        <Text style={styles.currencyRate}>
+          Cotação do Banco Central Europeu de {fullDate(data.rate_date)}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
+// "0.16666667" → "0,1667", "0.20000000" → "0,20": four places are enough to read a rate.
+// Only shown, never used in a sum, so rounding it through a number is fine.
+function rateText(rate: string): string {
+  const [whole, places = ''] = Number(rate).toFixed(4).split('.');
+  return `${whole},${places.replace(/0+$/, '').padEnd(2, '0')}`;
 }
 
 // Just imported: it counts only once the person approves it.
@@ -138,8 +170,19 @@ const styles = StyleSheet.create({
   income: { color: colors.positive },
   facts: { gap: 6, marginTop: 2 },
   fact: { flexDirection: 'row', gap: 12 },
-  factLabel: { width: 84, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
+  factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
   factValue: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
+  currencies: { gap: 4, marginTop: 4 },
+  currenciesLabel: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
+    letterSpacing: 0.7,
+    color: colors.muted,
+    marginBottom: 2,
+  },
+  currencyRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  currencyAmount: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
+  currencyRate: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   rule: { height: 1, backgroundColor: colors.line, marginVertical: 4 },
   deleteLink: { alignSelf: 'flex-start' },
   waiting: {

@@ -1,6 +1,13 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { accountCount, deleteMemberHint, memberNameError, ownerName } from '@/lib/people';
+import {
+  accountCount,
+  choiceOf,
+  deleteMemberHint,
+  memberIdOf,
+  memberNameError,
+  ownerOptions,
+} from '@/lib/people';
 import { account, member } from '@/testing/people';
 
 const thiago = member();
@@ -25,11 +32,14 @@ describe('memberNameError', () => {
   });
 });
 
-describe('ownerName', () => {
-  it('names the owner, or the household when there is none', () => {
-    expect(ownerName('m-ana', [thiago, ana])).toBe('Ana');
-    expect(ownerName(null, [thiago, ana])).toBe('Casa');
-    expect(ownerName('gone', [thiago])).toBe('Casa');
+describe('owner choices', () => {
+  it('lists each person, then the household', () => {
+    expect(ownerOptions([thiago, ana]).map((o) => o.name)).toEqual(['Thiago', 'Ana', 'Casa']);
+  });
+
+  it('turns the household choice into no member and back', () => {
+    expect(memberIdOf(choiceOf(null))).toBeNull();
+    expect(memberIdOf(choiceOf('m-ana'))).toBe('m-ana');
   });
 });
 

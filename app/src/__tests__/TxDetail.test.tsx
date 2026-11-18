@@ -20,7 +20,9 @@ const mockCategoryList: Category[] = [
   category({ id: 'c-salario', name: 'Salário', kind: 'income' }),
   category({ id: 'c-transf', name: 'Transferência', kind: 'transfer' }),
 ];
+const mockCurrencies = jest.fn<() => { data: unknown }>(() => ({ data: undefined }));
 jest.mock('@/lib/queries', () => ({
+  useLineCurrencies: () => mockCurrencies(),
   useCategories: () => ({ data: mockCategoryList, isError: false }),
   useFamily: () => ({
     data: { members: [{ id: 'm-ana', name: 'Ana', color: '#c7795a', user_id: null }] },
@@ -52,6 +54,27 @@ beforeEach(() => {
 });
 
 describe('TxDetail', () => {
+  it('shows the line in the three currencies with the rate of its day', async () => {
+    mockCurrencies.mockReturnValueOnce({
+      data: {
+        currency: 'BRL',
+        rate_date: '2026-11-27',
+        amounts: [
+          { currency: 'BRL', amount: '-312.4000', rate: '1' },
+          { currency: 'EUR', amount: '-52.0667', rate: '0.16666667' },
+          { currency: 'USD', amount: '-62.4800', rate: '0.20000000' },
+        ],
+      },
+    });
+    await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
+    expect(screen.getByText('NAS TRÊS MOEDAS')).toBeTruthy();
+    expect(screen.getByText('no extrato')).toBeTruthy();
+    expect(screen.getByText('-€\u00a052,07')).toBeTruthy();
+    expect(screen.getByText('1 BRL = 0,1667 EUR')).toBeTruthy();
+    expect(screen.getByText('1 BRL = 0,20 USD')).toBeTruthy();
+    expect(screen.getByText('Cotação do Banco Central Europeu de 27/11/2026')).toBeTruthy();
+  });
+
   it('shows who the line belongs to, or the household', async () => {
     await render(<TxDetail t={tx({ member_id: 'm-ana' })} onChanged={jest.fn()} />);
     expect(screen.getByText('Responsável')).toBeTruthy();
@@ -61,6 +84,26 @@ describe('TxDetail', () => {
   it('a line with no one belongs to the household', async () => {
     await render(<TxDetail t={tx()} onChanged={jest.fn()} />);
     expect(screen.getByText('Casa')).toBeTruthy();
+  });
+
+  it('gives the line to someone else, sending only the owner', async () => {
+    mockEdit.mockResolvedValue({} as Transaction);
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx()} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByLabelText('Responsável'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Ana' }));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(mockEdit).toHaveBeenCalledWith('tx-1', { member_id: 'm-ana' }));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('gives the line back to the household', async () => {
+    mockEdit.mockResolvedValue({} as Transaction);
+    await render(<TxDetail t={tx({ member_id: 'm-ana' })} onChanged={jest.fn()} />);
+    await fireEvent.press(screen.getByLabelText('Responsável'));
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Casa' }));
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(mockEdit).toHaveBeenCalledWith('tx-1', { member_id: null }));
   });
 
   it('opens with the summary and the fields ready to change, no Editar step', async () => {

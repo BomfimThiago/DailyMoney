@@ -54,14 +54,20 @@ async def create_account(
 async def set_owner(
     db: AsyncSession, family_id: uuid.UUID, account_id: uuid.UUID, member_id: uuid.UUID | None
 ) -> Account:
-    """Changes who the account belongs to. Its lines follow: each line's owner is the
-    account's owner, so filters and totals by person stay consistent."""
+    """Changes who the account belongs to. Its lines that were the old owner's follow;
+    a line the person gave to someone else on purpose keeps that person."""
     account = await get_account(db, family_id, account_id)
     if member_id is not None:
         await get_in_family(db, Member, family_id, member_id, "Membro não encontrado")
+    old = account.member_id
     account.member_id = member_id
     await db.execute(
-        update(Transaction).where(Transaction.account_id == account.id).values(member_id=member_id)
+        update(Transaction)
+        .where(
+            Transaction.account_id == account.id,
+            Transaction.member_id.is_(None) if old is None else Transaction.member_id == old,
+        )
+        .values(member_id=member_id)
     )
     await db.flush()
     return account

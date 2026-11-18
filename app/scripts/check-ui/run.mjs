@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fixtures } from './fixtures.mjs';
+import { fixtures, month } from './fixtures.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.OUT ?? path.join(os.tmpdir(), 'dailymoney-check-ui');
@@ -93,6 +93,98 @@ function shiftedDashboard(body) {
   };
 }
 
+// The list's lines with the search and filters of the URL, like the real API.
+function listed(url) {
+  const get = (k) => url.searchParams.get(k);
+  const q = (get('q') ?? '').toLowerCase();
+  const member = get('member');
+  const currencyOf = (t) => fixtures['/accounts'].find((a) => a.id === t.account_id)?.currency;
+  const out = get('direction') === 'out';
+  const items = fixtures.regular.items.filter(
+    (t) =>
+      t.description.toLowerCase().includes(q) &&
+      (!get('category_id') || t.category_id === get('category_id')) &&
+      (!get('account_id') || t.account_id === get('account_id')) &&
+      (!member || (member === 'casa' ? t.member_id === null : t.member_id === member)) &&
+      (!get('direction') || Number(t.amount) < 0 === out) &&
+      (!get('account_currency') || currencyOf(t) === get('account_currency')) &&
+      (!get('date_from') || t.date >= get('date_from')) &&
+      (!get('date_to') || t.date <= get('date_to')),
+  );
+  const sort = get('sort');
+  if (!sort) return items;
+  const desc = sort.startsWith('-');
+  const key = sort.replace('-', '');
+  const value = (t) => (key === 'amount' ? Number(t.amount) : t.description.toLowerCase());
+  return [...items].sort((a, b) => (value(a) < value(b) ? -1 : 1) * (desc ? -1 : 1));
+}
+
+// A line in the three currencies (the samples: one euro is 6 reais or 1.2 dollars).
+function inCurrencies(id) {
+  const queued = fixtures['/transactions/review'].groups.flatMap((g) => g.items);
+  const t = [...fixtures.regular.items, ...queued].find((x) => x.id === id);
+  if (!t) return null;
+  const perEur = { EUR: 1, BRL: 6, USD: 1.2 };
+  const amounts = ['BRL', 'EUR', 'USD'].map((c) => {
+    const rate = perEur[c] / perEur[t.currency];
+    return { currency: c, amount: (Number(t.amount) * rate).toFixed(4), rate: rate.toFixed(8) };
+  });
+  return { currency: t.currency, rate_date: t.date, amounts };
+}
+
+// The totals the API answers for those lines (amounts already in BRL in the samples).
+function totals(items) {
+  const names = Object.fromEntries(fixtures['/family'].members.map((m) => [m.id, m.name]));
+  const sum = (lines, id, name) => {
+    let income = 0;
+    let spending = 0;
+    for (const t of lines) {
+      const v = Number(t.display_amount ?? t.amount);
+      if (v > 0) income += v;
+      else spending -= v;
+    }
+    return {
+      id,
+      name,
+      income: income.toFixed(2),
+      spending: spending.toFixed(2),
+      count: lines.length,
+    };
+  };
+  const by = (key, nameOf) => {
+    const groups = new Map();
+    for (const t of items) groups.set(t[key], [...(groups.get(t[key]) ?? []), t]);
+    return [...groups]
+      .map(([id, lines]) => sum(lines, id, nameOf(lines[0])))
+      .sort((a, b) => b.spending - a.spending || b.income - a.income);
+  };
+  const all = sum(items, null, '');
+  if (!items.length) return { count: 0, currencies: [] };
+  return {
+    count: items.length,
+    currencies: [
+      {
+        currency: 'BRL',
+        income: all.income,
+        spending: all.spending,
+        balance: (all.income - all.spending).toFixed(2),
+        count: items.length,
+        categories: by('category_id', (t) => t.category_name ?? 'Sem categoria'),
+        members: by('member_id', (t) => names[t.member_id] ?? 'Casa'),
+        accounts: by('account_id', (t) => t.account_name),
+        days: [...new Set(items.map((t) => t.date))].map((date) => {
+          const day = sum(
+            items.filter((t) => t.date === date),
+            null,
+            '',
+          );
+          return { date, total: (day.income - day.spending).toFixed(2) };
+        }),
+      },
+    ],
+  };
+}
+
 function answer(url, method) {
   const p = url.pathname.replace(/^\/api\/v1/, '');
   if (method === 'PUT' && p.endsWith('/kind')) {
@@ -161,11 +253,16 @@ function answer(url, method) {
   if (answered && p === '/transactions/transfers') {
     return { status: 200, body: { ...fixtures[p], pending: [] } };
   }
-  if (p === '/transactions' && url.searchParams.getAll('kind').join() === 'regular,investment') {
-    const q = (url.searchParams.get('q') ?? '').toLowerCase();
-    const items = fixtures.regular.items.filter((t) => t.description.toLowerCase().includes(q));
+  if (p === '/transactions/latest-month') return { status: 200, body: { month } };
+  if (p.endsWith('/currencies')) {
+    const body = inCurrencies(p.split('/')[2]);
+    return body ? { status: 200, body } : { status: 404, body: {} };
+  }
+  if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
+    const items = listed(url);
     return { status: 200, body: { total: items.length, items } };
   }
+  if (p === '/transactions/totals') return { status: 200, body: totals(listed(url)) };
   if (p in fixtures) return { status: 200, body: fixtures[p] };
   return { status: 404, body: { detail: `sem dado de exemplo para ${p}` } };
 }
@@ -261,12 +358,22 @@ async function checkScreens(page, tag) {
     // Bottom tabs on a phone, sidebar links on a computer: both carry the same test id.
     const tab = (name) => page.getByTestId(`tab-${name}`);
     await tab('Investimentos').click();
-    await seen('Seus produtos').waitFor();
     if (tag === 'computador') {
-      // Products and the month's movements side by side, no Produtos/Movimentos switch.
+      // The bank's portfolio on top; products and the month's movements side by side below.
+      await seen('SEUS INVESTIMENTOS').waitFor();
       await seen('Aplicação RDB').waitFor();
       await shot('investimentos');
+      await page
+        .getByText('SEUS PRODUTOS')
+        .filter({ visible: true })
+        .first()
+        .scrollIntoViewIfNeeded();
+      await shot('investimentos-extratos');
     } else {
+      await seen('Seus investimentos').waitFor();
+      await shot('investimentos-carteira');
+      await page.getByRole('tab', { name: 'Produtos' }).click();
+      await seen('Seus produtos').waitFor();
       await shot('investimentos-produtos');
       await page.getByRole('tab', { name: 'Movimentos' }).click();
       await shot('investimentos-movimentos');
@@ -281,6 +388,59 @@ async function checkScreens(page, tag) {
     await tab('Transações').click();
     await seen('Pão de Açúcar').waitFor();
     await shot('transacoes-lista');
+
+    // Filtering adds up only what is left, grouped by what was filtered: by Responsável
+    // on a computer, by category on a phone.
+    const [menu, pick, back] =
+      tag === 'computador'
+        ? ['Responsável', 'Ana', 'Responsável: Ana']
+        : ['Categoria', 'Mercado', 'Mercado'];
+    await seen(`${menu} ▾`).click();
+    await page.getByRole('menuitem', { name: pick, exact: true }).filter({ visible: true }).click();
+    await seen('TOTAL DO QUE ESTÁ FILTRADO')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('o total não seguiu o filtro'));
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await seen(tag === 'computador' ? 'Salário' : 'Pão de Açúcar').waitFor();
+    await shot('transacoes-filtro');
+    await seen(`${back} ▾`).click();
+    await page
+      .getByRole('menuitem', { name: 'Todas', exact: true })
+      .filter({ visible: true })
+      .click();
+    await seen('TOTAL DO MÊS').waitFor();
+
+    // Study like the old app: all the time there is, only gastos, biggest first.
+    const item = (name) =>
+      page.getByRole('menuitem', { name, exact: true }).filter({ visible: true });
+    await seen(tag === 'computador' ? 'Período: Mês ▾' : 'Mês ▾').click();
+    await item('Todo o período').click();
+    await seen('TOTAL DO PERÍODO').waitFor();
+    await seen('Tipo ▾').click();
+    await item('Gastos').click();
+    if (tag === 'computador') {
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+      await seen('VALOR ↑').waitFor();
+    } else {
+      await seen('Por dia ▾').click();
+      await item('Maiores gastos').click();
+    }
+    await page.waitForLoadState('networkidle');
+    await seen('Limpar filtros').waitFor();
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await shot('transacoes-estudo');
+    await seen('Limpar filtros').click();
+    if (tag === 'computador') {
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+      await page.getByLabel('Ordenar por valor').filter({ visible: true }).click();
+    } else {
+      await seen('Maiores gastos ▾').click();
+      await item('Por dia').click();
+    }
+    await seen(tag === 'computador' ? 'Período: Todo o período ▾' : 'Todo o período ▾').click();
+    await item('Mês').click();
+    await seen('TOTAL DO MÊS').waitFor();
 
     // A line opens its detail (beside the table, or as a sheet on a phone), where the
     // category can change.
@@ -320,6 +480,14 @@ async function checkScreens(page, tag) {
     await button('Salvar').click();
     await seen('Alterações salvas.').waitFor();
     if (recategorized.length !== 1) flag('trocar a categoria não chamou a API');
+    // The line's Responsável: anyone in the family, or the household.
+    await button('Responsável').click();
+    await page.getByRole('menuitem', { name: 'Ana' }).filter({ visible: true }).waitFor();
+    await shot('transacoes-responsavel');
+    await page.getByRole('menuitem', { name: 'Ana' }).filter({ visible: true }).click();
+    await button('Salvar').click();
+    await seen('Alterações salvas.').waitFor();
+    if (recategorized.length !== 2) flag('trocar o responsável não chamou a API');
     // The question before deleting.
     await button('Excluir').click();
     await seen('Excluir esta transação?').waitFor();
