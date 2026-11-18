@@ -3,8 +3,8 @@ import { Text, View } from 'react-native';
 
 import { Button, Card, Chip } from '@/components/ui';
 import type { PickedFile } from '@/lib/imports';
-import type { Account, ImportPreview } from '@/lib/types';
-import { CURRENCIES, importLabel, namesOk, totals } from '@/lib/upload';
+import type { Account, ImportPreview, ImportSummary } from '@/lib/types';
+import { CURRENCIES, importLabel, namesOk, rereadNote, totals } from '@/lib/upload';
 import type { UploadFlow as Flow } from '@/lib/useUploadFlow';
 
 import { AccountPicker, SincePicker } from './AccountPicker';
@@ -40,11 +40,12 @@ export async function pickFile(): Promise<PickedFile | null> {
   return { name: asset.name, uri: asset.uri, mimeType: asset.mimeType, file: asset.file };
 }
 
-// While a file is being read or imported, another pick is ignored.
-export async function pickAndRead(flow: Pick<Flow, 'busy' | 'read'>) {
+// While a file is being read or imported, another pick is ignored. With `replaces`, the
+// file reads again a statement sent before.
+export async function pickAndRead(flow: Pick<Flow, 'busy' | 'read'>, replaces?: ImportSummary) {
   if (flow.busy) return;
   const picked = await pickFile();
-  if (picked) await flow.read(picked);
+  if (picked) await (replaces ? flow.read(picked, undefined, replaces) : flow.read(picked));
 }
 
 // Pick a file, answer what the app asks about it, then import.
@@ -96,6 +97,7 @@ function Review({
   const blocked = count.new === 0 || !namesOk(preview.groups, flow.choices) || flow.refreshing;
   return (
     <>
+      {flow.replacing ? <Text style={styles.replacing}>{rereadNote(flow.replacing)}</Text> : null}
       <FileCard preview={preview} count={count} refreshing={flow.refreshing} />
       {preview.groups.map((g) => (
         <AccountPicker

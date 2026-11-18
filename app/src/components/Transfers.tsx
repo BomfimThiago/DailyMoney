@@ -1,25 +1,36 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Movements } from '@/components/transactions/Movements';
 import { SectionTitle } from '@/components/ui';
 import { errorText } from '@/lib/api';
 import { dayMonth, isIncome, money, monthLabel } from '@/lib/format';
 import { setKind } from '@/lib/imports';
 import { transferLine } from '@/lib/transactions';
-import type { Transaction, Transfer, TransferOverview, TxKind } from '@/lib/types';
+import type {
+  MovementsOverview,
+  Transaction,
+  Transfer,
+  TransferOverview,
+  TxKind,
+} from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
-// Transações > Transferências: lines waiting for the person to say what they were, then the
-// month's confirmed moves between the family's own accounts.
+// Transações > Transferências: lines waiting for the person to say what they were, the
+// month's check (did everything that left come back?), then its confirmed moves between
+// the family's own accounts.
 export function Transfers({
   data,
   month,
   onChanged,
+  movements,
 }: {
   data: TransferOverview;
   month: string;
   onChanged: () => void;
+  movements?: MovementsOverview;
 }) {
+  const monthName = monthLabel(month).split(' ')[0].toLowerCase();
   return (
     <View>
       <Text style={[styles.empty, styles.top]}>
@@ -37,7 +48,14 @@ export function Transfers({
         </>
       ) : null}
 
-      <SectionTitle>Confirmadas em {monthLabel(month).split(' ')[0].toLowerCase()}</SectionTitle>
+      {movements?.groups.length ? (
+        <>
+          <SectionTitle>Conferência de {monthName}</SectionTitle>
+          <Movements data={movements} />
+        </>
+      ) : null}
+
+      <SectionTitle>Confirmadas em {monthName}</SectionTitle>
       {data.confirmed.length === 0 ? (
         <Text style={styles.empty}>Nenhuma transferência neste mês.</Text>
       ) : (

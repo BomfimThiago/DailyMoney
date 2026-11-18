@@ -270,6 +270,47 @@ class TransferOverview(BaseModel):
     confirmed: list[TransferOut]
 
 
+class MovementRow(BaseModel):
+    # Category of the moves (None: no category).
+    name: str | None
+    color: str | None
+    went_out: Decimal
+    came_in: Decimal
+    # What arrived minus what left.
+    net: Decimal
+    count: int
+
+
+class MovementGroup(BaseModel):
+    currency: Currency
+    rows: list[MovementRow]
+    went_out: Decimal
+    came_in: Decimal
+    net: Decimal
+    # closed: what left one account arrived in another (within 1%); out: money left and
+    # didn't come back; in: money came from outside the app's accounts.
+    result: Literal["closed", "out", "in"]
+
+
+class MovementsOverview(BaseModel):
+    month: str
+    groups: list[MovementGroup]
+
+
+class PurgeOverview(BaseModel):
+    # Every line, of every month and review state.
+    transactions: int
+    to_review: int
+    # Sent statements in the history.
+    imports: int
+    # Connected banks: they read their history again on the next sync.
+    banks: int
+
+
+class PurgeResult(BaseModel):
+    removed: int
+
+
 # ── analysis ─────────────────────────────────────────────────────────────────
 
 

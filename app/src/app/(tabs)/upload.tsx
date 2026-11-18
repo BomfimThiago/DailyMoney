@@ -3,9 +3,9 @@ import { type ReactNode, useCallback } from 'react';
 import { ActivityIndicator, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { SupportedBanks } from '@/components/SupportedBanks';
-import { History } from '@/components/upload/Done';
+import { History } from '@/components/upload/History';
 import { styles } from '@/components/upload/styles';
-import { UploadFlow } from '@/components/upload/UploadFlow';
+import { pickAndRead, UploadFlow } from '@/components/upload/UploadFlow';
 import { useAuth } from '@/lib/auth';
 import { WIDE_MIN } from '@/lib/dashboard';
 import { useAccounts, useImports } from '@/lib/queries';
@@ -43,14 +43,15 @@ export default function UploadScreen() {
   if (state.status === 'signedOut') return <Redirect href="/login" />;
 
   const Layout = wide ? WideLayout : PhoneLayout;
+  const reread = (h: ImportSummary) => void pickAndRead(flow, h);
   return (
-    <Layout history={history}>
+    <Layout history={<History items={history} onReread={reread} />}>
       <UploadFlow flow={flow} accounts={accounts} />
     </Layout>
   );
 }
 
-type LayoutProps = { history: ImportSummary[]; children: ReactNode };
+type LayoutProps = { history: ReactNode; children: ReactNode };
 
 // On a computer: the upload flow, and next to it what was sent before and which banks
 // the app can read.
@@ -62,7 +63,7 @@ function WideLayout({ history, children }: LayoutProps) {
         <View style={styles.wideMain}>{children}</View>
         <View style={styles.aside}>
           <SupportedBanks />
-          <History items={history} />
+          {history}
         </View>
       </View>
     </ScrollView>
@@ -79,7 +80,7 @@ function PhoneLayout({ history, children }: LayoutProps) {
         <Text style={styles.title}>Enviar extrato</Text>
         {children}
         <SupportedBanks />
-        <History items={history} />
+        {history}
       </View>
     </ScrollView>
   );

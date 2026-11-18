@@ -39,4 +39,5 @@ export const summary = builder<ImportSummary>(() => ({
   created_at: '2026-11-10T10:00:00Z',
   finished_at: null,
   to_review: 0,
+  lines: 1,
 }));

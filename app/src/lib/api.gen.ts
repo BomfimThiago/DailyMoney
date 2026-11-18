@@ -332,6 +332,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/imports/{import_id}/undo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Undo
+     * @description Takes a sent statement back, with every line that came from it.
+     */
+    post: operations['undo_api_v1_imports__import_id__undo_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/bank-requests': {
     parameters: {
       query?: never;
@@ -497,7 +517,11 @@ export interface paths {
     get: operations['list_transactions_api_v1_transactions_get'];
     put?: never;
     post?: never;
-    delete?: never;
+    /**
+     * Delete All
+     * @description Deletes every transaction; `expected` is the number the person confirmed.
+     */
+    delete: operations['delete_all_api_v1_transactions_delete'];
     options?: never;
     head?: never;
     patch?: never;
@@ -614,6 +638,46 @@ export interface paths {
     };
     /** Transfers */
     get: operations['transfers_api_v1_transactions_transfers_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/transactions/movements': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Movements
+     * @description Money that only changed place in the month, and whether it all came back.
+     */
+    get: operations['movements_api_v1_transactions_movements_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/transactions/purge': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Purge Overview
+     * @description What deleting every transaction would take away.
+     */
+    get: operations['purge_overview_api_v1_transactions_purge_get'];
     put?: never;
     post?: never;
     delete?: never;
@@ -854,6 +918,8 @@ export interface components {
       /** File */
       file: string;
       default_currency?: components['schemas']['Currency'] | null;
+      /** Replaces */
+      replaces?: string | null;
     };
     /**
      * BrazilFinishOut
@@ -1011,6 +1077,8 @@ export interface components {
       accounts: components['schemas']['AccountChoice'][];
       /** Since */
       since?: string | null;
+      /** Replaces */
+      replaces?: string | null;
     };
     /** ConnectedAccount */
     ConnectedAccount: {
@@ -1339,6 +1407,16 @@ export interface components {
        * @default 0
        */
       to_review: number;
+      /**
+       * Lines
+       * @default 0
+       */
+      lines: number;
+    };
+    /** ImportUndone */
+    ImportUndone: {
+      /** Removed */
+      removed: number;
     };
     /** InvestmentMonth */
     InvestmentMonth: {
@@ -1552,6 +1630,45 @@ export interface components {
        */
       to_review: number;
     };
+    /** MovementGroup */
+    MovementGroup: {
+      currency: components['schemas']['Currency'];
+      /** Rows */
+      rows: components['schemas']['MovementRow'][];
+      /** Went Out */
+      went_out: string;
+      /** Came In */
+      came_in: string;
+      /** Net */
+      net: string;
+      /**
+       * Result
+       * @enum {string}
+       */
+      result: 'closed' | 'out' | 'in';
+    };
+    /** MovementRow */
+    MovementRow: {
+      /** Name */
+      name: string | null;
+      /** Color */
+      color: string | null;
+      /** Went Out */
+      went_out: string;
+      /** Came In */
+      came_in: string;
+      /** Net */
+      net: string;
+      /** Count */
+      count: number;
+    };
+    /** MovementsOverview */
+    MovementsOverview: {
+      /** Month */
+      month: string;
+      /** Groups */
+      groups: components['schemas']['MovementGroup'][];
+    };
     /** NewAccount */
     NewAccount: {
       /** Name */
@@ -1647,6 +1764,8 @@ export interface components {
       };
       /** Since */
       since?: string | null;
+      /** Replaces */
+      replaces?: string | null;
     };
     /** PreviewRow */
     PreviewRow: {
@@ -1670,6 +1789,22 @@ export interface components {
        */
       status: 'new' | 'duplicate' | 'skipped';
       kind: components['schemas']['TxKind'];
+    };
+    /** PurgeOverview */
+    PurgeOverview: {
+      /** Transactions */
+      transactions: number;
+      /** To Review */
+      to_review: number;
+      /** Imports */
+      imports: number;
+      /** Banks */
+      banks: number;
+    };
+    /** PurgeResult */
+    PurgeResult: {
+      /** Removed */
+      removed: number;
     };
     /** Recurring */
     Recurring: {
@@ -2669,6 +2804,37 @@ export interface operations {
       };
     };
   };
+  undo_api_v1_imports__import_id__undo_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        import_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ImportUndone'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   list_bank_requests_api_v1_bank_requests_get: {
     parameters: {
       query?: never;
@@ -2984,6 +3150,37 @@ export interface operations {
       };
     };
   };
+  delete_all_api_v1_transactions_delete: {
+    parameters: {
+      query: {
+        expected: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PurgeResult'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
   totals_api_v1_transactions_totals_get: {
     parameters: {
       query?: {
@@ -3202,6 +3399,58 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  movements_api_v1_transactions_movements_get: {
+    parameters: {
+      query: {
+        month: string;
+        currency?: components['schemas']['Currency'] | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MovementsOverview'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
+        };
+      };
+    };
+  };
+  purge_overview_api_v1_transactions_purge_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PurgeOverview'];
         };
       };
     };

@@ -101,7 +101,14 @@ export function TransfersBody({ page }: { page: TransactionsPage }) {
       empty=""
       textStyle={[styles.empty, styles.top]}
     >
-      {(data) => <Transfers data={data} month={page.month} onChanged={page.refreshMoney} />}
+      {(data) => (
+        <Transfers
+          data={data}
+          month={page.month}
+          onChanged={page.refreshMoney}
+          movements={page.movements.data}
+        />
+      )}
     </Loadable>
   );
 }
