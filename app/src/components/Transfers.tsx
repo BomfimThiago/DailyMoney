@@ -1,25 +1,50 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Movements } from '@/components/transactions/Movements';
+import { SectionTitle } from '@/components/ui';
 import { errorText } from '@/lib/api';
-import { dayMonth, isIncome, money } from '@/lib/format';
+import { dayMonth, isIncome, money, monthLabel } from '@/lib/format';
 import { setKind } from '@/lib/imports';
-import type { Transaction, TransferOverview, TxKind } from '@/lib/types';
+import type { MovementsOverview, Transaction, TransferOverview, TxKind } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
 // Shown above the list while "Transferências internas" is on: the lines that look like
 // money between the family's own accounts but whose other side wasn't found, each with
-// buttons to say what it was. The confirmed ones are in the list itself.
-export function Transfers({ data, onChanged }: { data: TransferOverview; onChanged: () => void }) {
-  if (!data.pending.length) return null;
+// buttons to say what it was, then the month's check (did everything that left come
+// back?). The confirmed transfers are in the list itself.
+export function Transfers({
+  data,
+  month,
+  onChanged,
+  movements,
+}: {
+  data: TransferOverview;
+  month: string;
+  onChanged: () => void;
+  movements?: MovementsOverview;
+}) {
+  const checks = movements?.groups.length ? movements : null;
+  if (!data.pending.length && !checks) return null;
+  const monthName = monthLabel(month).split(' ')[0].toLowerCase();
   return (
     <View style={styles.box}>
-      <Text style={styles.pendingTitle}>AGUARDANDO CONFIRMAR</Text>
-      <View style={styles.cards}>
-        {data.pending.map((t) => (
-          <PendingCard key={t.id} t={t} onDone={onChanged} />
-        ))}
-      </View>
+      {data.pending.length ? (
+        <>
+          <Text style={styles.pendingTitle}>AGUARDANDO CONFIRMAR</Text>
+          <View style={styles.cards}>
+            {data.pending.map((t) => (
+              <PendingCard key={t.id} t={t} onDone={onChanged} />
+            ))}
+          </View>
+        </>
+      ) : null}
+      {checks ? (
+        <>
+          <SectionTitle>Conferência de {monthName}</SectionTitle>
+          <Movements data={checks} />
+        </>
+      ) : null}
     </View>
   );
 }

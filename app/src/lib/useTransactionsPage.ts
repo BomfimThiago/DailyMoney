@@ -11,6 +11,7 @@ import {
   useRefreshMoney,
   useRegular,
   useReviewQueue,
+  useMovements,
   useTotals,
   useTransfers,
 } from './queries';
@@ -173,6 +174,7 @@ export function useTransactionsPage(aba: string | undefined) {
   const regular = useRegular(view, period.ready, query);
   const totals = useTotals(view, onList && period.ready, query);
   const transfers = useTransfers(period.month, true);
+  const movements = useMovements(period.month, withTransfers);
   const review = useReviewQueue(true);
   const categories = useCategories(true);
   const accounts = useAccounts(true);
@@ -197,6 +199,7 @@ export function useTransactionsPage(aba: string | undefined) {
     setWithTransfers,
     narrowed,
     clearAll,
+    movements,
     selectedId,
     setSelectedId,
     // The line open in the detail, from the list or from the lines waiting for review.

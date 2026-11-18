@@ -82,7 +82,14 @@ export function MoreButton({ page }: { page: TransactionsPage }) {
 // While internal transfers are shown, the ones waiting to be confirmed come first.
 export function TransfersBody({ page }: { page: TransactionsPage }) {
   if (!page.withTransfers || !page.transfers.data) return null;
-  return <Transfers data={page.transfers.data} onChanged={page.refreshMoney} />;
+  return (
+    <Transfers
+      data={page.transfers.data}
+      month={page.month}
+      onChanged={page.refreshMoney}
+      movements={page.movements.data}
+    />
+  );
 }
 
 // Phone: the detail slides up from the bottom; tapping outside closes it. The edit form

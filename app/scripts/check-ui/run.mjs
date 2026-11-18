@@ -15,7 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { fixtures, month } from './fixtures.mjs';
+import { cardPurchases, fixtures, month } from './fixtures.mjs';
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const out = process.env.OUT ?? path.join(os.tmpdir(), 'dailymoney-check-ui');
@@ -195,6 +195,12 @@ function answer(url, method) {
     recategorized.push(p.split('/').pop());
     return { status: 200, body: {} };
   }
+  if (method === 'POST' && p.startsWith('/imports/') && p.endsWith('/undo')) {
+    return { status: 200, body: { removed: 42 } };
+  }
+  if (method === 'DELETE' && p === '/transactions') {
+    return { status: 200, body: { removed: 312 } };
+  }
   if (method === 'POST' && p === '/connections/conn-wise/sync') {
     const connection = fixtures['/connections'].connections[0];
     const accounts = [{ name: 'Wise EUR', new: 4, duplicate: 2, error: null }];
@@ -258,6 +264,10 @@ function answer(url, method) {
     const body = inCurrencies(p.split('/')[2]);
     return body ? { status: 200, body } : { status: 404, body: {} };
   }
+  if (p === '/transactions' && url.searchParams.get('card_bill')) {
+    const items = cardPurchases[url.searchParams.get('card_bill')] ?? [];
+    return { status: 200, body: { total: items.length, items } };
+  }
   if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
     const waiting = url.searchParams.getAll('kind').includes('pending');
     const items = [...listed(url), ...(waiting ? fixtures['/transactions/transfers'].pending : [])];
@@ -314,6 +324,22 @@ async function checkScreens(page, tag) {
     await new Promise((r) => setTimeout(r, 150)); // a little latency, like the real API
     await route.fulfill({ status, json: body });
   });
+
+  // Envios anteriores: Desfazer asks before taking a statement back.
+  async function checkUndo() {
+    await page
+      .getByRole('button', { name: 'Desfazer', exact: true })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await page
+      .getByText(/Sai o envio e 42 transações/)
+      .filter({ visible: true })
+      .first()
+      .waitFor();
+    await shot('upload-desfazer');
+    await page.getByRole('button', { name: 'Manter' }).filter({ visible: true }).click();
+  }
 
   async function shot(name) {
     const file = path.join(out, `${tag}-${name}.png`);
@@ -537,7 +563,11 @@ async function checkScreens(page, tag) {
     await seen('AGUARDANDO CONFIRMAR').waitFor();
     await page.waitForLoadState('networkidle');
     await page.getByTestId('totals').filter({ visible: true }).waitFor();
-    await seen('A confirmar').first().waitFor().catch(() => {});
+    await seen('A confirmar')
+      .first()
+      .waitFor()
+      .catch(() => {});
+    await seen('Saiu e não voltou').waitFor();
     await shot('transacoes-transferencias');
     await transfersSwitch.click();
 
@@ -589,6 +619,7 @@ async function checkScreens(page, tag) {
       await seen('Bancos suportados').waitFor();
       await page.waitForLoadState('networkidle');
       await shot('upload');
+      await checkUndo();
       // Asking for a bank that isn't supported yet.
       await page.getByLabel('Nome do banco').fill('Santander');
       await page.getByRole('button', { name: 'Pedir' }).click();
@@ -620,12 +651,17 @@ async function checkScreens(page, tag) {
     } else {
       // The page before may still be finishing its own navigation, which aborts this
       // load now and then; one more try is enough.
-      await page.goto(`${base}/upload`).catch((e) => {
-        if (!e.message.includes('ERR_ABORTED')) throw e;
-        return page.goto(`${base}/upload`);
-      });
+      // Opened from Início's button: loading /upload directly lands back on Início.
+      await tab('Início').click();
+      await page
+        .getByRole('button', { name: 'Enviar extrato' })
+        .filter({ visible: true })
+        .first()
+        .click();
+      await seen('Envios anteriores').waitFor();
       await page.waitForLoadState('networkidle');
       await shot('upload');
+      await checkUndo();
       await page.goto(`${base}/conexoes`);
       await seen('Bancos conectados').waitFor();
       await page.waitForLoadState('networkidle');
@@ -675,6 +711,15 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Editar Ana' }).click();
     await seen('Excluir pessoa').waitFor();
     await shot('responsaveis-editar');
+    // Cartões: this month's bill (paid), the next one and the purchases with "3/10".
+    await page.goto(`${base}/cartoes`);
+    await seen('NUBANK CARTÃO').waitFor();
+    await seen('Tok&Stok').waitFor();
+    await page.waitForLoadState('networkidle');
+    await shot('cartoes');
+    await page.getByTestId('segment-next').filter({ visible: true }).click();
+    await seen('Amazon').waitFor();
+    await shot('cartoes-proxima');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();
@@ -683,6 +728,15 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Salvar início do mês' }).click();
     await seen('O mês agora começa no dia 27.').waitFor({ timeout: 5000 });
     await shot('ajustes-salvo');
+    // Apagar todas: the button works only after typing APAGAR.
+    await page.getByRole('button', { name: 'Apagar todas…' }).click();
+    await seen(/Vão embora 312 transações/).waitFor();
+    const purge = page.getByRole('button', { name: 'Apagar 312 transações' });
+    if (await purge.isEnabled()) flag('apagar tudo funciona sem digitar APAGAR');
+    await page.getByLabel('Digite APAGAR para confirmar').fill('apagar');
+    await shot('ajustes-apagar-tudo');
+    await purge.click();
+    await seen('Pronto: 312 transações apagadas.').waitFor({ timeout: 3000 });
     await page.goto(`${base}/`);
     await seen(/\d+ \w{3} – \d+ \w{3}/).waitFor({ timeout: 5000 });
     await page.waitForLoadState('networkidle');

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
+import { CardBillLink } from '@/components/cards/CardBills';
 import { CurrencyChips } from '@/components/CurrencyChips';
 import { MonthNav } from '@/components/nav';
 import { Loadable } from '@/components/states';
@@ -47,6 +48,7 @@ export function PhoneHome({ home, signOut }: { home: Home; signOut: () => void }
           </Loadable>
           <ReviewLink count={home.summary?.to_review ?? 0} style={styles.pending} />
           <PendingLink count={home.summary?.pending_transfers ?? 0} style={styles.pending} />
+          {noAccounts ? null : <CardBillLink style={styles.pending} />}
           {noAccounts || !home.shown ? null : <Cards month={home.month} shown={home.shown} />}
           {noAccounts ? null : <Recent month={home.month} />}
           <View style={styles.footer}>

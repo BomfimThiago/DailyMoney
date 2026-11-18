@@ -50,6 +50,7 @@ export type GroupCounts = S['GroupCounts'];
 export type PreviewGroup = S['PreviewGroup'];
 export type ImportPreview = S['ImportPreview'];
 export type ImportSummary = S['ImportSummary'];
+export type ImportUndone = S['ImportUndone'];
 
 // Stricter than the schema: either an existing account or a new one, never both.
 export type AccountChoice =
@@ -64,11 +65,21 @@ export type InvestmentProduct = S['InvestmentProduct'];
 export type InvestmentMonth = S['InvestmentMonth'];
 export type InvestmentTotal = S['InvestmentTotal'];
 export type InvestmentOverview = S['InvestmentOverview'];
+// Credit card bills: the bill of a month (paid or not) and the next one, per card.
+export type CardBill = S['CardBill'];
+export type CardBills = S['CardBills'];
+export type CardBillsOverview = S['CardBillsOverview'];
+
 // The bank's own investment balances (Pluggy), as read on the last sync.
 export type Portfolio = S['PortfolioOut'];
 export type PortfolioClass = S['ClassOut'];
 export type PortfolioPosition = S['PositionOut'];
 export type Transfer = S['TransferOut'];
 export type TransferOverview = S['TransferOverview'];
+export type MovementRow = S['MovementRow'];
+export type MovementGroup = S['MovementGroup'];
+export type MovementsOverview = S['MovementsOverview'];
+export type PurgeOverview = S['PurgeOverview'];
+export type PurgeResult = S['PurgeResult'];
 export type Analysis = S['Analysis'];
 export type CurrencyAnalysis = S['CurrencyAnalysis'];

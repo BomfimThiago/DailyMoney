@@ -149,6 +149,7 @@ const importDone = (filename, format, bank, imported, duplicates, d) => ({
   created_at: `${day(d)}T12:00:00Z`,
   finished_at: `${day(d)}T12:00:05Z`,
   to_review: 0,
+  lines: imported,
 });
 
 const family = {
@@ -270,7 +271,58 @@ const portfolio = {
   })),
 };
 
+// A Nubank card: this month's bill (purchases made last month, one split in 10), paid,
+// and next month's bill filling up.
+const card = {
+  id: 'acc-nu-card',
+  name: 'Nubank cartão',
+  bank: 'Nubank',
+  currency: 'BRL',
+  is_card: true,
+  member_id: 'mem-1',
+};
+const prev = ym(-1);
+const next = ym(1);
+const cardTx = (date, description, amount, category, bill, installment = null) => ({
+  ...tx(card, 1, description, amount, 'regular', category),
+  date,
+  card_bill: bill,
+  installment,
+});
+export const cardPurchases = {
+  [month]: [
+    cardTx(`${prev}-27`, 'Zara', '-389.90', 'Roupas', month),
+    cardTx(`${prev}-24`, 'Tok&Stok', '-249.00', 'Casa', month, '3/10'),
+    cardTx(`${prev}-19`, 'Posto Shell', '-210.00', 'Transporte', month),
+    cardTx(`${prev}-15`, 'Spotify', '-21.90', 'Assinaturas', month),
+    cardTx(`${prev}-11`, 'Decolar', '-612.00', 'Viagem', month, '2/6'),
+  ],
+  [next]: [
+    cardTx(day(9), 'Amazon', '-159.90', 'Compras', next),
+    cardTx(day(6), 'Tok&Stok', '-249.00', 'Casa', next, '4/10'),
+    cardTx(day(3), 'Decolar', '-612.00', 'Viagem', next, '3/6'),
+  ],
+};
+
 export const fixtures = {
+  '/transactions/card-bills': {
+    month,
+    bills_known: true,
+    cards: [
+      {
+        account_id: card.id,
+        account_name: card.name,
+        bank: card.bank,
+        currency: 'BRL',
+        bill: { month, total: '1482.80', count: 5 },
+        next: { month: next, total: '1020.90', count: 3 },
+        payments: [{ date: day(10), amount: '1482.80' }],
+        paid: '1482.80',
+        status: 'paid',
+        months: [next, month, prev],
+      },
+    ],
+  },
   '/portfolio': portfolio,
   '/auth/me': {
     id: 'user-1',
@@ -559,6 +611,39 @@ export const fixtures = {
     })),
     movements: investments,
   },
+  // Transferências > Conferência: the card bill closed, R$ 400 went to an account not in
+  // the app.
+  '/transactions/movements': {
+    month,
+    groups: [
+      {
+        currency: 'BRL',
+        rows: [
+          {
+            name: 'Transferência',
+            color: '#8a8799',
+            went_out: '2600.00',
+            came_in: '2200.00',
+            net: '-400.00',
+            count: 5,
+          },
+          {
+            name: 'Pagamento de cartão',
+            color: '#6f8fb8',
+            went_out: '1850.00',
+            came_in: '1850.00',
+            net: '0.00',
+            count: 2,
+          },
+        ],
+        went_out: '4450.00',
+        came_in: '4050.00',
+        net: '-400.00',
+        result: 'out',
+      },
+    ],
+  },
+  '/transactions/purge': { transactions: 312, to_review: 12, imports: 5, banks: 2 },
   '/transactions/transfers': {
     month,
     pending,

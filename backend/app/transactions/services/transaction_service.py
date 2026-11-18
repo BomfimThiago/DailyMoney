@@ -64,6 +64,8 @@ class Filters:
     q: str | None = None
     direction: Direction | None = None
     account_currency: Currency | None = None
+    # A card's bill (YYYY-MM): the purchases charged in it, whatever day they were made.
+    card_bill: str | None = None
 
 
 # The household ("Casa") has no member id; a filter for its lines uses this word instead.
@@ -99,6 +101,8 @@ async def _where(
         where.append(Transaction.member_id.is_(None))
     elif f.member is not None:
         where.append(Transaction.member_id == f.member)
+    if f.card_bill is not None:
+        where.append(Transaction.card_bill == f.card_bill)
     if f.q and (text := f.q.strip()):
         # The person's words are matched literally, so % and _ mean themselves.
         pattern = "%" + text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
@@ -397,8 +401,15 @@ def _moves_money(category: Category) -> bool:
 async def delete_transaction(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> None:
     """Removes a line for good; the other side of a transfer goes back to waiting."""
     tx = await _get(db, family_id, tx_id)
-    await _unpair(db, tx)
-    await db.delete(tx)
+    await delete_lines(db, [tx])
+
+
+async def delete_lines(db: AsyncSession, txs: list[Transaction]) -> None:
+    """Removes lines for good; the other side of each transfer goes back to waiting."""
+    for tx in txs:
+        await _unpair(db, tx)
+    for tx in txs:
+        await db.delete(tx)
     await db.flush()
 
 
@@ -498,6 +509,8 @@ def to_out(
         category_name=category_name,
         member_id=tx.member_id,
         review=tx.review,
+        card_bill=tx.card_bill,
+        installment=tx.installment,
     )
 
 

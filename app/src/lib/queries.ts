@@ -9,6 +9,7 @@ import { AppState, Platform } from 'react-native';
 
 import {
   getAnalysis,
+  getCardBills,
   getConnections,
   getDashboard,
   getInvestments,
@@ -17,6 +18,7 @@ import {
   getPortfolio,
   getReviewQueue,
   getSummary,
+  getMovements,
   getTotals,
   getTransfers,
   listBankRequests,
@@ -131,6 +133,36 @@ export function useInvestments(month: string, enabled: boolean) {
   return useQuery({
     queryKey: ['money', 'investments', month, currency],
     queryFn: () => getInvestments(month, currency),
+    enabled,
+  });
+}
+
+// Money that only changed place in the month, in the chosen currency.
+export function useMovements(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'movements', month, currency],
+    queryFn: () => getMovements(month, currency),
+    enabled,
+  });
+}
+
+// Each card's bill of a calendar month (paid or not) and the next one.
+export function useCardBills(month: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'card-bills', month, currency],
+    queryFn: () => getCardBills(month, currency),
+    enabled,
+  });
+}
+
+// The purchases charged in one bill of one card.
+export function useBillPurchases(accountId: string, bill: string, enabled: boolean) {
+  const { currency } = useDisplayCurrency();
+  return useQuery({
+    queryKey: ['money', 'bill-purchases', accountId, bill, currency],
+    queryFn: () => listTransactions({ accountId, cardBill: bill, limit: 200, currency }),
     enabled,
   });
 }

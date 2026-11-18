@@ -37,7 +37,7 @@ beforeEach(() => {
 
 describe('Transfers', () => {
   it('asks about a Pix out with the spending wording', async () => {
-    await render(<Transfers data={overview()} onChanged={jest.fn()} />);
+    await render(<Transfers data={overview()} month="2026-11" onChanged={jest.fn()} />);
     expect(screen.getByText('AGUARDANDO CONFIRMAR')).toBeTruthy();
     expect(screen.getByText(/Saiu do Nubank · 8 nov/)).toBeTruthy();
     expect(screen.getByText('Foi um gasto')).toBeTruthy();
@@ -46,7 +46,9 @@ describe('Transfers', () => {
 
   it('asks about money in with the income wording', async () => {
     const incoming = { ...pix, amount: '400.0000' };
-    await render(<Transfers data={overview({ pending: [incoming] })} onChanged={jest.fn()} />);
+    await render(
+      <Transfers data={overview({ pending: [incoming] })} month="2026-11" onChanged={jest.fn()} />,
+    );
     expect(screen.getByText(/Entrou no Nubank/)).toBeTruthy();
     expect(screen.getByText('Foi uma entrada')).toBeTruthy();
     expect(screen.getByText('Foi um resgate')).toBeTruthy();
@@ -59,7 +61,7 @@ describe('Transfers', () => {
   ])('"%s" saves %s and refreshes', async (label, kind) => {
     mockSetKind.mockResolvedValue({ ...pix, kind } as Transaction);
     const onChanged = jest.fn();
-    await render(<Transfers data={overview()} onChanged={onChanged} />);
+    await render(<Transfers data={overview()} month="2026-11" onChanged={onChanged} />);
     await fireEvent.press(screen.getByText(label));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(mockSetKind).toHaveBeenCalledWith('tx-1', kind);
@@ -68,14 +70,16 @@ describe('Transfers', () => {
   it('shows the API message when saving fails', async () => {
     mockSetKind.mockRejectedValue(new ApiError(422, 'Não foi possível salvar'));
     const onChanged = jest.fn();
-    await render(<Transfers data={overview()} onChanged={onChanged} />);
+    await render(<Transfers data={overview()} month="2026-11" onChanged={onChanged} />);
     await fireEvent.press(screen.getByText('Foi um gasto'));
     expect(await screen.findByText('Não foi possível salvar')).toBeTruthy();
     expect(onChanged).not.toHaveBeenCalled();
   });
 
   it('shows nothing when no line waits to be confirmed', async () => {
-    await render(<Transfers data={overview({ pending: [] })} onChanged={jest.fn()} />);
+    await render(
+      <Transfers data={overview({ pending: [] })} month="2026-11" onChanged={jest.fn()} />,
+    );
     expect(screen.queryByText('AGUARDANDO CONFIRMAR')).toBeNull();
   });
 });

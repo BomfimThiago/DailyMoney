@@ -32,6 +32,12 @@ describe('TxRow', () => {
     expect(await shown({})).toEqual({ sub: 'Mercado · Nubank · 4 nov', amount: '-R$ 312,40' });
   });
 
+  it('shows the installment of a card purchase', async () => {
+    expect((await shown({ installment: '3/10' })).sub).toBe(
+      'Mercado · Nubank · 4 nov · parcela 3/10',
+    );
+  });
+
   it('shows income with a plus sign', async () => {
     expect((await shown({ amount: '8500.0000', category_name: 'Salário' })).amount).toBe(
       '+R$ 8.500,00',

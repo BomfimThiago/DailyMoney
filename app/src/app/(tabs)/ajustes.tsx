@@ -2,13 +2,14 @@ import { Link } from 'expo-router';
 import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { styles } from '@/components/connections/styles';
+import { DeleteAllSetting } from '@/components/settings/DeleteAllSetting';
 import { MonthStartPicker } from '@/components/settings/MonthStartPicker';
 import { ReviewImportsSetting } from '@/components/settings/ReviewImportsSetting';
 import { signedInPage } from '@/components/states';
 import { WIDE_MIN } from '@/lib/dashboard';
 
-// Ajustes: the family's settings: the day the month starts on, and whether imports wait
-// for approval.
+// Ajustes: the family's settings: the day the month starts on, whether imports wait
+// for approval, and starting over without any transaction.
 export default signedInPage(Settings);
 
 function Settings() {
@@ -28,6 +29,7 @@ function Settings() {
         <View style={styles.gap}>
           <MonthStartPicker />
           <ReviewImportsSetting />
+          <DeleteAllSetting />
         </View>
       </View>
     </ScrollView>

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Small } from '@/components/transactions/Review';
 import { DeleteConfirm, TxEditForm } from '@/components/transactions/TxEditForm';
 import { errorText } from '@/lib/api';
-import { fullDate, isIncome, money } from '@/lib/format';
+import { fullDate, isIncome, money, monthLabel } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
 import { useLineCurrencies } from '@/lib/queries';
 import { lineAmounts } from '@/lib/transactions';
@@ -31,6 +31,8 @@ export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => vo
       <View style={styles.facts}>
         <Fact label="Data" value={fullDate(t.date)} />
         <Fact label="Conta" value={`${t.account_name} · ${t.currency}`} />
+        {t.card_bill ? <Fact label="Fatura" value={monthLabel(t.card_bill)} /> : null}
+        {t.installment ? <Fact label="Parcela" value={t.installment.replace('/', ' de ')} /> : null}
       </View>
       <InCurrencies t={t} />
       {t.review === 'pending' ? <Waiting t={t} onDone={onChanged} /> : null}
