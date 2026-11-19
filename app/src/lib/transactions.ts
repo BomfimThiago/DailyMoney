@@ -1,5 +1,5 @@
 // What the transactions page derives from its answers, kept apart from the page for tests.
-import { money } from './format';
+import { isIncome, money } from './format';
 import type { TxFilters, TxSort } from './imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from './people';
 import { parseDate } from './txEdit';
@@ -15,6 +15,16 @@ import type {
 } from './types';
 
 export type Option = { id: string; name: string };
+
+// How a line's value is coloured: spending in red so it stands apart from income (green),
+// investments (blue) and money that only moved between own accounts (grey).
+export type AmountTone = 'spend' | 'income' | 'invest' | 'moved';
+
+export function amountTone(t: { kind: TxKind; amount: string }): AmountTone {
+  if (t.kind === 'investment') return 'invest';
+  if (t.kind === 'transfer' || t.kind === 'pending') return 'moved';
+  return isIncome(t.amount) ? 'income' : 'spend';
+}
 
 // A line's amount in the currency the screen shows and, when it was converted, the amount
 // the statement has. "plain" drops the sign (money that only moved).
@@ -261,6 +271,8 @@ export function totalsFigures(t: CurrencyTotals) {
     count: countText(t.count),
     // Green only when there is income; R$ 0,00 stays plain.
     hasIncome: Number(t.income) > 0,
+    // Red only when something went out, like each spending line in the list.
+    hasSpending: Number(t.spending) > 0,
   };
 }
 

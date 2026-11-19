@@ -47,7 +47,7 @@ function Figures({ t, label, wide }: { t: CurrencyTotals; label: string; wide: b
       </View>
       <View style={[s.figures, !wide && s.figuresPhone]}>
         <Figure label="Entradas" value={f.income} income={f.hasIncome} wide={wide} />
-        <Figure label="Saídas" value={f.spending} wide={wide} />
+        <Figure label="Saídas" value={f.spending} spend={f.hasSpending} wide={wide} />
         <Figure label="Saldo" value={f.balance} wide={wide} />
       </View>
     </View>
@@ -58,11 +58,13 @@ function Figure({
   label,
   value,
   income,
+  spend,
   wide,
 }: {
   label: string;
   value: string;
   income?: boolean;
+  spend?: boolean;
   wide: boolean;
 }) {
   // On a phone three big numbers don't fit side by side: one per line, label on the left.
@@ -70,7 +72,7 @@ function Figure({
     <View style={wide ? s.figure : s.figurePhone}>
       <Text style={s.figureLabel}>{label}</Text>
       <Text
-        style={[s.figureValue, !wide && s.figureValuePhone, income && s.income]}
+        style={[s.figureValue, !wide && s.figureValuePhone, income && s.income, spend && s.spend]}
         numberOfLines={1}
       >
         {value}
@@ -166,6 +168,7 @@ const s = StyleSheet.create({
   figureValue: { fontFamily: fonts.regular, fontSize: 24, color: colors.ink },
   figureValuePhone: { fontSize: 18 },
   income: { color: colors.positive },
+  spend: { color: colors.negative },
   note: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   groups: {
     borderTopWidth: 1,

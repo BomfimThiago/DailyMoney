@@ -5,6 +5,7 @@ import { dayMonth, isIncome } from '@/lib/format';
 import type { TxSort } from '@/lib/imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from '@/lib/people';
 import {
+  amountTone,
   lineAmounts,
   movedLabel,
   nextSort,
@@ -113,15 +114,7 @@ export function TxTable({
                 {t.account_name}
               </Text>
               <View style={styles.valueBox}>
-                <Text
-                  style={[
-                    styles.td,
-                    styles.value,
-                    income && styles.income,
-                    invest && styles.invest,
-                    moved && styles.muted,
-                  ]}
-                >
+                <Text style={[styles.td, styles.value, toneStyle[amountTone(t)]]}>
                   {amount.shown}
                 </Text>
                 {amount.original ? <Text style={styles.original}>{amount.original}</Text> : null}
@@ -203,6 +196,7 @@ const styles = StyleSheet.create({
   rowOn: { backgroundColor: colors.soft, borderRadius: 8 },
   td: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink },
   muted: { color: colors.muted },
+  spend: { color: colors.negative },
   income: { color: colors.positive },
   invest: { color: colors.invest },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 7 },
@@ -212,3 +206,10 @@ const styles = StyleSheet.create({
   dotMoved: { backgroundColor: colors.line },
   tagText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: colors.ink },
 });
+
+const toneStyle = {
+  spend: styles.spend,
+  income: styles.income,
+  invest: styles.invest,
+  moved: styles.muted,
+};

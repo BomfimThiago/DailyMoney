@@ -7,7 +7,7 @@ import { errorText } from '@/lib/api';
 import { fullDate, isIncome, money, monthLabel } from '@/lib/format';
 import { decideReview, deleteTransaction } from '@/lib/imports';
 import { useLineCurrencies } from '@/lib/queries';
-import { lineAmounts } from '@/lib/transactions';
+import { amountTone, lineAmounts } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -17,12 +17,15 @@ import { colors, fonts } from '@/theme';
 export function TxDetail({ t, onChanged }: { t: Transaction; onChanged: () => void }) {
   const [deleting, setDeleting] = useState(false);
   const incoming = isIncome(t.amount);
+  const spending = amountTone(t) === 'spend';
   const amount = lineAmounts(t);
 
   return (
     <View style={styles.box}>
       <Text style={styles.title}>{t.description}</Text>
-      <Text style={[styles.amount, incoming && styles.income]}>{amount.shown}</Text>
+      <Text style={[styles.amount, incoming && styles.income, spending && styles.spend]}>
+        {amount.shown}
+      </Text>
       {amount.original ? (
         <Text style={styles.original}>
           {amount.original} no extrato, convertido pela cotação do Banco Central Europeu do dia
@@ -170,6 +173,7 @@ const styles = StyleSheet.create({
   amount: { fontFamily: fonts.regular, fontSize: 26, color: colors.ink },
   original: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, marginTop: -4 },
   income: { color: colors.positive },
+  spend: { color: colors.negative },
   facts: { gap: 6, marginTop: 2 },
   fact: { flexDirection: 'row', gap: 12 },
   factLabel: { width: 56, fontFamily: fonts.regular, fontSize: 13, color: colors.muted },
