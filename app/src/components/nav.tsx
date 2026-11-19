@@ -89,6 +89,8 @@ export function SideBar() {
         {DATA_PAGES.map((t) => (
           <SideLink key={t.href} label={t.label} href={t.href} on={isOn(t.href, path)} />
         ))}
+        <Text style={styles.sideGroup}>AJUDA</Text>
+        <SideLink label="Dúvidas" href="/duvidas" on={isOn('/duvidas', path)} />
       </View>
       <View style={styles.me}>
         <View style={styles.avatar}>

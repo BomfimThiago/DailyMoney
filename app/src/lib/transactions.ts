@@ -303,3 +303,9 @@ export function emptyListText(filtered: boolean, period: PeriodKind = 'month'): 
   if (filtered) return 'Nada encontrado com esses filtros.';
   return period === 'month' ? 'Nenhum gasto ou entrada neste mês.' : 'Nenhum gasto ou entrada.';
 }
+
+// What a line that only moved money is called: its category when it has one ("Pago de
+// Cartão de Crédito" says the money paid a bill), otherwise the generic name.
+export function movedLabel(t: Transaction, generic: string): string {
+  return t.kind === 'transfer' && t.category_name ? t.category_name : generic;
+}

@@ -35,6 +35,7 @@ const accounts = {
 };
 
 let n = 0;
+const CARD = 'Pago de Cartão de Crédito';
 const tx = (account, d, description, amount, kind = 'regular', category = null) => ({
   id: `tx-${++n}`,
   date: day(d),
@@ -64,7 +65,11 @@ const regular = [
   tx(accounts.nubank, 18, 'iFood', '-64.50', 'regular', 'Restaurantes'),
   tx(accounts.nubank, 12, 'Farmácia São Paulo', '-89.10', 'regular', 'Saúde'),
   tx(accounts.inter, 5, 'Aluguel', '-2800.00', 'regular', 'Casa'),
+  // A card the app doesn't read: its payment is the only trace of the purchases, so it counts.
+  tx(accounts.inter, 9, 'Pagamento fatura cartão Itaú', '-1850.00', 'regular', CARD),
 ];
+// Paying the Nubank card, which is in the app: out of spending, under its own category.
+const moved = [tx(accounts.nubank, 10, 'Pagamento de fatura', '-1200.00', 'transfer', CARD)];
 const investments = [
   tx(accounts.nubank, 20, 'Aplicação RDB', '-1500.00', 'investment', 'Investimento'),
   tx(
@@ -431,6 +436,16 @@ export const fixtures = {
       transaction_count: 5,
       rule_count: 0,
     },
+    {
+      id: `cat-${CARD}`,
+      name: CARD,
+      kind: 'transfer',
+      color: '#7b8794',
+      is_default: true,
+      key: CARD,
+      transaction_count: 4,
+      rule_count: 0,
+    },
   ],
   '/categories/cat-Mercado/rules': [
     { id: 'rule-1', merchant: 'pao de acucar' },
@@ -617,8 +632,8 @@ export const fixtures = {
             count: 5,
           },
           {
-            name: 'Pagamento de cartão',
-            color: '#6f8fb8',
+            name: CARD,
+            color: '#7b8794',
             went_out: '1850.00',
             came_in: '1850.00',
             net: '0.00',
@@ -664,8 +679,11 @@ export const fixtures = {
     ],
   },
   '/transactions': {
-    total: regular.length + investments.length + pending.length,
-    items: [...regular, ...investments, ...pending].sort((a, b) => b.date.localeCompare(a.date)),
+    total: regular.length + investments.length + pending.length + moved.length,
+    items: [...regular, ...investments, ...pending, ...moved].sort((a, b) =>
+      b.date.localeCompare(a.date),
+    ),
   },
   regular: { total: counted.length, items: counted },
+  moved,
 };

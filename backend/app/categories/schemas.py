@@ -19,6 +19,8 @@ class CategoryOut(BaseModel):
     color: str
     # Seeded with the family; the app's suggestions land in it.
     is_default: bool = False
+    # The default name the app knows it by ("Pago de Cartão de Crédito"), kept on renames.
+    key: str | None = None
     transaction_count: int = 0
     # Merchants the app learned to send to this category.
     rule_count: int = 0

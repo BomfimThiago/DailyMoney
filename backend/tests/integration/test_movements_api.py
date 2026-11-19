@@ -28,7 +28,7 @@ async def test_bill_payment_with_both_sides_closes(client: AsyncClient) -> None:
     assert group["went_out"] == "500.0000"
     assert group["came_in"] == "500.0000"
     [row] = group["rows"]
-    assert row["name"] == "Transferência"
+    assert row["name"] == "Pago de Cartão de Crédito"
     assert row["count"] == 2
 
 

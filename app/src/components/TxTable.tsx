@@ -4,7 +4,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { dayMonth, isIncome } from '@/lib/format';
 import type { TxSort } from '@/lib/imports';
 import { HOUSEHOLD, HOUSEHOLD_ID } from '@/lib/people';
-import { lineAmounts, nextSort, type Option, type SortColumn, sortArrow } from '@/lib/transactions';
+import {
+  lineAmounts,
+  movedLabel,
+  nextSort,
+  type Option,
+  type SortColumn,
+  sortArrow,
+} from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -96,7 +103,7 @@ export function TxTable({
                   ]}
                 />
                 <Text style={styles.tagText} numberOfLines={1}>
-                  {moved ? 'Transferência interna' : (t.category_name ?? 'Outros')}
+                  {moved ? movedLabel(t, 'Transferência interna') : (t.category_name ?? 'Outros')}
                 </Text>
               </View>
               <Text style={[styles.td, styles.muted, styles.colWho]} numberOfLines={1}>

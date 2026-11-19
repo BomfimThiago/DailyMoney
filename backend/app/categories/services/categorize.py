@@ -13,6 +13,10 @@ TRANSFER = "Transferência"
 # Money put into or taken out of an investment: it counts as spending or income too,
 # because what is redeemed and not reinvested ends up spent.
 INVESTMENT = "Investimento"
+# Paying a credit card bill: money going from the account to the card. The purchases
+# already counted on the day they were made, so the payment stays out of spending
+# (unless the card isn't in the app; see transactions/services/card_payments.py).
+CARD_PAYMENT = "Pago de Cartão de Crédito"
 INCOME = "Renda"
 OTHER = "Outros"
 
@@ -29,6 +33,7 @@ DEFAULT_CATEGORIES: list[tuple[str, str, str]] = [
     (INCOME, "income", "#5f9f6b"),
     (INVESTMENT, "expense", "#3d5ac2"),
     (TRANSFER, "transfer", "#8a8799"),
+    (CARD_PAYMENT, "transfer", "#7b8794"),
 ]
 
 _KEYWORDS: list[tuple[str, re.Pattern[str]]] = [

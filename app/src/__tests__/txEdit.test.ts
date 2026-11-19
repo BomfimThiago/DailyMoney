@@ -8,8 +8,10 @@ import {
   formOf,
   parseAmount,
   parseDate,
+  needsKindCall,
   patchOf,
   withDirection,
+  withKind,
 } from '@/lib/txEdit';
 import { category } from '@/testing/categories';
 
@@ -110,5 +112,29 @@ describe('txEdit', () => {
     ).toEqual({ description: 'Mercado', date: '2026-12-01' });
     expect(patchOf(tx(), { ...formOf(tx()), direction: 'in' })).toEqual({ amount: '1312.40' });
     expect(patchOf(tx(), { ...formOf(tx()), amount: '20' })).toEqual({ amount: '-20' });
+  });
+
+  it('a line in the card payment category opens as one and saves only its category', () => {
+    const paid = tx({ category_id: 'card' });
+    expect(formOf(paid, 'card').kind).toBe('card');
+    expect(formOf(paid).kind).toBe('regular');
+    const form = { ...formOf(tx(), 'card'), kind: 'card' as const };
+    expect(patchOf(tx(), form, 'card')).toEqual({ category_id: 'card', apply_to_merchant: false });
+    expect(patchOf(paid, formOf(paid, 'card'), 'card')).toEqual({});
+  });
+
+  it('leaving card payment drops its category', () => {
+    const form = formOf(tx({ category_id: 'card' }), 'card');
+    expect(withKind(form, 'regular', 'card')).toMatchObject({ kind: 'regular', categoryId: null });
+    expect(withKind(formOf(tx()), 'card', 'card').categoryId).toBe('c');
+  });
+
+  it('calls for the kind only when the category does not already say it', () => {
+    const base = formOf(tx({ kind: 'transfer' }));
+    const regular = { ...base, kind: 'regular' as const };
+    expect(needsKindCall(regular, base, {})).toBe(true);
+    expect(needsKindCall(regular, base, { category_id: 'x' })).toBe(false);
+    expect(needsKindCall({ ...base, kind: 'card' }, base, {})).toBe(false);
+    expect(needsKindCall(base, base, {})).toBe(false);
   });
 });

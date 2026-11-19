@@ -137,7 +137,7 @@ async def test_card_bill_payment_is_paired_as_transfer(client: AsyncClient) -> N
     assert group["suggested_name"] == "Nubank cartão"
     rows = {r["description"]: r for r in card["rows"]}
     assert rows["Pagamento recebido"]["kind"] == "transfer"
-    assert rows["Pagamento recebido"]["category"] == "Transferência"
+    assert rows["Pagamento recebido"]["category"] == "Pago de Cartão de Crédito"
     assert rows["Netflix.com"]["category"] == "Assinaturas"
     assert rows["Netflix.com"]["amount"] == "-39.90"
     await _confirm(
@@ -149,7 +149,7 @@ async def test_card_bill_payment_is_paired_as_transfer(client: AsyncClient) -> N
     items = (await client.get("/api/v1/transactions", headers=h)).json()["items"]
     paid = next(t for t in items if t["description"] == "Pagamento de fatura")
     assert paid["kind"] == "transfer"
-    assert paid["category_name"] == "Transferência"
+    assert paid["category_name"] == "Pago de Cartão de Crédito"
     # The card statement writes the installment in the description.
     sofa = next(t for t in items if t["description"].startswith("Loja de Sofás"))
     assert sofa["installment"] == "3/10"
@@ -222,7 +222,7 @@ async def test_change_category_and_learn_rule(client: AsyncClient) -> None:
         client, h, up["id"], {"accounts": [{"currency": "BRL", "new_account": {"name": "Nu"}}]}
     )
     cats = {c["name"]: c["id"] for c in (await client.get("/api/v1/categories", headers=h)).json()}
-    assert len(cats) == 11
+    assert len(cats) == 12
     uber = next(
         t
         for t in (await client.get("/api/v1/transactions", headers=h)).json()["items"]

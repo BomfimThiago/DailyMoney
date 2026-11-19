@@ -31,6 +31,11 @@ function Settings() {
           <ReviewImportsSetting />
           <DeleteAllSetting />
         </View>
+        {wide ? null : (
+          <Link href="/duvidas" style={[styles.back, styles.gap]}>
+            Dúvidas: como o cartão de crédito conta ›
+          </Link>
+        )}
       </View>
     </ScrollView>
   );
