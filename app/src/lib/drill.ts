@@ -1,5 +1,6 @@
-// Links from Início's "Divisão dos gastos" into Transações: a row opens the month's
-// spending of exactly that row; "Demais" opens everything but the rows above it.
+// Links from Início into Transações: a row of "Divisão dos gastos" opens the month's
+// spending of exactly that row ("Demais" opens everything but the rows above it); a day
+// of the "Calendário de gastos" opens that day's spending.
 import type { Dim, Pick } from './transactions';
 
 // How Início names each tab of the breakdown, and the filter it becomes.
@@ -20,6 +21,7 @@ export type DrillParams = {
   ids?: string;
   excluir?: string;
   n?: string;
+  dia?: string;
 };
 
 export interface Drill {
@@ -34,7 +36,7 @@ export function drillParams(
   ids: string[],
   exclude: boolean,
   nonce = String(Date.now()),
-): Required<DrillParams> {
+): Required<Omit<DrillParams, 'dia'>> {
   return {
     mes: month,
     filtro: by,
@@ -60,4 +62,27 @@ export function drillOf(p: DrillParams): Drill | null {
     dim: DIM_OF[p.filtro as BreakdownBy],
     pick: { ids: ids as string[], exclude: p.excluir === '1' },
   };
+}
+
+// A day of the calendar: ?mes=2026-11&dia=2026-10-28&n=… ("mes" is the month shown on
+// Início, which may start on another day than the 1st).
+export function dayParams(
+  month: string,
+  day: string,
+  nonce = String(Date.now()),
+): { mes: string; dia: string; n: string } {
+  return { mes: month, dia: day, n: nonce };
+}
+
+export interface DayDrill {
+  month: string;
+  // As the De/Até fields show it: "28/10/2026".
+  dayText: string;
+}
+
+export function dayDrillOf(p: DrillParams): DayDrill | null {
+  if (!p.mes || !/^\d{4}-\d{2}$/.test(p.mes)) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(p.dia ?? '');
+  if (!m) return null;
+  return { month: p.mes, dayText: `${m[3]}/${m[2]}/${m[1]}` };
 }

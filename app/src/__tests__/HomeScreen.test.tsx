@@ -246,6 +246,20 @@ describe('HomeScreen on a computer', () => {
     expect(link.params.mes).toMatch(/^\d{4}-\d{2}$/);
   });
 
+  it('opens Transações on the spending of a calendar day; empty days do nothing', async () => {
+    wide();
+    await render(withCurrency(<HomeScreen />));
+    await fireEvent.press(screen.getByLabelText('2: sem gastos'));
+    expect(router.navigate).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByLabelText(/^1: .*Ver gastos do dia$/));
+    const [[link]] = jest.mocked(router.navigate).mock.calls as unknown as [
+      [{ pathname: string; params: Record<string, string> }],
+    ];
+    expect(link.pathname).toBe('/transacoes');
+    expect(link.params.mes).toMatch(/^\d{4}-\d{2}$/);
+    expect(link.params.dia).toMatch(/^\d{4}-\d{2}-01$/);
+  });
+
   it('points to the imported lines waiting for review', async () => {
     wide();
     summary({ data: monthSummary({ to_review: 5 }) });

@@ -1,7 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { act, renderHook } from '@testing-library/react-native';
 
-import { drillOf, drillParams } from '@/lib/drill';
+import { dayDrillOf, dayParams, drillOf, drillParams } from '@/lib/drill';
 import {
   accountOptions,
   bankOptions,
@@ -243,6 +243,17 @@ describe('links from the breakdown on Início', () => {
     expect(drillOf({ ...row, ids: '{' })).toBeNull();
     expect(drillOf({ ...row, ids: '[]' })).toBeNull();
     expect(drillOf({ ...row, ids: '[1]' })).toBeNull();
+  });
+});
+
+describe('links from the calendar on Início', () => {
+  it('turns a day into the De/Até text, and ignores broken links', () => {
+    const day = dayParams('2026-11', '2026-10-28', '3');
+    expect(day).toEqual({ mes: '2026-11', dia: '2026-10-28', n: '3' });
+    expect(dayDrillOf(day)).toEqual({ month: '2026-11', dayText: '28/10/2026' });
+    expect(dayDrillOf({ ...day, dia: '28/10/2026' })).toBeNull();
+    expect(dayDrillOf({ ...day, mes: 'nov' })).toBeNull();
+    expect(dayDrillOf({ mes: '2026-11' })).toBeNull();
   });
 });
 

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react-n
 import { useLocalSearchParams } from 'expo-router';
 
 import TransactionsScreen from '@/app/(tabs)/transacoes';
-import { drillParams } from '@/lib/drill';
+import { dayParams, drillParams } from '@/lib/drill';
 import { useAuth } from '@/lib/auth';
 import { decideReview } from '@/lib/imports';
 import {
@@ -619,6 +619,21 @@ describe('TransactionsScreen: several values, shown or hidden', () => {
       picks: { category: { ids: ['c1'], exclude: true } },
     });
     expect(screen.getByText('Categoria: exceto Transporte ▾')).toBeTruthy();
+    expect(screen.getByText('Tipo: Gastos ▾')).toBeTruthy();
+  });
+
+  it("opens a calendar day from Início: that day's spending only", async () => {
+    wide();
+    mockParams.mockReturnValue({ ...dayParams('2026-11', '2026-10-28', '1') });
+    await render(<TransactionsScreen />);
+    expect(lastFilters()).toEqual({
+      ...NO_FILTERS,
+      direction: 'out',
+      dateFrom: '2026-10-28',
+      dateTo: '2026-10-28',
+    });
+    expect(lastView().month).toBeNull();
+    expect(screen.getByLabelText('De').props.value).toBe('28/10/2026');
     expect(screen.getByText('Tipo: Gastos ▾')).toBeTruthy();
   });
 
