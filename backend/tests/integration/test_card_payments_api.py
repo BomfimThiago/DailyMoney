@@ -120,3 +120,22 @@ async def test_the_category_never_turns_into_spending(client: AsyncClient) -> No
     r = await client.patch(f"/api/v1/categories/{card_id}", json={"name": "Fatura"}, headers=h)
     assert r.status_code == 200, r.text
     assert r.json()["key"] == CARD
+
+
+async def test_paying_a_store_card_counts_even_with_the_banks_own_card_in_the_app(
+    client: AsyncClient,
+) -> None:
+    h = auth(await login(client))
+    store = NUBANK + "09/10/2026,-29.21,id-5,Pagamento efetuado|MIDWAY\n"
+    await _import(client, h, store, "nu.csv", "Nu")
+    await _import(client, h, NUBANK_CARD, "fatura.csv", "Nu cartão")
+    card_id = (await _categories(client, h))[CARD]["id"]
+    midway = (await _items(client, h))["Pagamento efetuado|MIDWAY"]
+    r = await client.patch(
+        f"/api/v1/transactions/{midway['id']}",
+        json={"category_id": card_id, "apply_to_merchant": False},
+        headers=h,
+    )
+    # The Midway card's purchases are nowhere in the app: the payment is that spending.
+    assert (r.json()["kind"], r.json()["category_name"]) == ("regular", CARD)
+    assert await _spending(client, h) == "264.2100"

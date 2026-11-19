@@ -14,7 +14,7 @@ import re
 import unicodedata
 import uuid
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import Account
@@ -45,21 +45,46 @@ def reads_as_bill_payment(description: str, on_card: bool) -> bool:
     return bool((_CARD_SIDE if on_card else _BILL).search(plain))
 
 
+# Words of a bank's name that don't tell one bank from another.
+_GENERIC = {"banco", "bank", "pessoa", "fisica", "juridica", "cartao", "credito", "s.a.", "sa"}
+
+
+def _bank_words(bank: str) -> set[str]:
+    return {w for w in re.split(r"[^a-z0-9]+", _plain(bank)) if len(w) >= 3} - _GENERIC
+
+
+def _payee(description: str) -> str | None:
+    """Who the money went to, when the bank says it ("Pagamento efetuado|MIDWAY")."""
+    _, sep, payee = description.rpartition("|")
+    return _plain(payee) or None if sep else None
+
+
+def paid_card_in_app(description: str, paying_bank: str, card_banks: list[str]) -> bool:
+    """Whether an unpaired payment went to a card the app reads.
+
+    The description may name the card's bank ("...|SANTANDER ELITE VISA"). When it names
+    someone else (another bank's card, a person), that card is not in the app, even if the
+    paying bank has a card of its own there. With no name, it is the paying bank's card.
+    """
+    words = set(re.split(r"[^a-z0-9]+", _plain(description)))
+    if any(_bank_words(bank) & words for bank in card_banks):
+        return True
+    payee = _payee(description)
+    if payee is not None and not _bank_words(paying_bank) & set(re.split(r"[^a-z0-9]+", payee)):
+        return False
+    paying = _plain(paying_bank)
+    return any(_plain(bank) == paying for bank in card_banks)
+
+
 async def card_in_app(db: AsyncSession, tx: Transaction) -> bool:
     """The app sees the card this payment went to, so its purchases are already counted."""
     account = await db.get(Account, tx.account_id)
     if account is None or account.is_card or tx.transfer_pair_id is not None:
         return True
-    same_bank_card = await db.scalar(
-        select(Account.id)
-        .where(
-            Account.family_id == tx.family_id,
-            Account.is_card.is_(True),
-            func.lower(Account.bank) == account.bank.lower(),
-        )
-        .limit(1)
+    card_banks = await db.scalars(
+        select(Account.bank).where(Account.family_id == tx.family_id, Account.is_card.is_(True))
     )
-    return same_bank_card is not None
+    return paid_card_in_app(tx.description, account.bank, list(card_banks))
 
 
 def kind_for(in_app: bool) -> TxKind:
