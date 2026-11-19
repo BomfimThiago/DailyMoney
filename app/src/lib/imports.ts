@@ -4,6 +4,7 @@ import type {
   Analysis,
   Account,
   AccountChoice,
+  BankPurge,
   BankRequest,
   BrazilFinish,
   BrazilStart,
@@ -99,6 +100,19 @@ export function getPurgeOverview() {
 // `expected` is the number the person confirmed: if it changed, nothing is deleted.
 export function deleteAllTransactions(expected: number) {
   return api<PurgeResult>(`/transactions?expected=${expected}`, { method: 'DELETE' });
+}
+
+// Each bank with lines, and what deleting its transactions would take away.
+export function getBankPurge() {
+  return api<BankPurge[]>('/transactions/purge/banks');
+}
+
+// Every line of one bank; `expected` is the number the person confirmed.
+export function deleteBankTransactions(bank: string, expected: number) {
+  return api<PurgeResult>(
+    `/transactions/bank?bank=${encodeURIComponent(bank)}&expected=${expected}`,
+    { method: 'DELETE' },
+  );
 }
 
 // Money that only changed place in the month, and whether it all came back.

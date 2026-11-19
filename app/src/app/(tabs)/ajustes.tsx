@@ -3,13 +3,14 @@ import { ScrollView, Text, useWindowDimensions, View } from 'react-native';
 
 import { styles } from '@/components/connections/styles';
 import { DeleteAllSetting } from '@/components/settings/DeleteAllSetting';
+import { DeleteBankSetting } from '@/components/settings/DeleteBankSetting';
 import { MonthStartPicker } from '@/components/settings/MonthStartPicker';
 import { ReviewImportsSetting } from '@/components/settings/ReviewImportsSetting';
 import { signedInPage } from '@/components/states';
 import { WIDE_MIN } from '@/lib/dashboard';
 
 // Ajustes: the family's settings: the day the month starts on, whether imports wait
-// for approval, and starting over without any transaction.
+// for approval, and starting over without one bank's transactions or without any.
 export default signedInPage(Settings);
 
 function Settings() {
@@ -29,6 +30,7 @@ function Settings() {
         <View style={styles.gap}>
           <MonthStartPicker />
           <ReviewImportsSetting />
+          <DeleteBankSetting />
           <DeleteAllSetting />
         </View>
         {wide ? null : (

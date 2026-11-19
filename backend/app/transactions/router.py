@@ -10,6 +10,7 @@ from app.families.models import Currency
 from app.transactions.models import TxKind
 from app.transactions.schemas import (
     Analysis,
+    BankPurge,
     CardBillsOverview,
     InvestmentOverview,
     KindUpdate,
@@ -31,6 +32,7 @@ from app.transactions.schemas import (
 )
 from app.transactions.services import (
     analysis_service,
+    bank_purge_service,
     card_service,
     movements_service,
     overview_service,
@@ -219,6 +221,25 @@ async def delete_all(
 ) -> PurgeResult:
     """Deletes every transaction; `expected` is the number the person confirmed."""
     result = await purge_service.delete_all(db, user.family_id, expected)
+    await db.commit()
+    return result
+
+
+@router.get("/purge/banks", response_model=list[BankPurge])
+async def purge_banks(user: CurrentUser, db: DbSession) -> list[BankPurge]:
+    """Each bank with lines, and what deleting its transactions would take away."""
+    return await bank_purge_service.banks(db, user.family_id)
+
+
+@router.delete("/bank", response_model=PurgeResult)
+async def delete_bank(
+    user: CurrentUser,
+    db: DbSession,
+    bank: Annotated[str, Query(min_length=1)],
+    expected: Annotated[int, Query(ge=0)],
+) -> PurgeResult:
+    """Deletes every transaction of one bank; `expected` is the number the person confirmed."""
+    result = await bank_purge_service.delete_bank(db, user.family_id, bank, expected)
     await db.commit()
     return result
 

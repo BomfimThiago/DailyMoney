@@ -228,6 +228,9 @@ function answer(url, method) {
   if (method === 'POST' && p.startsWith('/imports/') && p.endsWith('/undo')) {
     return { status: 200, body: { removed: 42 } };
   }
+  if (method === 'DELETE' && p === '/transactions/bank') {
+    return { status: 200, body: { removed: Number(url.searchParams.get('expected')) } };
+  }
   if (method === 'DELETE' && p === '/transactions') {
     return { status: 200, body: { removed: 312 } };
   }
@@ -865,6 +868,18 @@ async function checkScreens(page, tag) {
     await page.getByRole('button', { name: 'Salvar início do mês' }).click();
     await seen('O mês agora começa no dia 27.').waitFor({ timeout: 5000 });
     await shot('ajustes-salvo');
+    // Apagar um banco: pick it, then the button works only after typing APAGAR.
+    await page.getByRole('button', { name: 'Escolher o banco…' }).click();
+    await page.getByRole('button', { name: 'Banco' }).click();
+    await page.getByRole('menuitem', { name: 'Nubank · 140 transações' }).click();
+    await seen(/Vão embora 140 transações do Nubank/).waitFor();
+    const purgeBank = page.getByRole('button', { name: 'Apagar 140 transações do Nubank' });
+    if (await purgeBank.isEnabled()) flag('apagar banco funciona sem digitar APAGAR');
+    await page.getByLabel('Digite APAGAR para confirmar').fill('apagar');
+    await purgeBank.scrollIntoViewIfNeeded();
+    await shot('ajustes-apagar-banco');
+    await purgeBank.click();
+    await seen('Pronto: 140 transações do Nubank apagadas.').waitFor({ timeout: 3000 });
     // Apagar todas: the button works only after typing APAGAR.
     await page.getByRole('button', { name: 'Apagar todas…' }).click();
     await seen(/Vão embora 312 transações/).waitFor();

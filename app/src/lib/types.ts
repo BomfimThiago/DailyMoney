@@ -81,5 +81,6 @@ export type MovementGroup = S['MovementGroup'];
 export type MovementsOverview = S['MovementsOverview'];
 export type PurgeOverview = S['PurgeOverview'];
 export type PurgeResult = S['PurgeResult'];
+export type BankPurge = S['BankPurge'];
 export type Analysis = S['Analysis'];
 export type CurrencyAnalysis = S['CurrencyAnalysis'];
