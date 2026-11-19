@@ -76,12 +76,12 @@ async def test_import_sorts_investments_and_pix_to_self(client: AsyncClient) -> 
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
     assert summary["pending_transfers"] == 1
     [brl] = summary["currencies"]
-    # The investment moves count as spending (aplicação) and income (resgate) too; the
-    # month's leftover is the same, it is not taken out a second time.
+    # The investment moves count by their net: R$ 1000 put in, R$ 300 back is R$ 700 of
+    # spending, not R$ 1000 of spending plus R$ 300 of income. The leftover is the same.
     assert brl == {
         "currency": "BRL",
-        "income": "5300.0000",
-        "spending": "1350.0000",
+        "income": "5000.0000",
+        "spending": "1050.0000",
         "invested": "700.0000",
         "invested_in": "1000.0000",
         "invested_out": "300.0000",
@@ -147,7 +147,7 @@ async def test_confirm_pending_as_spending_or_own_transfer(client: AsyncClient) 
     assert r.status_code == 200, r.text
     assert (r.json()["kind"], r.json()["category_name"]) == ("regular", "Outros")
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
-    assert summary["currencies"][0]["spending"] == "2150.0000"
+    assert summary["currencies"][0]["spending"] == "1850.0000"
 
     r = await client.put(
         f"/api/v1/transactions/{pending['id']}/kind", json={"kind": "transfer"}, headers=h
@@ -432,7 +432,7 @@ async def test_edit_description_date_and_amount(client: AsyncClient) -> None:
     # The category stays: still spending.
     assert body["category_id"] == tx["category_id"]
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
-    assert summary["currencies"][0]["spending"] == "1360.5500"
+    assert summary["currencies"][0]["spending"] == "1060.5500"
 
 
 async def test_spending_turned_into_income_drops_its_category(client: AsyncClient) -> None:
@@ -467,7 +467,7 @@ async def test_delete_a_line(client: AsyncClient) -> None:
     page = await _get(client, h, "/api/v1/transactions?limit=200")
     assert tx["id"] not in [t["id"] for t in page["items"]]
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
-    assert summary["currencies"][0]["spending"] == "1150.0000"
+    assert summary["currencies"][0]["spending"] == "850.0000"
 
 
 async def test_changing_or_deleting_one_side_breaks_the_transfer(client: AsyncClient) -> None:
@@ -510,7 +510,8 @@ async def test_investment_is_a_category_that_follows_the_kind(client: AsyncClien
     page = await _get(client, h, "/api/v1/transactions?month=2026-10&kind=regular&kind=investment")
     assert tx["id"] in [t["id"] for t in page["items"]]
     summary = await _get(client, h, "/api/v1/transactions/summary?month=2026-10")
-    assert summary["currencies"][0]["spending"] == "1350.0000"
+    # R$ 1200 put in, R$ 300 back: R$ 900 of it is spending, plus Fulano's R$ 150.
+    assert summary["currencies"][0]["spending"] == "1050.0000"
     assert summary["currencies"][0]["invested_in"] == "1200.0000"
 
     # Turned into money coming back (a resgate), it keeps its category.
@@ -563,3 +564,20 @@ async def test_merchant_taught_as_investimento_imports_as_investment(client: Asy
     page = await _get(client, h, "/api/v1/transactions?month=2026-10&limit=200")
     fulano = [t for t in page["items"] if "Fulano" in t["description"]]
     assert {(t["kind"], t["category_name"]) for t in fulano} == {("investment", "Investimento")}
+
+
+async def test_dashboard_nets_investments_like_the_summary(client: AsyncClient) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nubank")
+    [brl] = (await _get(client, h, "/api/v1/transactions/dashboard?month=2026-10"))["currencies"]
+    cats = {c["name"]: c["amount"] for c in brl["categories"]}
+    # R$ 1000 put in and R$ 300 back: Investimento is R$ 700 of the month's spending.
+    assert cats["Investimento"] == "700.0000"
+    assert "Investimento" not in {c["name"] for c in brl["income_categories"]}
+    [nubank] = brl["accounts"]
+    assert nubank["amount"] == "1050.0000"
+    # The aplicação day still shows it; the resgate day lowers nothing below zero.
+    daily = [float(v) for v in brl["daily"]]
+    assert daily[4] == 1000 and daily[9] == 0
+    # The month before: R$ 400 put in, nothing back.
+    assert brl["previous_spending"] == "400.0000"

@@ -4032,6 +4032,14 @@
             "type": "string",
             "title": "Balance"
           },
+          "invested_in": {
+            "type": "string",
+            "title": "Invested In"
+          },
+          "invested_out": {
+            "type": "string",
+            "title": "Invested Out"
+          },
           "count": {
             "type": "integer",
             "title": "Count"
@@ -4071,6 +4079,8 @@
           "income",
           "spending",
           "balance",
+          "invested_in",
+          "invested_out",
           "count",
           "categories",
           "members",
@@ -4267,13 +4277,21 @@
             "type": "string",
             "title": "Spending"
           },
+          "invested_in": {
+            "type": "string",
+            "title": "Invested In"
+          },
+          "invested_out": {
+            "type": "string",
+            "title": "Invested Out"
+          },
           "count": {
             "type": "integer",
             "title": "Count"
           }
         },
         "type": "object",
-        "required": ["id", "name", "income", "spending", "count"],
+        "required": ["id", "name", "income", "spending", "invested_in", "invested_out", "count"],
         "title": "GroupTotal"
       },
       "HTTPValidationError": {

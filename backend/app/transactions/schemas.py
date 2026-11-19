@@ -41,8 +41,12 @@ class GroupTotal(BaseModel):
     # Null: lines with no category, or the whole household ("Casa").
     id: uuid.UUID | None
     name: str
+    # Investment moves count only by what was put in beyond what came back (or the other
+    # way round); these are the gross amounts behind that net.
     income: Decimal
     spending: Decimal
+    invested_in: Decimal
+    invested_out: Decimal
     count: int
 
 
@@ -58,6 +62,9 @@ class CurrencyTotals(BaseModel):
     spending: Decimal
     # income − spending
     balance: Decimal
+    # Gross money put into / taken out of investments; only the net is in income/spending.
+    invested_in: Decimal
+    invested_out: Decimal
     count: int
     # The same lines added up by category, by Responsável and by account; biggest first.
     categories: list[GroupTotal]

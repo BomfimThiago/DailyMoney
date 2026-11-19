@@ -1225,6 +1225,10 @@ export interface components {
       spending: string;
       /** Balance */
       balance: string;
+      /** Invested In */
+      invested_in: string;
+      /** Invested Out */
+      invested_out: string;
       /** Count */
       count: number;
       /** Categories */
@@ -1313,6 +1317,10 @@ export interface components {
       income: string;
       /** Spending */
       spending: string;
+      /** Invested In */
+      invested_in: string;
+      /** Invested Out */
+      invested_out: string;
       /** Count */
       count: number;
     };

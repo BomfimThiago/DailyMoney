@@ -118,7 +118,7 @@ const daysIn = (offset) => {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + offset + 1, 0));
   return d.getUTCDate();
 };
-// Investments count as spending (aplicação) and income (resgate), like Thiago asked.
+// Investments count as spending by their net: a resgate lowers what was put in.
 const counted = [...regular, ...investments].sort((a, b) => b.date.localeCompare(a.date));
 const spent = [
   ...counted.filter((t) => t.amount.startsWith('-')),
@@ -134,9 +134,10 @@ const previousDaily = Array.from({ length: daysIn(-1) }, (_, i) =>
   (i === 4 ? 2800 : i % 3 === 0 ? 45 + (i % 7) * 12 : 0).toFixed(2),
 );
 // Spending by a dimension; "key" is what Transações filters the row by.
+const resgates = investments.filter((t) => !t.amount.startsWith('-'));
 const shares = (name, key) =>
   Object.values(
-    spent.reduce((acc, t) => {
+    [...spent, ...resgates].reduce((acc, t) => {
       const k = key(t);
       const before = acc[k] ?? { key: k, name: name(t), amount: 0 };
       return { ...acc, [k]: { ...before, amount: before.amount - Number(t.amount) } };
@@ -460,8 +461,8 @@ export const fixtures = {
     currencies: [
       {
         currency: 'BRL',
-        income: '8800.00',
-        spending: '5705.80',
+        income: '8500.00',
+        spending: '5405.80',
         invested: '2000.00',
         invested_in: '2300.00',
         invested_out: '300.00',
@@ -509,7 +510,6 @@ export const fixtures = {
         income_categories: [
           { key: 'cat-Renda', name: 'Renda', amount: '8000.00' },
           { key: 'cat-Outros', name: 'Outros', amount: '500.00' },
-          { key: 'cat-Investimento', name: 'Investimento', amount: '300.00' },
         ],
         previous_income: '8200.00',
         previous_spending: '6100.00',

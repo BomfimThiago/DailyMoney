@@ -1,7 +1,8 @@
 """Análises: how spending moves over months, habits, weekdays, peaks and recurring charges.
 
-Every line going out counts, investments included (category Investimento); only money
-moving between the family's own accounts stays out.
+Every line going out counts. Investments count by their net per month (put in beyond what
+came back, category Investimento), like Início; money moving between the family's own
+accounts stays out.
 Values stay in each account's own currency, one analysis per currency, like Início, unless
 a currency is chosen: then every line is converted with its day's ECB rate.
 """
@@ -12,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.categories.models import Category
@@ -20,7 +21,7 @@ from app.categories.services.categorize import INVESTMENT, merchant_key, merchan
 from app.families.models import Currency
 from app.families.services.family_service import month_start_day
 from app.fx.services.fx_service import converter
-from app.transactions.models import APPROVED, Transaction
+from app.transactions.models import APPROVED, Transaction, TxKind
 from app.transactions.schemas import (
     Analysis,
     CategoryChange,
@@ -236,6 +237,8 @@ def _recurring(rows: list[Spend], month: str) -> list[Recurring]:
         if last_month not in recent:
             continue  # stopped: no charge this month or the one before
         category = _main_category(group)
+        if any(r.is_(INVESTMENT) for r in group):
+            continue  # money put aside, not a charge
         if any(r.is_(SUBSCRIPTIONS) for r in group if r.category == category):
             # Known subscriptions: twice is enough, and one store (Apple) may bill several.
             if len(per_month) < 2:
@@ -254,6 +257,22 @@ def _recurring(rows: list[Spend], month: str) -> list[Recurring]:
         )
     found.sort(key=lambda f: (-f.amount, f.name))
     return found
+
+
+def net_investments(moves: list[Spend]) -> list[Spend]:
+    """One line per currency and month with what was put in beyond what came back; none
+    when more came back (that is income, not spending)."""
+    groups: dict[tuple[Currency, str], list[Spend]] = defaultdict(list)
+    for m in moves:
+        groups[(m.currency, m.month)].append(m)
+    out = []
+    for (currency, month), group in sorted(groups.items(), key=lambda kv: kv[0][1]):
+        net = sum((m.amount for m in group), ZERO)
+        if net <= 0:
+            continue
+        last = max(group, key=lambda m: m.date)
+        out.append(Spend(currency, last.date, net, INVESTMENT, last.category, month, INVESTMENT))
+    return out
 
 
 def _steady(per_month: dict[str, list[Spend]]) -> bool:
@@ -284,21 +303,24 @@ async def analysis(
             Transaction.description,
             Category.name,
             Category.system_key,
+            Transaction.kind,
         )
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(
             Transaction.family_id == family_id,
             APPROVED,
             Transaction.kind.in_(COUNTED),
-            Transaction.amount < 0,
+            or_(Transaction.amount < 0, Transaction.kind == TxKind.INVESTMENT),
             Transaction.date.between(lo, hi),
         )
     )
     conv = await converter(db, currency, lo, hi)
-    rows = [
-        Spend(conv.currency(c), d, -conv(a, c, d), desc, cat, month_of(d, start_day), key)
-        for c, d, a, desc, cat, key in result
-    ]
+    rows: list[Spend] = []
+    moves: list[Spend] = []
+    for c, d, a, desc, cat, key, kind in result:
+        spend = Spend(conv.currency(c), d, -conv(a, c, d), desc, cat, month_of(d, start_day), key)
+        (moves if kind == TxKind.INVESTMENT else rows).append(spend)
+    rows += net_investments(moves)
     currencies = await _currencies(db, family_id, currency)
     return Analysis(
         month=month,

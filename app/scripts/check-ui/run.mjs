@@ -153,16 +153,26 @@ function totals(items) {
   const sum = (lines, id, name) => {
     let income = 0;
     let spending = 0;
+    let putIn = 0;
+    let takenOut = 0;
     for (const t of lines) {
       const v = Number(t.display_amount ?? t.amount);
-      if (v > 0) income += v;
+      if (t.kind === 'investment') {
+        if (v < 0) putIn -= v;
+        else takenOut += v;
+      } else if (v > 0) income += v;
       else spending -= v;
     }
+    // Investments count by their net, like the API.
+    spending += Math.max(putIn - takenOut, 0);
+    income += Math.max(takenOut - putIn, 0);
     return {
       id,
       name,
       income: income.toFixed(2),
       spending: spending.toFixed(2),
+      invested_in: putIn.toFixed(2),
+      invested_out: takenOut.toFixed(2),
       count: lines.length,
     };
   };
@@ -183,6 +193,8 @@ function totals(items) {
         income: all.income,
         spending: all.spending,
         balance: (all.income - all.spending).toFixed(2),
+        invested_in: all.invested_in,
+        invested_out: all.invested_out,
         count: items.length,
         categories: by('category_id', (t) => t.category_name ?? 'Sem categoria'),
         members: by('member_id', (t) => names[t.member_id] ?? 'Casa'),
@@ -468,6 +480,20 @@ async function checkScreens(page, tag) {
     await seen(
       tag === 'computador' ? 'Categoria: exceto Mercado +1 ▾' : 'Exceto Mercado +1 ▾',
     ).click();
+    await seen('✕ Limpar filtros').click();
+    await seen('TOTAL DO MÊS').waitFor();
+    // Only Investimento: it counts by its net, and says what went in and came back.
+    await seen('Categoria ▾').click();
+    await check('Investimento').click();
+    const investMenu = tag === 'computador' ? 'Categoria: Investimento ▾' : 'Investimento ▾';
+    await seen(investMenu).click();
+    await page.waitForLoadState('networkidle');
+    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await seen('Investimentos contam pelo líquido')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('o total não explicou o investimento líquido'));
+    await seen('Resgate RDB').waitFor();
+    await shot('transacoes-investimento');
     await seen('✕ Limpar filtros').click();
     await seen('TOTAL DO MÊS').waitFor();
 
