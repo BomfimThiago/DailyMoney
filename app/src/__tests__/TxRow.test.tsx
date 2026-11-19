@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react-native';
 
 import { TxRow } from '@/components/TxRow';
 import type { Transaction } from '@/lib/types';
+import { colors } from '@/theme';
 
 const base: Transaction = {
   id: '1',
@@ -28,6 +29,17 @@ const shown = async (t: Partial<Transaction>) => {
 };
 
 describe('TxRow', () => {
+  it('shows a spending value in red and income in green', async () => {
+    const color = async (t: Partial<Transaction>) => {
+      await render(<TxRow t={{ ...base, ...t }} />);
+      const style = [screen.getByText(/\d,\d\d$/).props.style].flat(3);
+      return Object.assign({}, ...style).color;
+    };
+    expect(await color({})).toBe(colors.negative);
+    expect(await color({ amount: '50.0000' })).toBe(colors.positive);
+    expect(await color({ kind: 'transfer' })).toBe(colors.muted);
+  });
+
   it('shows spending with its category and a minus sign', async () => {
     expect(await shown({})).toEqual({ sub: 'Mercado · Nubank · 4 nov', amount: '-R$ 312,40' });
   });

@@ -7,6 +7,8 @@ export const colors = {
   accent: '#C7795A',
   danger: '#B4483C',
   positive: '#178A55',
+  // Spending values in lists: a soft red, close to danger but quieter.
+  negative: '#B4483C',
   positiveSoft: '#EEF6F1',
   soft: '#F1F1F5',
   dashed: '#D6D6DE',

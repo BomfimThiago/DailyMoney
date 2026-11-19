@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { dayMonth, isIncome } from '@/lib/format';
-import { lineAmounts, movedLabel } from '@/lib/transactions';
+import { amountTone, lineAmounts, movedLabel } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -43,7 +43,6 @@ export function TxRow({
   first?: boolean;
   onPress?: () => void;
 }) {
-  const regular = t.kind === 'regular';
   const moved = t.kind === 'transfer' || t.kind === 'pending';
   const amount = lineAmounts(t, moved ? 'plain' : 'signed');
   return (
@@ -65,16 +64,7 @@ export function TxRow({
         </Text>
       </View>
       <View style={styles.amounts}>
-        <Text
-          style={[
-            styles.amount,
-            regular && isIncome(t.amount) && styles.income,
-            t.kind === 'investment' && styles.invest,
-            moved && styles.muted,
-          ]}
-        >
-          {amount.shown}
-        </Text>
+        <Text style={[styles.amount, toneStyle[amountTone(t)]]}>{amount.shown}</Text>
         {amount.original ? <Text style={styles.original}>{amount.original}</Text> : null}
       </View>
     </Pressable>
@@ -103,7 +93,15 @@ const styles = StyleSheet.create({
   amounts: { alignItems: 'flex-end', gap: 2 },
   original: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   amount: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
+  spend: { color: colors.negative },
   income: { color: colors.positive },
   invest: { color: colors.invest },
   muted: { color: colors.muted },
 });
+
+const toneStyle = {
+  spend: styles.spend,
+  income: styles.income,
+  invest: styles.invest,
+  moved: styles.muted,
+};

@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { dayDrillOf, dayParams, drillOf, drillParams } from '@/lib/drill';
 import {
   accountOptions,
+  amountTone,
   bankOptions,
   categoryOptions,
   countText,
@@ -77,6 +78,8 @@ describe('totals of what the list shows', () => {
     expect(f.count).toBe('5 transações');
     expect(f.hasIncome).toBe(true);
     expect(totalsFigures({ ...totals([]), income: '0' }).hasIncome).toBe(false);
+    expect(f.hasSpending).toBe(true);
+    expect(totalsFigures({ ...totals([]), spending: '0' }).hasSpending).toBe(false);
     expect(countText(1)).toBe('1 transação');
   });
 
@@ -331,5 +334,15 @@ describe('period, order and the extra filters', () => {
     const t = { ...totals([]), days: [{ date: '2026-10-03', total: '-200.0000' }] };
     expect(dayTotals(t)).toEqual({ '2026-10-03': '-R$\u00a0200,00' });
     expect(dayTotals(undefined)).toEqual({});
+  });
+});
+
+describe('amountTone', () => {
+  it('paints spending red, income green, investments blue and moves grey', () => {
+    expect(amountTone({ kind: 'regular', amount: '-12.0000' })).toBe('spend');
+    expect(amountTone({ kind: 'regular', amount: '12.0000' })).toBe('income');
+    expect(amountTone({ kind: 'investment', amount: '-12.0000' })).toBe('invest');
+    expect(amountTone({ kind: 'transfer', amount: '-12.0000' })).toBe('moved');
+    expect(amountTone({ kind: 'pending', amount: '-12.0000' })).toBe('moved');
   });
 });
