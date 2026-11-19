@@ -284,7 +284,7 @@ describe('TransactionsScreen on the phone', () => {
   it('opens with internal transfers from the link, the waiting ones first', async () => {
     mockParams.mockReturnValue({ aba: 'transferencias' });
     await render(<TransactionsScreen />);
-    expect(lastView().kinds).toContain('pending');
+    expect(lastView().kinds).toEqual(['transfer']);
     expect(screen.getByText('lista de transferências')).toBeTruthy();
     expect(screen.getByText(' · 2 a confirmar')).toBeTruthy();
     // Without the answer there is nothing to show above the list.
@@ -538,12 +538,12 @@ describe('TransactionsScreen: what the old app had', () => {
     expect(lastView().sort).toBe('description');
   });
 
-  it('lists internal transfers when asked, without counting them', async () => {
+  it('lists only the internal transfers when asked, without counting them', async () => {
     wide();
     await render(<TransactionsScreen />);
     expect(lastView().kinds).toEqual(['regular', 'investment']);
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Transferências internas' }));
-    expect(lastView().kinds).toEqual(['regular', 'investment', 'transfer', 'pending']);
+    expect(lastView().kinds).toEqual(['transfer']);
     expect(screen.getByText(/✓ Transferências internas/)).toBeTruthy();
     expect(screen.getByText('lista de transferências')).toBeTruthy();
   });
