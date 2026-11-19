@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { NO_PICK, type Option, type Pick, pickLabel, toggled } from '@/lib/transactions';
-import { useCloseOnOutsideTap } from '@/lib/useCloseOnOutsideTap';
+import { useMenuOpen } from '@/lib/useMenuOpen';
 
 import { styles } from './styles';
 
@@ -20,14 +19,14 @@ export function FilterMenu({
   value: string | null;
   options: Option[];
   onChange: (id: string | null) => void;
-  // Which edge of the button the list lines up with, so it stays inside a phone screen.
+  // Which edge of the button the list lines up with, when the list fits on that side.
   align?: 'left' | 'right';
   // A phone shows only the choice ("Mercado"), so the three menus stay on one line.
   short?: boolean;
   // The first item, which clears the filter; null for menus that always hold a choice.
   allLabel?: string | null;
 }) {
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, toggle, side, outside } = useMenuOpen(align);
   const current = options.find((o) => o.id === value);
   // Dark only while it filters; a menu that always holds a choice (Período, Ordem) stays light.
   const on = Boolean(current) && allLabel !== null;
@@ -35,11 +34,10 @@ export function FilterMenu({
     onChange(id);
     setOpen(false);
   };
-  const outside = useCloseOnOutsideTap(open, setOpen);
   return (
     <View style={[styles.menuBox, open && styles.menuBoxOpen]} {...outside}>
       <Pressable
-        onPress={() => setOpen(!open)}
+        onPress={toggle}
         accessibilityRole="button"
         accessibilityLabel={short && current ? `${label}: ${current.name}` : undefined}
         accessibilityState={{ expanded: open }}
@@ -50,7 +48,7 @@ export function FilterMenu({
         </Text>
       </Pressable>
       {open ? (
-        <View style={[styles.menu, align === 'left' && styles.menuLeft]} accessibilityRole="menu">
+        <View style={[styles.menu, side === 'left' && styles.menuLeft]} accessibilityRole="menu">
           {allLabel !== null ? (
             <MenuItem label={allLabel} on={value === null} onPress={() => pick(null)} />
           ) : null}
@@ -96,14 +94,13 @@ export function PickMenu({
   short?: boolean;
   allLabel?: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const { open, toggle, side, outside } = useMenuOpen(align);
   const on = pick.ids.length > 0;
   const text = pickLabel(label, pick, options, short);
-  const outside = useCloseOnOutsideTap(open, setOpen);
   return (
     <View style={[styles.menuBox, open && styles.menuBoxOpen]} {...outside}>
       <Pressable
-        onPress={() => setOpen(!open)}
+        onPress={toggle}
         accessibilityRole="button"
         accessibilityLabel={short && on ? `${label}: ${text}` : undefined}
         accessibilityState={{ expanded: open }}
@@ -114,7 +111,7 @@ export function PickMenu({
         </Text>
       </Pressable>
       {open ? (
-        <View style={[styles.menu, align === 'left' && styles.menuLeft]} accessibilityRole="menu">
+        <View style={[styles.menu, side === 'left' && styles.menuLeft]} accessibilityRole="menu">
           <View style={styles.modeRow} accessibilityRole="radiogroup">
             <ModeChip
               label="Mostrar"
