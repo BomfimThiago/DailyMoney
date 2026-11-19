@@ -146,6 +146,7 @@ export const dash = StyleSheet.create({
     paddingHorizontal: 5,
     paddingTop: 3,
   },
+  dayHover: { borderColor: colors.ink },
   dayBlank: { flex: 1, height: 34 },
   dayText: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted },
   dayTextSpent: { color: colors.ink },

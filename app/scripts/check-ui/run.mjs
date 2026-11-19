@@ -435,6 +435,21 @@ async function checkScreens(page, tag) {
     await shot('transacoes-da-divisao');
     await seen('✕ Limpar filtros').click();
     await seen('TOTAL DO MÊS').waitFor();
+    // A day of the calendar opens Transações on that day's spending.
+    await tab('Início').click();
+    await page
+      .getByLabel(/^20: .*Ver gastos do dia$/)
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen('Mercadona')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('o dia do calendário não abriu Transações daquele dia'));
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    await shot('transacoes-do-dia');
+    await seen('✕ Limpar filtros').click();
+    await seen('TOTAL DO MÊS').waitFor();
 
     // Investimentos: only the bank's portfolio.
     await tab('Investimentos').click();

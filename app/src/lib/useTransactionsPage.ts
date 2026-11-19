@@ -16,7 +16,7 @@ import {
   useTransfers,
 } from './queries';
 import { reviewItems } from './review';
-import { type Drill, type DrillParams, drillOf } from './drill';
+import { type DayDrill, type Drill, type DrillParams, dayDrillOf, drillOf } from './drill';
 import {
   accountOptions,
   bankOptions,
@@ -121,6 +121,11 @@ function useFilters() {
       setSearch('');
       setMenus(NO_FILTERS);
     },
+    // A day of Início's calendar: every spending of that day, no other filter.
+    showSpending: () => {
+      setSearch('');
+      setMenus({ ...NO_FILTERS, direction: 'out' });
+    },
     // A row of Início's breakdown: only that pick, on the month's spending.
     showDrill: (dim: Dim, pick: Pick) => {
       setSearch('');
@@ -133,12 +138,18 @@ function useFilters() {
 
 // A link from Início's breakdown: applied once per tap (its "n" changes every time), while
 // rendering, like the ?aba= links, because the screen stays mounted between tabs.
-function useDrillLink(link: DrillParams, apply: (drill: Drill) => void) {
+function useDrillLink(
+  link: DrillParams,
+  apply: (drill: Drill) => void,
+  applyDay: (day: DayDrill) => void,
+) {
   const [seen, setSeen] = useState<string | undefined>(undefined);
   const drill = drillOf(link);
-  if (drill && link.n !== seen) {
+  const day = drill ? null : dayDrillOf(link);
+  if ((drill || day) && link.n !== seen) {
     setSeen(link.n);
-    apply(drill);
+    if (drill) apply(drill);
+    if (day) applyDay(day);
   }
 }
 
@@ -179,6 +190,12 @@ function usePeriod() {
     toText,
     setToText,
     rangeError: period === 'range' ? range.error : null,
+    // One day only: the De/Até fields both on it.
+    showDay: (dayText: string) => {
+      setPeriod('range');
+      setFromText(dayText);
+      setToText(dayText);
+    },
     resetPeriod: () => {
       setPeriod('month');
       setFromText('');
@@ -196,13 +213,24 @@ export function useTransactionsPage(aba: string | undefined, link: DrillParams =
   const { tab, setTab, withTransfers, setWithTransfers } = useTabFromLink(aba);
   const period = usePeriod();
   const f = useFilters();
-  useDrillLink(link, (drill) => {
+  const openList = (month: string) => {
     setTab('lista');
     setWithTransfers(false);
     period.resetPeriod();
-    period.setMonth(drill.month);
-    f.showDrill(drill.dim, drill.pick);
-  });
+    period.setMonth(month);
+  };
+  useDrillLink(
+    link,
+    (drill) => {
+      openList(drill.month);
+      f.showDrill(drill.dim, drill.pick);
+    },
+    (day) => {
+      openList(day.month);
+      period.showDay(day.dayText);
+      f.showSpending();
+    },
+  );
   const [sort, setSort] = useState<TxSort>('date');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const view: ListView = {

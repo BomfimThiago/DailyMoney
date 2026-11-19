@@ -15,6 +15,7 @@ import type { CurrencySummary, TransactionPage } from '@/lib/types';
 import { Breakdown } from './Breakdown';
 import { Comparison } from './Comparison';
 import { Flow } from './Flow';
+import { SpendingCalendar } from './SpendingCalendar';
 import { Trends } from './Trends';
 import { type Home, NoAccounts, PendingLink, ReviewLink } from './shared';
 import { phone as styles } from './styles';
@@ -129,7 +130,7 @@ function Figure({
   );
 }
 
-// The month before, the spending split and the flow: the computer's cards, one column.
+// The month before, the spending split, the calendar and the flow: the computer's cards, one column.
 // They stay hidden while loading or on error; the figures above already say the essential.
 function Cards({ month, shown }: { month: string; shown: CurrencySummary }) {
   const query = useDashboard(month, true);
@@ -140,6 +141,9 @@ function Cards({ month, shown }: { month: string; shown: CurrencySummary }) {
     <View style={styles.cards}>
       <Comparison month={month} shown={shown} dash={dash} />
       <Breakdown month={month} dash={dash} half={false} />
+      {query.data ? (
+        <SpendingCalendar month={month} start={query.data.start} dash={dash} half={false} />
+      ) : null}
       <Flow dash={dash} width={width} />
     </View>
   );
