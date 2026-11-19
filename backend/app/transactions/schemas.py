@@ -322,6 +322,27 @@ class PurgeResult(BaseModel):
     removed: int
 
 
+class BankPurgeAccount(BaseModel):
+    id: uuid.UUID
+    name: str
+    currency: Currency
+    is_card: bool
+    transactions: int
+
+
+class BankPurge(BaseModel):
+    """One bank in "Apagar as transações de um banco": its accounts and their lines."""
+
+    bank: str
+    transactions: int
+    to_review: int
+    # Sent statements that only held this bank's lines: they leave the history too.
+    imports: int
+    # Some account of the bank comes from a connected bank (it reads its history again).
+    connected: bool
+    accounts: list[BankPurgeAccount]
+
+
 # ── analysis ─────────────────────────────────────────────────────────────────
 
 

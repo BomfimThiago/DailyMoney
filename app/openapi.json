@@ -2572,6 +2572,92 @@
         ]
       }
     },
+    "/api/v1/transactions/purge/banks": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Purge Banks",
+        "description": "Each bank with lines, and what deleting its transactions would take away.",
+        "operationId": "purge_banks_api_v1_transactions_purge_banks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BankPurge"
+                  },
+                  "type": "array",
+                  "title": "Response Purge Banks Api V1 Transactions Purge Banks Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/transactions/bank": {
+      "delete": {
+        "tags": ["transactions"],
+        "summary": "Delete Bank",
+        "description": "Deletes every transaction of one bank; `expected` is the number the person confirmed.",
+        "operationId": "delete_bank_api_v1_transactions_bank_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bank",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Bank"
+            }
+          },
+          {
+            "name": "expected",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "title": "Expected"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PurgeResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/transactions/card-bills": {
       "get": {
         "tags": ["transactions"],
@@ -3156,6 +3242,68 @@
         "type": "object",
         "required": ["month", "months", "currencies"],
         "title": "Analysis"
+      },
+      "BankPurge": {
+        "properties": {
+          "bank": {
+            "type": "string",
+            "title": "Bank"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          },
+          "to_review": {
+            "type": "integer",
+            "title": "To Review"
+          },
+          "imports": {
+            "type": "integer",
+            "title": "Imports"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/BankPurgeAccount"
+            },
+            "type": "array",
+            "title": "Accounts"
+          }
+        },
+        "type": "object",
+        "required": ["bank", "transactions", "to_review", "imports", "connected", "accounts"],
+        "title": "BankPurge",
+        "description": "One bank in \"Apagar as transações de um banco\": its accounts and their lines."
+      },
+      "BankPurgeAccount": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          },
+          "is_card": {
+            "type": "boolean",
+            "title": "Is Card"
+          },
+          "transactions": {
+            "type": "integer",
+            "title": "Transactions"
+          }
+        },
+        "type": "object",
+        "required": ["id", "name", "currency", "is_card", "transactions"],
+        "title": "BankPurgeAccount"
       },
       "BankRequestIn": {
         "properties": {

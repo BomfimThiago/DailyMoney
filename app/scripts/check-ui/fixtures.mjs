@@ -653,6 +653,35 @@ export const fixtures = {
     ],
   },
   '/transactions/purge': { transactions: 312, to_review: 12, imports: 5, banks: 2 },
+  '/transactions/purge/banks': [
+    {
+      bank: 'CaixaBank',
+      transactions: 86,
+      to_review: 4,
+      imports: 2,
+      connected: true,
+      accounts: [
+        { id: 'acc-cx', name: 'CaixaBank', currency: 'EUR', is_card: false, transactions: 86 },
+      ],
+    },
+    {
+      bank: 'Nubank',
+      transactions: 140,
+      to_review: 0,
+      imports: 3,
+      connected: false,
+      accounts: [
+        { id: 'acc-nu', name: 'Nubank', currency: 'BRL', is_card: false, transactions: 98 },
+        {
+          id: 'acc-nu-card',
+          name: 'Nubank cartão',
+          currency: 'BRL',
+          is_card: true,
+          transactions: 42,
+        },
+      ],
+    },
+  ],
   '/transactions/transfers': {
     month,
     pending,

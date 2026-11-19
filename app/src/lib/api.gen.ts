@@ -686,6 +686,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/transactions/purge/banks': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Purge Banks
+     * @description Each bank with lines, and what deleting its transactions would take away.
+     */
+    get: operations['purge_banks_api_v1_transactions_purge_banks_get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/transactions/bank': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Delete Bank
+     * @description Deletes every transaction of one bank; `expected` is the number the person confirmed.
+     */
+    delete: operations['delete_bank_api_v1_transactions_bank_delete'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/transactions/card-bills': {
     parameters: {
       query?: never;
@@ -881,6 +921,39 @@ export interface components {
       months: number;
       /** Currencies */
       currencies: components['schemas']['CurrencyAnalysis'][];
+    };
+    /**
+     * BankPurge
+     * @description One bank in "Apagar as transações de um banco": its accounts and their lines.
+     */
+    BankPurge: {
+      /** Bank */
+      bank: string;
+      /** Transactions */
+      transactions: number;
+      /** To Review */
+      to_review: number;
+      /** Imports */
+      imports: number;
+      /** Connected */
+      connected: boolean;
+      /** Accounts */
+      accounts: components['schemas']['BankPurgeAccount'][];
+    };
+    /** BankPurgeAccount */
+    BankPurgeAccount: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Name */
+      name: string;
+      currency: components['schemas']['Currency'];
+      /** Is Card */
+      is_card: boolean;
+      /** Transactions */
+      transactions: number;
     };
     /** BankRequestIn */
     BankRequestIn: {
@@ -3491,6 +3564,58 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['PurgeOverview'];
+        };
+      };
+    };
+  };
+  purge_banks_api_v1_transactions_purge_banks_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BankPurge'][];
+        };
+      };
+    };
+  };
+  delete_bank_api_v1_transactions_bank_delete: {
+    parameters: {
+      query: {
+        bank: string;
+        expected: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PurgeResult'];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['HTTPValidationError'];
         };
       };
     };
