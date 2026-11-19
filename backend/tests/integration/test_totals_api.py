@@ -20,8 +20,9 @@ async def test_totals_add_up_what_the_list_shows(client: AsyncClient) -> None:
     assert totals["count"] == 5
     [brl] = totals["currencies"]
     assert brl["currency"] == "BRL"
-    # The aplicação (R$ 1000) and the resgate (R$ 300) count by their net: R$ 700 out.
-    assert (brl["income"], brl["spending"], brl["count"]) == ("5000.0000", "1050.0000", 5)
+    # The top figures follow the statement: the resgate (R$ 300) is an entrada, the
+    # aplicação (R$ 1000) a saída. The groups below count them by their net.
+    assert (brl["income"], brl["spending"], brl["count"]) == ("5300.0000", "1350.0000", 5)
     assert (brl["invested_in"], brl["invested_out"]) == ("1000.0000", "300.0000")
     assert brl["balance"] == "3950.0000"
     page = await _get(client, h, f"/api/v1/transactions?month=2026-10&{COUNTED}")
@@ -92,7 +93,7 @@ async def test_totals_when_more_came_back_than_went_in(client: AsyncClient) -> N
     )
     await _import(client, h, csv, "nu.csv", "Nubank")
     [brl] = (await _totals(client, h, ""))["currencies"]
-    # R$ 300 net came back: income, not R$ 100 of spending.
-    assert (brl["income"], brl["spending"], brl["balance"]) == ("300.0000", "0", "300.0000")
+    assert (brl["income"], brl["spending"], brl["balance"]) == ("400.0000", "100.0000", "300.0000")
+    # R$ 300 net came back: the category is income, not R$ 100 of spending.
     [invest] = brl["categories"]
     assert (invest["income"], invest["spending"]) == ("300.0000", "0")

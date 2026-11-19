@@ -50,9 +50,6 @@ function Figures({ t, label, wide }: { t: CurrencyTotals; label: string; wide: b
         <Figure label="Saídas" value={f.spending} wide={wide} />
         <Figure label="Saldo" value={f.balance} wide={wide} />
       </View>
-      {f.invested ? (
-        <Text style={s.note}>{`Investimentos contam pelo líquido: ${f.invested}`}</Text>
-      ) : null}
     </View>
   );
 }

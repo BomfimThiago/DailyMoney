@@ -259,7 +259,6 @@ export function totalsFigures(t: CurrencyTotals) {
     count: countText(t.count),
     // Green only when there is income; R$ 0,00 stays plain.
     hasIncome: Number(t.income) > 0,
-    invested: investedText(t, t.currency),
   };
 }
 
