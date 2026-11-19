@@ -26,7 +26,7 @@ export function FilterMenu({
   // The first item, which clears the filter; null for menus that always hold a choice.
   allLabel?: string | null;
 }) {
-  const { open, setOpen, toggle, side, outside } = useMenuOpen(align);
+  const { open, setOpen, toggle, side, placed, outside } = useMenuOpen(align);
   const current = options.find((o) => o.id === value);
   // Dark only while it filters; a menu that always holds a choice (Período, Ordem) stays light.
   const on = Boolean(current) && allLabel !== null;
@@ -48,7 +48,10 @@ export function FilterMenu({
         </Text>
       </Pressable>
       {open ? (
-        <View style={[styles.menu, side === 'left' && styles.menuLeft]} accessibilityRole="menu">
+        <View
+          style={[styles.menu, side === 'left' && styles.menuLeft, !placed && styles.menuUnplaced]}
+          accessibilityRole="menu"
+        >
           {allLabel !== null ? (
             <MenuItem label={allLabel} on={value === null} onPress={() => pick(null)} />
           ) : null}
@@ -94,7 +97,7 @@ export function PickMenu({
   short?: boolean;
   allLabel?: string;
 }) {
-  const { open, toggle, side, outside } = useMenuOpen(align);
+  const { open, toggle, side, placed, outside } = useMenuOpen(align);
   const on = pick.ids.length > 0;
   const text = pickLabel(label, pick, options, short);
   return (
@@ -111,7 +114,10 @@ export function PickMenu({
         </Text>
       </Pressable>
       {open ? (
-        <View style={[styles.menu, side === 'left' && styles.menuLeft]} accessibilityRole="menu">
+        <View
+          style={[styles.menu, side === 'left' && styles.menuLeft, !placed && styles.menuUnplaced]}
+          accessibilityRole="menu"
+        >
           <View style={styles.modeRow} accessibilityRole="radiogroup">
             <ModeChip
               label="Mostrar"

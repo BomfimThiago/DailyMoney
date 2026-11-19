@@ -12,14 +12,19 @@ type Box = React.ComponentRef<typeof View>;
 export function useMenuOpen(preferred: MenuSide) {
   const [open, setOpen] = useState(false);
   const [side, setSide] = useState<MenuSide>(preferred);
+  // The list stays invisible until its side is known, so it never jumps across the screen.
+  const [placed, setPlaced] = useState(false);
   const outside = useCloseOnOutsideTap(open, setOpen);
   const toggle = () => {
     if (open) return setOpen(false);
-    setOpen(true);
     const box = outside.ref.current as (Box & { measureInWindow?: Box['measureInWindow'] }) | null;
-    box?.measureInWindow?.((x, _y, width) =>
-      setSide(menuSide(x, width, Dimensions.get('window').width, preferred)),
-    );
+    setOpen(true);
+    if (!box?.measureInWindow) return setPlaced(true);
+    setPlaced(false);
+    box.measureInWindow((x, _y, width) => {
+      setSide(menuSide(x, width, Dimensions.get('window').width, preferred));
+      setPlaced(true);
+    });
   };
-  return { open, setOpen, toggle, side, outside };
+  return { open, setOpen, toggle, side, placed, outside };
 }

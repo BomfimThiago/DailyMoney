@@ -502,6 +502,8 @@ async function checkScreens(page, tag) {
     // Conta: on a phone it wraps to the left edge, and its list must still open on screen.
     await seen('Conta ▾').click();
     const wise = check('Wise EUR');
+    // The list shows once it has measured where its button is.
+    await page.waitForTimeout(300);
     const box = await wise.boundingBox();
     const width = page.viewportSize().width;
     if (!box || box.x < 0 || box.x + box.width > width) flag('a lista de Conta abriu fora da tela');
