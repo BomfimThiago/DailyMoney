@@ -143,17 +143,24 @@ async def recognize(db: AsyncSession, family_id: uuid.UUID, import_id: uuid.UUID
         if other is not None:
             other.category_id = category.id
     await db.flush()
-    await settle_all(db, family_id, category)
+    await settle_all(db, family_id, category, import_id)
 
 
-async def settle_all(db: AsyncSession, family_id: uuid.UUID, category: Category) -> None:
+async def settle_all(
+    db: AsyncSession, family_id: uuid.UUID, category: Category, import_id: uuid.UUID
+) -> None:
     lines = await db.scalars(
         select(Transaction).where(
             Transaction.family_id == family_id, Transaction.category_id == category.id
         )
     )
     for tx in lines:
-        tx.kind = kind_for(await card_in_app(db, tx))
+        kind = kind_for(await card_in_app(db, tx))
+        if kind == TxKind.REGULAR and tx.kind == TxKind.TRANSFER and tx.import_id != import_id:
+            # An older line already out of spending stays out: the person may have said
+            # "entre minhas contas", and a new statement must not undo that answer.
+            continue
+        tx.kind = kind
     await db.flush()
 
 

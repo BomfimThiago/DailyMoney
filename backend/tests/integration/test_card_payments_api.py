@@ -8,6 +8,8 @@ from tests.integration.conftest import auth, login
 from tests.integration.test_imports_api import NUBANK, NUBANK_CARD, _confirm, _upload
 
 CARD = "Pago de Cartão de Crédito"
+# A later statement of another account, with nothing to do with the card.
+OTHER_BANK = "Data,Valor,Identificador,Descrição\n12/10/2026,-18.00,id-90,Padaria\n"
 
 
 async def _import(
@@ -109,6 +111,29 @@ async def test_calling_a_bill_payment_a_transfer_names_it(client: AsyncClient) -
         f"/api/v1/transactions/{paid['id']}/kind", json={"kind": "transfer"}, headers=h
     )
     assert r.json()["category_name"] == "Transferência"
+
+
+async def test_a_payment_called_a_transfer_stays_one_after_the_next_statement(
+    client: AsyncClient,
+) -> None:
+    h = auth(await login(client))
+    await _import(client, h, NUBANK, "nu.csv", "Nu")
+    paid = (await _items(client, h))["Pagamento de fatura"]
+    cats = await _categories(client, h)
+    await client.patch(
+        f"/api/v1/transactions/{paid['id']}",
+        json={"category_id": cats["Outros"]["id"], "apply_to_merchant": False},
+        headers=h,
+    )
+    # "É entre minhas contas": out of spending, named as the card payment it is.
+    r = await client.put(
+        f"/api/v1/transactions/{paid['id']}/kind", json={"kind": "transfer"}, headers=h
+    )
+    assert (r.json()["kind"], r.json()["category_name"]) == ("transfer", CARD)
+    # Another statement arrives (any bank): the answer "entre minhas contas" holds.
+    await _import(client, h, OTHER_BANK, "outro.csv", "Outro")
+    paid = (await _items(client, h))["Pagamento de fatura"]
+    assert (paid["kind"], paid["category_name"]) == ("transfer", CARD)
 
 
 async def test_the_category_never_turns_into_spending(client: AsyncClient) -> None:
