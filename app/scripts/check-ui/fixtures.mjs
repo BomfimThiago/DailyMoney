@@ -69,7 +69,12 @@ const regular = [
   tx(accounts.inter, 9, 'Pagamento fatura cartão Itaú', '-1850.00', 'regular', CARD),
 ];
 // Paying the Nubank card, which is in the app: out of spending, under its own category.
-const moved = [tx(accounts.nubank, 10, 'Pagamento de fatura', '-1200.00', 'transfer', CARD)];
+// And money between the family's own accounts, both sides.
+const moved = [
+  tx(accounts.nubank, 10, 'Pagamento de fatura', '-1200.00', 'transfer', CARD),
+  tx(accounts.inter, 6, 'Pix recebido Pessoa', '1000.00', 'transfer', 'Transferência'),
+  tx(accounts.nubank, 6, 'Pix enviado Ana', '-1000.00', 'transfer', 'Transferência'),
+];
 const investments = [
   tx(accounts.nubank, 20, 'Aplicação RDB', '-1500.00', 'investment', 'Investimento'),
   tx(

@@ -150,9 +150,11 @@ export function currencyOptions(accounts: Account[] | undefined): Option[] {
 
 // ── what the list asks for ────────────────────────────────────────────────
 
-// Transfers between the family's own accounts stay out of the list unless asked for.
+// Transfers between the family's own accounts stay out of the list unless asked for; asked
+// for, they are all the list shows (card bill payments the app sees among them). Lines still
+// waiting to be confirmed as transfers have their own cards above the list.
 export const LIST_KINDS: TxKind[] = ['regular', 'investment'];
-export const ALL_KINDS: TxKind[] = ['regular', 'investment', 'transfer', 'pending'];
+export const TRANSFER_KINDS: TxKind[] = ['transfer'];
 
 // What the list asks for besides the filters: the month (null for a free period or all of
 // it), which kinds of line and the order.

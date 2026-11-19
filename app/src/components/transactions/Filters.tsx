@@ -119,8 +119,8 @@ export function Filters({ page, wide }: { page: TransactionsPage; wide: boolean 
   );
 }
 
-// Transfers between the family's own accounts stay out of the list unless asked for;
-// they never count in the totals either way.
+// Transfers between the family's own accounts stay out of the list; switched on, the list
+// shows only them (every line marked as an internal transfer). They never count in the totals.
 function TransfersSwitch({ page }: { page: TransactionsPage }) {
   const on = page.withTransfers;
   return (

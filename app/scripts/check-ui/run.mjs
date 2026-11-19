@@ -113,10 +113,11 @@ function listed(url) {
       const hide = url.searchParams.getAll(`exclude_${param}`);
       return (!only.length || only.includes(of(t))) && !hide.includes(of(t));
     });
-  const withMoved = url.searchParams.getAll('kind').includes('transfer');
-  const lines = [...fixtures.regular.items, ...(withMoved ? fixtures.moved : [])].sort((a, b) =>
-    b.date.localeCompare(a.date),
-  );
+  const kinds = url.searchParams.getAll('kind');
+  const lines = [
+    ...(kinds.includes('regular') ? fixtures.regular.items : []),
+    ...(kinds.includes('transfer') ? fixtures.moved : []),
+  ].sort((a, b) => b.date.localeCompare(a.date));
   const items = lines.filter(
     (t) =>
       t.description.toLowerCase().includes(q) &&
@@ -297,12 +298,15 @@ function answer(url, method) {
     const items = cardPurchases[url.searchParams.get('card_bill')] ?? [];
     return { status: 200, body: { total: items.length, items } };
   }
-  if (p === '/transactions' && url.searchParams.getAll('kind').includes('regular')) {
+  const listKinds = url.searchParams.getAll('kind');
+  if (p === '/transactions' && (listKinds.includes('regular') || listKinds.includes('transfer'))) {
     const waiting = url.searchParams.getAll('kind').includes('pending');
     const items = [...listed(url), ...(waiting ? fixtures['/transactions/transfers'].pending : [])];
     return { status: 200, body: { total: items.length, items } };
   }
-  if (p === '/transactions/totals') return { status: 200, body: totals(listed(url)) };
+  // Like the server: transfers may be listed but never add up.
+  if (p === '/transactions/totals')
+    return { status: 200, body: totals(listed(url).filter((t) => t.kind !== 'transfer')) };
   if (p in fixtures) return { status: 200, body: fixtures[p] };
   return { status: 404, body: { detail: `sem dado de exemplo para ${p}` } };
 }
@@ -638,20 +642,31 @@ async function checkScreens(page, tag) {
       await shot('transacoes-detalhe-rolado');
       await page.setViewportSize(size);
     }
-    // No Transferências tab: the switch shows them in the list, the waiting ones on top.
+    // No Transferências tab: the switch lists only the internal transfers, the waiting ones
+    // on top. They never count, so there are no totals.
     const transfersSwitch = page
       .getByRole('checkbox', { name: 'Transferências internas' })
       .filter({ visible: true });
     await transfersSwitch.click();
     await seen('AGUARDANDO CONFIRMAR').waitFor();
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('totals').filter({ visible: true }).waitFor();
+    await seen('Pix enviado Ana').waitFor();
+    const spendingRow = page.getByRole('button', { name: /^Pão de Açúcar/ });
+    if (await spendingRow.filter({ visible: true }).count())
+      flag('Transferências internas ainda mostra gastos na lista');
     await seen('A confirmar')
       .first()
       .waitFor()
       .catch(() => {});
     await seen('Saiu e não voltou').waitFor();
     await shot('transacoes-transferencias');
+    if (tag === 'celular') {
+      await page.mouse.move(195, 500);
+      await page.mouse.wheel(0, 700);
+      await page.waitForTimeout(400);
+      await shot('transacoes-transferencias-lista');
+      await page.mouse.wheel(0, -700);
+    }
     // A card bill payment shows its category, not a bare "Transferência".
     await page
       .getByRole('button', { name: /^Pagamento de fatura/ })

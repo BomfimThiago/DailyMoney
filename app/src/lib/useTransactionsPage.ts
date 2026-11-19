@@ -23,8 +23,8 @@ import {
   type Dim,
   type Pick,
   txFilters,
-  ALL_KINDS,
   LIST_KINDS,
+  TRANSFER_KINDS,
   type ListView,
   categoryOptions,
   currencyOptions,
@@ -235,7 +235,7 @@ export function useTransactionsPage(aba: string | undefined, link: DrillParams =
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const view: ListView = {
     month: period.listMonth,
-    kinds: withTransfers ? ALL_KINDS : LIST_KINDS,
+    kinds: withTransfers ? TRANSFER_KINDS : LIST_KINDS,
     sort,
   };
   const query = { ...txFilters(f.filters), ...period.dates };
