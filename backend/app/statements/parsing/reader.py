@@ -33,11 +33,14 @@ def finish_rows(rows: list[ParsedRow]) -> list[ParsedRow]:
     finished = []
     for row in rows:
         description = _tidy(row.description)
-        # A connected bank may already say what the row is; a file only flags transfers.
+        # A connected bank may already say what the row is; a file only flags transfers,
+        # and a file that says so wins ("Resgate enviado" in a Global Account is no
+        # investment redemption).
         kind: RowKind = (
-            own_move_kind(description)
+            ("transfer" if row.is_transfer else None)
+            or own_move_kind(description)
             or (row.kind if row.kind != "regular" else None)
-            or ("transfer" if row.is_transfer else "regular")
+            or "regular"
         )
         finished.append(replace(row, description=description, kind=kind))
     return finished

@@ -24,6 +24,9 @@ class KnownLayout:
     transfer_values: frozenset[str] = frozenset()
     # Columns joined into the description when one column alone says too little.
     description_columns: tuple[str, ...] = ()
+    # Columns tried in order when some rows leave the description column empty;
+    # the first one with text is the description.
+    description_fallbacks: tuple[str, ...] = ()
 
 
 _WISE = (
@@ -76,6 +79,23 @@ LAYOUTS = (
         description_columns=("histórico", "descrição"),
     ),
     KnownLayout(
+        (
+            "data da transação",
+            "valor da transação",
+            "tipo da operação",
+            "tipo da transação",
+            "nome do beneficiário",
+            "estabelecimento",
+        ),
+        "Inter",
+        currency="USD",
+        # Global Account: top-ups come from the owner's own Inter account and
+        # "Resgate" sends money back to it.
+        transfer_column="tipo da transação",
+        transfer_values=frozenset({"CARREGAMENTO RECEBIDO", "RESGATE ENVIADO"}),
+        description_fallbacks=("estabelecimento", "nome do beneficiário", "tipo da transação"),
+    ),
+    KnownLayout(
         _WISE,
         "Wise",
         transfer_column="transaction details type",
@@ -102,11 +122,13 @@ def match_layout(headers: list[str]) -> LayoutMatch | None:
         return None
     col = got.index(layout.transfer_column) if layout.transfer_column else -1
     parts = tuple(got.index(c) for c in layout.description_columns)
-    return LayoutMatch(
-        layout,
-        partial(_is_transfer, col, layout.transfer_values),
-        partial(_describe, parts) if parts else None,
-    )
+    fallbacks = tuple(got.index(c) for c in layout.description_fallbacks)
+    describe = None
+    if parts:
+        describe = partial(_describe, parts)
+    elif fallbacks:
+        describe = partial(_first_text, fallbacks)
+    return LayoutMatch(layout, partial(_is_transfer, col, layout.transfer_values), describe)
 
 
 def _trimmed(headers: list[str]) -> tuple[str, ...]:
@@ -126,3 +148,7 @@ def _is_transfer(col: int, values: frozenset[str], cells: list[str]) -> bool:
 def _describe(parts: tuple[int, ...], cells: list[str]) -> str:
     texts = [cells[i].strip() for i in parts if i < len(cells) and cells[i].strip()]
     return ": ".join(texts)
+
+
+def _first_text(parts: tuple[int, ...], cells: list[str]) -> str:
+    return next((cells[i].strip() for i in parts if i < len(cells) and cells[i].strip()), "")
