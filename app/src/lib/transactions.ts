@@ -259,7 +259,18 @@ export function totalsFigures(t: CurrencyTotals) {
     count: countText(t.count),
     // Green only when there is income; R$ 0,00 stays plain.
     hasIncome: Number(t.income) > 0,
+    invested: investedText(t, t.currency),
   };
+}
+
+// Investments count by their net (put in beyond what came back); when money also came
+// back, the gross amounts behind that net are said apart, so nothing looks lost.
+export function investedText(
+  g: { invested_in: string; invested_out: string },
+  currency: Currency,
+): string | null {
+  if (Number(g.invested_out) <= 0) return null;
+  return `aplicado ${money(g.invested_in, currency)}  ·  resgatado ${money(g.invested_out, currency)}`;
 }
 
 export type GroupRow = {
@@ -267,6 +278,10 @@ export type GroupRow = {
   name: string;
   spending: string | null;
   income: string | null;
+  // The net shown when neither is set (what went in came back exactly).
+  zero: string;
+  // "aplicado … · resgatado …" when an investment also had money come back.
+  invested: string | null;
   count: string;
   // Bar length against the biggest group; income-only groups get the income colour.
   width: `${number}%`;
@@ -292,6 +307,8 @@ export function groupRows(
       name: g.name,
       spending: Number(g.spending) > 0 ? money(g.spending, t.currency) : null,
       income: Number(g.income) > 0 ? money(g.income, t.currency, true) : null,
+      zero: money('0', t.currency),
+      invested: investedText(g, t.currency),
       count: countText(g.count),
       width: `${top > 0 ? (size(g) / top) * 100 : 0}%`,
       incomeOnly: Number(g.spending) === 0,

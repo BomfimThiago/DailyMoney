@@ -38,6 +38,7 @@ from app.transactions.schemas import (
     TransactionUpdate,
 )
 from app.transactions.services import card_payments
+from app.transactions.services.flow import Flow
 from app.transactions.services.months import month_of, month_range
 
 Direction = Literal["in", "out"]
@@ -231,15 +232,20 @@ async def _by_converted_amount(
 class _Sum:
     def __init__(self, id: uuid.UUID | None = None, name: str = "") -> None:
         self.id, self.name = id, name
-        self.income = self.spending = Decimal("0")
+        self.flow = Flow()
         self.count = 0
 
-    def add(self, amount: Decimal) -> None:
-        if amount > 0:
-            self.income += amount
-        else:
-            self.spending -= amount
+    def add(self, amount: Decimal, investment: bool = False) -> None:
+        self.flow.add(amount, investment)
         self.count += 1
+
+    @property
+    def spending(self) -> Decimal:
+        return self.flow.total_spending
+
+    @property
+    def income(self) -> Decimal:
+        return self.flow.total_income
 
     def group(self) -> GroupTotal:
         return GroupTotal(
@@ -247,6 +253,8 @@ class _Sum:
             name=self.name,
             income=self.income,
             spending=self.spending,
+            invested_in=self.flow.put_in,
+            invested_out=self.flow.taken_out,
             count=self.count,
         )
 
@@ -267,12 +275,16 @@ class _CurrencySum:
         }
 
     def add(
-        self, amount: Decimal, day: date, keys: dict[str, tuple[uuid.UUID | None, str]]
+        self,
+        amount: Decimal,
+        day: date,
+        keys: dict[str, tuple[uuid.UUID | None, str]],
+        investment: bool = False,
     ) -> None:
-        self.all.add(amount)
+        self.all.add(amount, investment)
         self.days[day] = self.days.get(day, Decimal("0")) + amount
         for dimension, (key, name) in keys.items():
-            self.by[dimension].setdefault(key, _Sum(key, name)).add(amount)
+            self.by[dimension].setdefault(key, _Sum(key, name)).add(amount, investment)
 
     def totals(self, currency: Currency) -> CurrencyTotals:
         return CurrencyTotals(
@@ -280,6 +292,8 @@ class _CurrencySum:
             income=self.all.income,
             spending=self.all.spending,
             balance=self.all.income - self.all.spending,
+            invested_in=self.all.flow.put_in,
+            invested_out=self.all.flow.taken_out,
             count=self.all.count,
             categories=_biggest_first(self.by["categories"]),
             members=_biggest_first(self.by["members"]),
@@ -311,6 +325,7 @@ async def totals(
                 Transaction.amount,
                 Transaction.currency,
                 Transaction.date,
+                Transaction.kind,
                 Transaction.category_id,
                 Category.name,
                 Transaction.member_id,
@@ -327,14 +342,16 @@ async def totals(
     dates = [row.date for row in rows]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
     sums: dict[Currency, _CurrencySum] = {}
-    for amount, original, day, cat_id, cat, member_id, person, acc_id, acc in rows:
+    for amount, original, day, kind, cat_id, cat, member_id, person, acc_id, acc in rows:
         shown = conv.currency(original)
         keys = {
             "categories": (cat_id, cat or NO_CATEGORY),
             "members": (member_id, person or HOUSEHOLD_NAME),
             "accounts": (acc_id, acc),
         }
-        sums.setdefault(shown, _CurrencySum()).add(conv(amount, original, day), day, keys)
+        sums.setdefault(shown, _CurrencySum()).add(
+            conv(amount, original, day), day, keys, kind == TxKind.INVESTMENT
+        )
     return TransactionTotals(
         count=len(rows),
         currencies=[s.totals(c) for c, s in sorted(sums.items(), key=lambda kv: kv[0].value)],

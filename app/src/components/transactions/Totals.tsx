@@ -50,6 +50,9 @@ function Figures({ t, label, wide }: { t: CurrencyTotals; label: string; wide: b
         <Figure label="Saídas" value={f.spending} wide={wide} />
         <Figure label="Saldo" value={f.balance} wide={wide} />
       </View>
+      {f.invested ? (
+        <Text style={s.note}>{`Investimentos contam pelo líquido: ${f.invested}`}</Text>
+      ) : null}
     </View>
   );
 }
@@ -123,7 +126,9 @@ function Row({ r, wide }: { r: GroupRow; wide: boolean }) {
         <Text style={s.rowName} numberOfLines={1}>
           {r.name}
         </Text>
-        <Text style={[s.rowValue, r.incomeOnly && s.income]}>{r.spending ?? r.income}</Text>
+        <Text style={[s.rowValue, r.incomeOnly && s.income]}>
+          {r.spending ?? r.income ?? r.zero}
+        </Text>
       </View>
       <View style={s.track}>
         <View style={[s.fill, r.incomeOnly && s.fillIncome, { width: r.width }]} />
@@ -134,6 +139,11 @@ function Row({ r, wide }: { r: GroupRow; wide: boolean }) {
           <Text style={s.income}>{`  ·  ${r.income} de entradas`}</Text>
         ) : null}
       </Text>
+      {r.invested ? (
+        <Text style={s.rowSub} numberOfLines={2}>
+          {r.invested}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -159,6 +169,7 @@ const s = StyleSheet.create({
   figureValue: { fontFamily: fonts.regular, fontSize: 24, color: colors.ink },
   figureValuePhone: { fontSize: 18 },
   income: { color: colors.positive },
+  note: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
   groups: {
     borderTopWidth: 1,
     borderTopColor: colors.line,

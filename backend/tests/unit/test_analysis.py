@@ -3,7 +3,12 @@ from decimal import Decimal
 
 from app.families.models import Currency
 from app.transactions.schemas import CurrencyAnalysis
-from app.transactions.services.analysis_service import Spend, analyse, display_name
+from app.transactions.services.analysis_service import (
+    Spend,
+    analyse,
+    display_name,
+    net_investments,
+)
 from app.transactions.services.months import month_of
 
 EUR = Currency.EUR
@@ -167,3 +172,29 @@ def test_renamed_housing_is_still_left_out_of_weekdays() -> None:
     rent = Spend(EUR, d, Decimal("900"), "Aluguel", "Casa", month_of(d), key="Moradia")
     r = run([s("2026-10-05", "20", "Padaria"), rent], months=1)
     assert r.weekdays[1] == Decimal(0)
+
+
+def test_investments_count_by_their_net_per_month() -> None:
+    def move(day: date, amount: str) -> Spend:
+        return Spend(
+            Currency.BRL,
+            day,
+            Decimal(amount),
+            "RDB",
+            "Investimento",
+            day.strftime("%Y-%m"),
+            "Investimento",
+        )
+
+    out = net_investments(
+        [
+            move(date(2026, 10, 5), "1000"),
+            move(date(2026, 10, 10), "-300"),
+            move(date(2026, 9, 5), "100"),
+            move(date(2026, 9, 9), "-400"),
+        ]
+    )
+    # October: R$ 700 more went in than came back; September: more came back, no spending.
+    assert [(s.month, s.amount, s.date) for s in out] == [
+        ("2026-10", Decimal("700"), date(2026, 10, 10))
+    ]

@@ -33,6 +33,7 @@ from app.transactions.schemas import (
     TransferOut,
     TransferOverview,
 )
+from app.transactions.services.flow import Flow
 from app.transactions.services.months import month_of, month_range, shift
 from app.transactions.services.transaction_service import HOUSEHOLD as HOUSEHOLD_KEY
 from app.transactions.services.transaction_service import NO_CATEGORY, NO_CATEGORY_KEY, to_out
@@ -70,29 +71,24 @@ async def month_summary(
             Transaction.kind.in_(COUNTED),
         )
     )
-    sums: dict[Currency, dict[str, Decimal]] = defaultdict(lambda: defaultdict(lambda: ZERO))
+    flows: dict[Currency, Flow] = defaultdict(Flow)
     for original, kind, raw, day in rows:
-        s = sums[conv.currency(original)]
-        amount = conv(raw, original, day)
-        # An investment move is spending or income like any other line (category
-        # Investimento); it is also added up apart, for the Investido figure.
-        s["income" if amount > 0 else "spending"] += abs(amount)
-        if kind == TxKind.INVESTMENT:
-            s["taken_out" if amount > 0 else "put_in"] += abs(amount)
+        # An investment move counts by its net: put in beyond what came back is spending,
+        # the other way round is income (category Investimento).
+        flows[conv.currency(original)].add(conv(raw, original, day), kind == TxKind.INVESTMENT)
 
     out = []
     for shown in await _currencies(db, family_id, currency):
-        s = sums[shown]
-        invested = s["put_in"] - s["taken_out"]
+        f = flows[shown]
         out.append(
             CurrencySummary(
                 currency=shown,
-                income=s["income"],
-                spending=s["spending"],
-                invested=invested,
-                invested_in=s["put_in"],
-                invested_out=s["taken_out"],
-                left=s["income"] - s["spending"],
+                income=f.total_income,
+                spending=f.total_spending,
+                invested=f.invested,
+                invested_in=f.put_in,
+                invested_out=f.taken_out,
+                left=f.total_income - f.total_spending,
             )
         )
     pending = await _count(db, family_id, APPROVED, Transaction.kind == TxKind.PENDING)
@@ -114,18 +110,24 @@ HOUSEHOLD = "Casa"
 
 # A group of spending: the value Transações filters it by, and the name shown.
 _Group = tuple[str, str]
-_Shares = dict[Currency, dict[_Group, Decimal]]
+_Flows = dict[Currency, dict[_Group, Flow]]
 
 
-def _groups() -> _Shares:
-    return defaultdict(lambda: defaultdict(lambda: ZERO))
+def _groups() -> _Flows:
+    return defaultdict(lambda: defaultdict(Flow))
 
 
-def _shares(sums: dict[_Group, Decimal]) -> list[SpendingShare]:
+def _shares(flows: dict[_Group, Flow], income: bool = False) -> list[SpendingShare]:
+    sums = {g: (f.total_income if income else f.total_spending) for g, f in flows.items()}
     return [
         SpendingShare(key=key, name=name, amount=amount)
         for (key, name), amount in sorted(sums.items(), key=lambda kv: (-kv[1], kv[0][1]))
+        if amount > 0
     ]
+
+
+def _days(n: int) -> list[Flow]:
+    return [Flow() for _ in range(n)]
 
 
 _CASA: _Group = (HOUSEHOLD_KEY, HOUSEHOLD)
@@ -151,6 +153,7 @@ async def month_dashboard(
             Transaction.currency,
             Transaction.date,
             Transaction.amount,
+            Transaction.kind,
             Account.id,
             Account.name,
             Account.bank,
@@ -170,33 +173,28 @@ async def month_dashboard(
             Transaction.date.between(prev_lo, hi),
         )
     )
-    # Index 0 is the period's first day (not always the 1st).
-    daily: dict[Currency, list[Decimal]] = defaultdict(lambda: [ZERO] * ((hi - lo).days + 1))
-    previous: dict[Currency, list[Decimal]] = defaultdict(
-        lambda: [ZERO] * ((prev_hi - prev_lo).days + 1)
-    )
-    prev_income: dict[Currency, Decimal] = defaultdict(lambda: ZERO)
-    by_category, by_account, by_person, by_bank, income = (_groups() for _ in range(5))
+    # Index 0 is the period's first day (not always the 1st). Investment moves are netted
+    # per group for the month, and per day for the daily rhythm.
+    daily: dict[Currency, list[Flow]] = defaultdict(lambda: _days((hi - lo).days + 1))
+    previous: dict[Currency, list[Flow]] = defaultdict(lambda: _days((prev_hi - prev_lo).days + 1))
+    before: dict[Currency, Flow] = defaultdict(Flow)
+    by_category, by_account, by_person, by_bank = (_groups() for _ in range(4))
     for row in rows:
-        (original, day, raw, account_id, account_name, bank) = row[:6]
-        category_id, category, member_id, person = row[6:]
+        (original, day, raw, kind, account_id, account_name, bank) = row[:7]
+        category_id, category, member_id, person = row[7:]
         currency = conv.currency(original)
         amount = conv(raw, original, day)
+        investment = kind == TxKind.INVESTMENT
         if day < lo:
-            if amount > 0:
-                prev_income[currency] += amount
-            else:
-                previous[currency][(day - prev_lo).days] -= amount
+            before[currency].add(amount, investment)
+            previous[currency][(day - prev_lo).days].add(amount, investment)
             continue
-        if amount > 0:
-            income[currency][_category(category_id, category)] += amount
-            continue
-        spent = -amount
-        daily[currency][(day - lo).days] += spent
-        by_category[currency][_category(category_id, category)] += spent
-        by_account[currency][(str(account_id), account_name)] += spent
-        by_person[currency][(str(member_id), person) if member_id else _CASA] += spent
-        by_bank[currency][(bank, bank)] += spent
+        daily[currency][(day - lo).days].add(amount, investment)
+        by_category[currency][_category(category_id, category)].add(amount, investment)
+        by_account[currency][(str(account_id), account_name)].add(amount, investment)
+        person_key = (str(member_id), person) if member_id else _CASA
+        by_person[currency][person_key].add(amount, investment)
+        by_bank[currency][(bank, bank)].add(amount, investment)
 
     return MonthDashboard(
         month=month,
@@ -205,15 +203,15 @@ async def month_dashboard(
         currencies=[
             CurrencyDashboard(
                 currency=c,
-                daily=daily[c],
-                previous_daily=previous[c],
+                daily=[f.total_spending for f in daily[c]],
+                previous_daily=[f.total_spending for f in previous[c]],
                 categories=_shares(by_category[c]),
                 accounts=_shares(by_account[c]),
                 people=_shares(by_person[c]),
                 banks=_shares(by_bank[c]),
-                income_categories=_shares(income[c]),
-                previous_income=prev_income[c],
-                previous_spending=sum(previous[c], ZERO),
+                income_categories=_shares(by_category[c], income=True),
+                previous_income=before[c].total_income,
+                previous_spending=before[c].total_spending,
             )
             for c in await _currencies(db, family_id, currency)
         ],

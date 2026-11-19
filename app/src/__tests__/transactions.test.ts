@@ -38,11 +38,19 @@ import { useDebounced, useTabFromLink } from '@/lib/useTransactionsPage';
 
 const tx = (id: string) => ({ id }) as Transaction;
 
-const group = (name: string, spending: string, income = '0', count = 1): GroupTotal => ({
+const group = (
+  name: string,
+  spending: string,
+  income = '0',
+  count = 1,
+  invested: [string, string] = ['0', '0'],
+): GroupTotal => ({
   id: name === 'Casa' ? null : `id-${name}`,
   name,
   spending,
   income,
+  invested_in: invested[0],
+  invested_out: invested[1],
   count,
 });
 
@@ -51,6 +59,8 @@ const totals = (categories: GroupTotal[]): CurrencyTotals => ({
   income: '5300.0000',
   spending: '1350.0000',
   balance: '3950.0000',
+  invested_in: '0',
+  invested_out: '0',
   count: 5,
   categories,
   members: [group('Casa', '200')],
@@ -87,6 +97,27 @@ describe('totals of what the list shows', () => {
     expect(rows[2].incomeOnly).toBe(true);
     const [casa] = groupRows(t, 'members', false).rows;
     expect([casa.key, casa.name]).toEqual(['none-Casa', 'Casa']);
+  });
+
+  it('says what was put in and taken out when investments count by their net', () => {
+    const t = totals([
+      group('Investimento', '700', '0', 2, ['1000', '300']),
+      group('Fundo', '0', '0', 2, ['500', '500']),
+      group('Mercado', '250'),
+    ]);
+    const [invest, even, market] = groupRows(t, 'categories', false).rows;
+    expect([invest.spending, invest.invested]).toEqual([
+      'R$\u00a0700,00',
+      'aplicado R$\u00a01.000,00  ·  resgatado R$\u00a0300,00',
+    ]);
+    // What went in came back exactly: nothing counts, and it says R$ 0,00.
+    expect([even.spending, even.income, even.zero]).toEqual([null, null, 'R$\u00a00,00']);
+    // Only money put in: the net is the whole amount, nothing more to explain.
+    expect(market.invested).toBeNull();
+    expect(totalsFigures({ ...t, invested_in: '1000', invested_out: '300' }).invested).toBe(
+      'aplicado R$\u00a01.000,00  ·  resgatado R$\u00a0300,00',
+    );
+    expect(totalsFigures(t).invested).toBeNull();
   });
 
   it('shows the first groups and tells how many more there are', () => {
