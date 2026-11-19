@@ -499,6 +499,24 @@ async function checkScreens(page, tag) {
     ).click();
     await seen('✕ Limpar filtros').click();
     await seen('TOTAL DO MÊS').waitFor();
+    // Conta: on a phone it wraps to the left edge, and its list must still open on screen.
+    await seen('Conta ▾').click();
+    const wise = check('Wise EUR');
+    // The list shows once it has measured where its button is.
+    await page.waitForTimeout(300);
+    const box = await wise.boundingBox();
+    const width = page.viewportSize().width;
+    if (!box || box.x < 0 || box.x + box.width > width) flag('a lista de Conta abriu fora da tela');
+    await wise.click();
+    await seen('Mercadona')
+      .waitFor({ timeout: 3000 })
+      .catch(() => flag('o filtro de Conta não filtrou a lista'));
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
+    await shot('transacoes-conta');
+    await page.mouse.click(width - 5, 5);
+    await seen('✕ Limpar filtros').click();
+    await seen('TOTAL DO MÊS').waitFor();
     // Only Investimento: it counts by its net, and says what went in and came back.
     await seen('Categoria ▾').click();
     await check('Investimento').click();

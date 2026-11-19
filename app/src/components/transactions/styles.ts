@@ -121,6 +121,7 @@ export const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
   },
   menuLeft: { left: 0, right: undefined },
+  menuUnplaced: { opacity: 0 },
   menuItem: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 8 },
   menuItemOn: { backgroundColor: colors.ink },
   menuItemText: { fontFamily: fonts.regular, fontSize: 14, color: colors.ink, flexShrink: 1 },
