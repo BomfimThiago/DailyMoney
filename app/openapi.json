@@ -3506,6 +3506,17 @@
             "title": "Is Default",
             "default": false
           },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
           "transaction_count": {
             "type": "integer",
             "title": "Transaction Count",

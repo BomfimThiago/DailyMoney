@@ -41,7 +41,10 @@ function Cards() {
         </View>
         <Text style={styles.lead}>
           O que sai da conta para pagar cada fatura. As compras continuam contando no mês em que
-          foram feitas, cada uma na sua categoria.
+          foram feitas, cada uma na sua categoria.{' '}
+          <Link href="/duvidas" style={styles.leadLink}>
+            Como o cartão conta no app
+          </Link>
         </Text>
         {wide ? null : <CurrencyChips style={styles.phoneChips} />}
         <Loadable

@@ -1040,6 +1040,8 @@ export interface components {
        * @default false
        */
       is_default: boolean;
+      /** Key */
+      key?: string | null;
       /**
        * Transaction Count
        * @default 0

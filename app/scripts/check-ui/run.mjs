@@ -113,7 +113,11 @@ function listed(url) {
       const hide = url.searchParams.getAll(`exclude_${param}`);
       return (!only.length || only.includes(of(t))) && !hide.includes(of(t));
     });
-  const items = fixtures.regular.items.filter(
+  const withMoved = url.searchParams.getAll('kind').includes('transfer');
+  const lines = [...fixtures.regular.items, ...(withMoved ? fixtures.moved : [])].sort((a, b) =>
+    b.date.localeCompare(a.date),
+  );
+  const items = lines.filter(
     (t) =>
       t.description.toLowerCase().includes(q) &&
       picked(t) &&
@@ -133,7 +137,7 @@ function listed(url) {
 // A line in the three currencies (the samples: one euro is 6 reais or 1.2 dollars).
 function inCurrencies(id) {
   const queued = fixtures['/transactions/review'].groups.flatMap((g) => g.items);
-  const t = [...fixtures.regular.items, ...queued].find((x) => x.id === id);
+  const t = [...fixtures.regular.items, ...fixtures.moved, ...queued].find((x) => x.id === id);
   if (!t) return null;
   const perEur = { EUR: 1, BRL: 6, USD: 1.2 };
   const amounts = ['BRL', 'EUR', 'USD'].map((c) => {
@@ -605,7 +609,27 @@ async function checkScreens(page, tag) {
       .catch(() => {});
     await seen('Saiu e não voltou').waitFor();
     await shot('transacoes-transferencias');
+    // A card bill payment shows its category, not a bare "Transferência".
+    await page
+      .getByRole('button', { name: /^Pagamento de fatura/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen(/Fica fora dos Gastos/).waitFor({ timeout: 3000 });
+    await page.waitForTimeout(400);
+    await shot('transacoes-pago-cartao');
+    if (tag === 'celular') await page.getByRole('button', { name: 'Fechar', exact: true }).click();
     await transfersSwitch.click();
+    // The Itaú card isn't in the app: its payment counts, and the detail says why.
+    await page
+      .getByRole('button', { name: /^Pagamento fatura cartão Itaú/ })
+      .filter({ visible: true })
+      .first()
+      .click();
+    await seen(/Conta como gasto: o cartão deste banco/).waitFor({ timeout: 3000 });
+    await page.waitForTimeout(400);
+    await shot('transacoes-pago-cartao-fora');
+    if (tag === 'celular') await page.getByRole('button', { name: 'Fechar', exact: true }).click();
 
     // Imported lines waiting for approval, by bank read and statement.
     await page.getByRole('tab', { name: /revisar/i }).click();
@@ -769,6 +793,12 @@ async function checkScreens(page, tag) {
     await page.getByTestId('segment-next').filter({ visible: true }).click();
     await seen('Amazon').waitFor();
     await shot('cartoes-proxima');
+    // Dúvidas: how the credit card counts.
+    await page.goto(`${base}/duvidas`);
+    await seen('Quando uma compra no cartão conta como gasto?').waitFor();
+    await page.getByRole('button', { name: 'E se o cartão não estiver no app?' }).click();
+    await page.waitForLoadState('networkidle');
+    await shot('duvidas');
     // Ajustes: the month starts on the 27th, and Início names the month by its days.
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();

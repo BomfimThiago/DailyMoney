@@ -7,6 +7,8 @@ import { decideReview, deleteTransaction, setKind, updateTransaction } from '@/l
 import type { Category, Transaction } from '@/lib/types';
 import { category } from '@/testing/categories';
 
+jest.mock('expo-router', () => ({ router: { navigate: jest.fn() } }));
+
 jest.mock('@/lib/imports', () => ({
   updateCategory: jest.fn(),
   updateTransaction: jest.fn(),
@@ -19,6 +21,12 @@ const mockCategoryList: Category[] = [
   category({ id: 'c-rest', name: 'Restaurantes' }),
   category({ id: 'c-salario', name: 'Salário', kind: 'income' }),
   category({ id: 'c-transf', name: 'Transferência', kind: 'transfer' }),
+  category({
+    id: 'c-card',
+    name: 'Pago de Cartão de Crédito',
+    kind: 'transfer',
+    key: 'Pago de Cartão de Crédito',
+  }),
 ];
 const mockCurrencies = jest.fn<() => { data: unknown }>(() => ({ data: undefined }));
 jest.mock('@/lib/queries', () => ({
@@ -219,6 +227,45 @@ describe('TxDetail', () => {
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
     expect(mockEdit).not.toHaveBeenCalled();
     expect(mockKind).toHaveBeenCalledWith('tx-1', 'investment');
+  });
+
+  it('says a line paid a card bill, through its category', async () => {
+    mockEdit.mockResolvedValue(tx());
+    const onChanged = jest.fn();
+    await render(<TxDetail t={tx({ description: 'PAGTO FATURA' })} onChanged={onChanged} />);
+    await fireEvent.press(screen.getByText('Pago de cartão'));
+    expect(screen.getByText(/Fica fora dos Gastos/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Salvar'));
+    await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(mockEdit).toHaveBeenCalledWith('tx-1', {
+      category_id: 'c-card',
+      apply_to_merchant: false,
+    });
+    expect(mockKind).not.toHaveBeenCalled();
+  });
+
+  it('a payment of a card not in the app says why it counts', async () => {
+    const paid = tx({ category_id: 'c-card', category_name: 'Pago de Cartão de Crédito' });
+    await render(<TxDetail t={paid} onChanged={jest.fn()} />);
+    expect(
+      screen.getByRole('radio', { name: 'Pago de cartão' }).props.accessibilityState,
+    ).toMatchObject({ selected: true });
+    expect(screen.getByText(/Conta como gasto: o cartão deste banco não está no app/)).toBeTruthy();
+  });
+
+  it('leaving card payment asks for a category and keeps the one chosen', async () => {
+    mockEdit.mockResolvedValue(tx());
+    const paid = tx({
+      kind: 'transfer',
+      category_id: 'c-card',
+      category_name: 'Pago de Cartão de Crédito',
+    });
+    await render(<TxDetail t={paid} onChanged={jest.fn()} />);
+    expect(screen.getByText(/Fica fora dos Gastos/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Gasto ou entrada'));
+    await fireEvent.press(screen.getByText('Salvar'));
+    // No category picked: the server suggests one.
+    expect(mockKind).toHaveBeenCalledWith('tx-1', 'regular');
   });
 
   it('shows the error when saving the edit fails', async () => {

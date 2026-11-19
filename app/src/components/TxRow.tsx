@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { dayMonth, isIncome } from '@/lib/format';
-import { lineAmounts } from '@/lib/transactions';
+import { lineAmounts, movedLabel } from '@/lib/transactions';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
 
@@ -11,7 +11,7 @@ function kindLabel(t: Transaction): string | null {
       // Its category, like any spending or income; the sign says aplicação or resgate.
       return t.category_name ?? 'Investimento';
     case 'transfer':
-      return 'Entre suas contas';
+      return movedLabel(t, 'Entre suas contas');
     case 'pending':
       return 'A confirmar';
     default:

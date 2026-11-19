@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -8,14 +9,17 @@ import { setKind, updateTransaction } from '@/lib/imports';
 import { choiceOf, memberIdOf, ownerOptions } from '@/lib/people';
 import { useCategories, useFamily } from '@/lib/queries';
 import {
+  cardCategoryOf,
   categoriesFor,
   formErrors,
   formOf,
+  needsKindCall,
   patchOf,
   type Direction,
   type EditKind,
   type TxForm,
   withDirection,
+  withKind,
 } from '@/lib/txEdit';
 import type { Transaction } from '@/lib/types';
 import { colors, fonts } from '@/theme';
@@ -26,18 +30,30 @@ const KINDS: { value: EditKind; label: string }[] = [
   { value: 'regular', label: 'Gasto ou entrada' },
   { value: 'investment', label: 'Investimento' },
   { value: 'transfer', label: 'Entre minhas contas' },
+  { value: 'card', label: 'Pago de cartão' },
 ];
 
 // The fields of a line, always open in the detail (no separate Editar step): description,
 // date, amount (gasto/entrada), category, what the line was and who it belongs to. The currency is the
 // account's, so it is shown but not edited. Salvar and Desfazer wake up once something changes.
 export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void }) {
-  const [form, setForm] = useState<TxForm>(() => formOf(t));
+  const categories = useCategories(true);
+  const all = categories.data ?? [];
+  const cardId = cardCategoryOf(all)?.id;
+  const [form, setForm] = useState<TxForm>(() => formOf(t, cardId));
   // What the fields held when opened or last saved; Desfazer goes back to it.
   const [base, setBase] = useState<TxForm>(form);
   const [saved, setSaved] = useState(false);
-  const categories = useCategories(true);
-  const all = categories.data ?? [];
+  // Categories may arrive after the line: a card payment then opens as one.
+  const [known, setKnown] = useState(cardId !== undefined);
+  if (!known && cardId !== undefined) {
+    setKnown(true);
+    if (t.category_id === cardId && !changed(form, base)) {
+      const next = formOf(t, cardId);
+      setForm(next);
+      setBase(next);
+    }
+  }
   const family = useFamily(true);
   const [tried, setTried] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -60,12 +76,12 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
   const save = async () => {
     setTried(true);
     if (Object.keys(errors).length) return;
-    const patch = patchOf(t, form);
+    const patch = patchOf(t, form, cardId);
     setSaving(true);
     setError(null);
     try {
       if (Object.keys(patch).length) await updateTransaction(t.id, patch);
-      if (form.kind !== base.kind) await setKind(t.id, form.kind);
+      if (needsKindCall(form, base, patch)) await setKind(t.id, form.kind);
       setBase(form);
       setTried(false);
       setSaving(false);
@@ -130,7 +146,7 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
             key={k.value}
             label={k.label}
             selected={form.kind === k.value}
-            onPress={() => set('kind', k.value)}
+            onPress={() => edit((f) => withKind(f, k.value, cardId))}
           />
         ))}
       </View>
@@ -152,6 +168,8 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
             />
           ) : null}
         </Field>
+      ) : form.kind === 'card' ? (
+        <CardHint counts={t.kind === 'regular' && t.category_id === cardId} />
       ) : (
         <Text style={styles.hint}>
           {form.kind === 'investment'
@@ -189,6 +207,25 @@ export function TxEditForm({ t, onSaved }: { t: Transaction; onSaved: () => void
         />
       </View>
     </View>
+  );
+}
+
+// A card bill payment: out of spending, unless the card isn't in the app (then this
+// payment is the only trace of its purchases). The FAQ explains both.
+function CardHint({ counts }: { counts: boolean }) {
+  return (
+    <Text style={styles.hint}>
+      {counts
+        ? 'Conta como gasto: o cartão deste banco não está no app, então este pagamento é o único registro das compras dele. '
+        : 'Fica fora dos Gastos, junto das transferências internas, com a categoria Pago de Cartão de Crédito: as compras do cartão já contaram no dia em que foram feitas. '}
+      <Text
+        style={styles.link}
+        accessibilityRole="link"
+        onPress={() => router.navigate('/duvidas')}
+      >
+        Entenda
+      </Text>
+    </Text>
   );
 }
 
@@ -315,7 +352,8 @@ const styles = StyleSheet.create({
   inputFocus: { borderColor: colors.ink },
   inputBad: { borderColor: colors.danger },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  hint: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted },
+  hint: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.muted },
+  link: { fontFamily: fonts.medium, color: colors.ink, textDecorationLine: 'underline' },
   error: { fontFamily: fonts.regular, fontSize: 12, color: colors.danger },
   actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   action: { flex: 1, paddingVertical: 10 },

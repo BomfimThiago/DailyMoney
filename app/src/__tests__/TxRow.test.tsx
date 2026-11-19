@@ -54,10 +54,13 @@ describe('TxRow', () => {
   });
 
   it('shows transfers without a sign', async () => {
-    expect(await shown({ kind: 'transfer', amount: '-400.0000' })).toEqual({
+    expect(await shown({ kind: 'transfer', amount: '-400.0000', category_name: null })).toEqual({
       sub: 'Entre suas contas · Nubank · 4 nov',
       amount: 'R$ 400,00',
     });
+    // A card bill payment says so instead of a bare transfer.
+    const paid = { kind: 'transfer', category_name: 'Pago de Cartão de Crédito' } as const;
+    expect((await shown(paid)).sub).toMatch(/^Pago de Cartão de Crédito · /);
     expect((await shown({ kind: 'pending' })).sub).toMatch(/^A confirmar/);
   });
 });

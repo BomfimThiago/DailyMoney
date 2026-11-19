@@ -14,7 +14,14 @@ from app.accounts.models import Account
 from app.accounts.services import account_service
 from app.categories.models import Category
 from app.categories.services import category_service
-from app.categories.services.categorize import INVESTMENT, TRANSFER, Categorizer
+from app.categories.services.categorize import (
+    CARD_PAYMENT,
+    INCOME,
+    INVESTMENT,
+    OTHER,
+    TRANSFER,
+    Categorizer,
+)
 from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency, Family, Member, User
@@ -36,7 +43,7 @@ from app.statements.parsing.cards import installment_in_text
 from app.statements.parsing.reader import read_statement
 from app.statements.parsing.types import ParsedRow, ParsedStatement
 from app.transactions.models import ReviewStatus, Transaction, TxKind
-from app.transactions.services import transaction_service
+from app.transactions.services import card_payments, transaction_service
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
 # Reads of connected banks: shown on Conexões, never undone like a sent statement.
@@ -427,6 +434,9 @@ def _planned(
             is_transfer=kind == TxKind.TRANSFER,
             is_investment=kind == TxKind.INVESTMENT,
         )
+        if category in (TRANSFER, OTHER, INCOME) and _reads_as_payment(row, ctx.imp.is_card):
+            # Saving checks the rest (the other side, a card in the app); see card_payments.
+            category = CARD_PAYMENT
     return _Planned(
         index=index,
         status=status,
@@ -434,6 +444,11 @@ def _planned(
         category=category,
         pair_id=uuid.UUID(pair) if pair else None,
     )
+
+
+def _reads_as_payment(row: _Row, on_card: bool) -> bool:
+    paying = row.amount > 0 if on_card else row.amount < 0
+    return paying and card_payments.reads_as_bill_payment(row.description, on_card)
 
 
 async def _matching_account(
@@ -549,6 +564,7 @@ async def confirm(
         for currency, choice in by_currency.items()
     }
     counts = await _save(db, imp, await _plan(db, imp, accounts, since))
+    await card_payments.recognize(db, imp.family_id, imp.id)
     imp.imported_count = counts.new
     imp.duplicate_count = counts.duplicate
     imp.skipped_count = counts.skipped

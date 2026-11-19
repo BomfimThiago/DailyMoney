@@ -20,6 +20,7 @@ export const styles = StyleSheet.create({
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   title: { fontFamily: fonts.semibold, fontSize: 20, color: colors.ink },
   lead: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 19, color: colors.muted },
+  leadLink: { fontFamily: fonts.medium, color: colors.ink, textDecorationLine: 'underline' },
   chips: { flexDirection: 'row', gap: 6 },
   phoneChips: { flexDirection: 'row', gap: 6, marginTop: 14 },
   empty: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: colors.muted },

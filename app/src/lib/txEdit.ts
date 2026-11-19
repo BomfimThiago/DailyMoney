@@ -5,7 +5,15 @@ import type { Category, Transaction, TxKind } from './types';
 // Amounts stay decimal strings end to end; nothing here goes through a float.
 
 export type Direction = 'out' | 'in';
-export type EditKind = Exclude<TxKind, 'pending'>;
+// 'card': paying a credit card bill, the category "Pago de Cartão de Crédito".
+export type EditKind = Exclude<TxKind, 'pending'> | 'card';
+
+// The default category's key; the family may rename it, the key stays.
+export const CARD_PAYMENT = 'Pago de Cartão de Crédito';
+
+export function cardCategoryOf(all: Category[]): Category | undefined {
+  return all.find((c) => c.key === CARD_PAYMENT);
+}
 
 export interface TxForm {
   description: string;
@@ -31,14 +39,15 @@ export interface TxPatch {
 
 export type FormErrors = Partial<Record<'description' | 'date' | 'amount', string>>;
 
-export function formOf(t: Transaction): TxForm {
+export function formOf(t: Transaction, cardId?: string): TxForm {
   const negative = t.amount.trim().startsWith('-');
+  const card = cardId !== undefined && t.category_id === cardId;
   return {
     description: t.description,
     date: fullDate(t.date),
     amount: amountText(negative ? t.amount.trim().slice(1) : t.amount.trim()),
     direction: negative ? 'out' : 'in',
-    kind: t.kind === 'pending' ? 'transfer' : t.kind,
+    kind: card ? 'card' : t.kind === 'pending' ? 'transfer' : t.kind,
     categoryId: t.category_id,
     memberId: t.member_id ?? null,
     forMerchant: true,
@@ -107,7 +116,7 @@ export function formErrors(form: TxForm): FormErrors {
 }
 
 // Only what changed. Call it with a form that has no errors.
-export function patchOf(t: Transaction, form: TxForm): TxPatch {
+export function patchOf(t: Transaction, form: TxForm, cardId?: string): TxPatch {
   const patch: TxPatch = {};
   const description = form.description.trim();
   if (description !== t.description) patch.description = description;
@@ -123,6 +132,11 @@ export function patchOf(t: Transaction, form: TxForm): TxPatch {
     patch.category_id = form.categoryId;
     patch.apply_to_merchant = form.forMerchant;
   }
+  // The server decides if it counts: only when the card isn't in the app.
+  if (form.kind === 'card' && cardId && cardId !== t.category_id) {
+    patch.category_id = cardId;
+    patch.apply_to_merchant = false;
+  }
   if (form.memberId !== (t.member_id ?? null)) patch.member_id = form.memberId;
   return patch;
 }
@@ -135,4 +149,24 @@ function sameAmount(a: string, b: string): boolean {
     return `${neg ? '-' : ''}${w.replace(/^0+(?=\d)/, '')}.${c.replace(/0+$/, '')}`;
   };
   return norm(a) === norm(b);
+}
+
+// Saying what the line was goes to its own call, except for a card payment (its category
+// says it) and for a gasto/entrada given a category (the category already says it, and
+// the other call would pick a suggested category over the chosen one).
+export function needsKindCall(
+  form: TxForm,
+  base: TxForm,
+  patch: TxPatch,
+): form is TxForm & {
+  kind: Exclude<EditKind, 'card'>;
+} {
+  if (form.kind === base.kind || form.kind === 'card') return false;
+  return !(form.kind === 'regular' && patch.category_id);
+}
+
+// Leaving "Pago de cartão" drops its category, so a new one has to be picked.
+export function withKind(form: TxForm, kind: EditKind, cardId?: string): TxForm {
+  const keep = kind === 'card' || form.categoryId !== cardId;
+  return { ...form, kind, categoryId: keep ? form.categoryId : null };
 }

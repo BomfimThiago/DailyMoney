@@ -6,11 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.categories.models import Category, CategoryKind, CategoryRule
 from app.categories.schemas import CategoryCreate, CategoryOut, CategoryUpdate, RuleOut
-from app.categories.services.categorize import DEFAULT_CATEGORIES, Categorizer
+from app.categories.services.categorize import CARD_PAYMENT, DEFAULT_CATEGORIES, Categorizer
 from app.core.exceptions import ConflictError, NotFoundError
 from app.transactions.models import Transaction
 
 DUPLICATE = "Já existe uma categoria com esse nome."
+CARD_PAYMENT_KIND = (
+    "Pagar a fatura não é um gasto novo: as compras do cartão já contaram no dia em que "
+    "foram feitas. Por isso essa categoria não muda de tipo."
+)
 
 
 def seed_defaults(db: AsyncSession, family_id: uuid.UUID) -> None:
@@ -69,6 +73,7 @@ def _out(c: Category, lines: int = 0, rules: int = 0) -> CategoryOut:
         kind=c.kind,
         color=c.color,
         is_default=c.system_key is not None,
+        key=c.system_key,
         transaction_count=lines,
         rule_count=rules,
     )
@@ -101,6 +106,8 @@ async def update(
     if data.color is not None:
         category.color = data.color
     if data.kind is not None and data.kind != category.kind:
+        if category.system_key == CARD_PAYMENT:
+            raise ConflictError(CARD_PAYMENT_KIND)
         await _set_kind(db, category, data.kind)
     await _flush(db)
     return next(c for c in await overview(db, family_id) if c.id == category.id)

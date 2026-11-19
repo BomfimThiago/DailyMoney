@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.accounts.models import Account
 from app.categories.models import Category, CategoryKind, CategoryRule
 from app.categories.services import category_service
-from app.categories.services.categorize import INVESTMENT, TRANSFER, merchant_key
+from app.categories.services.categorize import CARD_PAYMENT, INVESTMENT, TRANSFER, merchant_key
 from app.core.exceptions import NotFoundError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency, Member
@@ -37,6 +37,7 @@ from app.transactions.schemas import (
     TransactionTotals,
     TransactionUpdate,
 )
+from app.transactions.services import card_payments
 from app.transactions.services.months import month_of, month_range
 
 Direction = Literal["in", "out"]
@@ -439,7 +440,10 @@ async def follow_category(db: AsyncSession, tx: Transaction, category: Category)
     """Puts the line in the category, and on the side its kind says: a movimentação
     category takes it out of spending and income, any other brings it back."""
     kind = TxKind.REGULAR
-    if category.kind == CategoryKind.TRANSFER:
+    if category.system_key == CARD_PAYMENT:
+        # Out of spending, except when the card isn't in the app (card_payments).
+        kind = card_payments.kind_for(await card_payments.card_in_app(db, tx))
+    elif category.kind == CategoryKind.TRANSFER:
         kind = TxKind.TRANSFER
     elif category.system_key == INVESTMENT:
         kind = TxKind.INVESTMENT
@@ -450,7 +454,10 @@ async def follow_category(db: AsyncSession, tx: Transaction, category: Category)
 
 
 def _moves_money(category: Category) -> bool:
-    return category.kind == CategoryKind.TRANSFER or category.system_key == INVESTMENT
+    return category.kind == CategoryKind.TRANSFER or category.system_key in (
+        INVESTMENT,
+        CARD_PAYMENT,
+    )
 
 
 async def delete_transaction(db: AsyncSession, family_id: uuid.UUID, tx_id: uuid.UUID) -> None:
@@ -473,6 +480,7 @@ async def set_kind(
 ) -> TransactionOut:
     """The person says what a line was: spending/income, investment or own transfer."""
     tx = await _get(db, family_id, tx_id)
+    previous = tx.category_id
     kind = TxKind(data.kind)
     categories = await category_service.categories_by_name(db, family_id)
     transfer_category = categories.get(TRANSFER)
@@ -490,6 +498,13 @@ async def set_kind(
             other.transfer_pair_id = tx.id
             other.kind = TxKind.TRANSFER
             other.category_id = tx.category_id
+        card = await card_payments.category_if_bill_payment(db, tx)
+        if card is not None and card.id != previous:
+            # Called a transfer, but it paid a card: say so (unless the person just took
+            # it out of the card payment category).
+            tx.category_id = card.id
+            if tx.transfer_pair_id and (other := await db.get(Transaction, tx.transfer_pair_id)):
+                other.category_id = card.id
     elif kind == TxKind.INVESTMENT:
         investment_category = categories.get(INVESTMENT)
         tx.category_id = investment_category.id if investment_category else None
