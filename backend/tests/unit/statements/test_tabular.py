@@ -47,6 +47,18 @@ WISE = "\n".join(
     ]
 )
 
+INTER_GLOBAL = (
+    "Extrato Global Account\n"
+    "Nome;FULANO DE TAL\n"
+    "Saldo Inicial Período Solicitado;$ 10,00\n"
+    "\n"
+    "Data da Transação;Valor da Transação;Tipo da Operação;Tipo da Transação;"
+    "Nome do Beneficiário;Estabelecimento\n"
+    "11/11/2026 16:34:31;US$ 626,23;Débito;Compra no Cartão Global;;LOJA EXEMPLO SL\n"
+    "11/11/2026 09:23:54;US$ 8,56;Crédito;Carregamento recebido;;\n"
+    "11/10/2026 08:44:22;US$ 49,85;Débito;Resgate enviado;;\n"
+)
+
 
 def test_nubank_account_csv_is_recognised_and_in_reais() -> None:
     st = read_csv(NUBANK.encode())
@@ -197,3 +209,36 @@ def test_parse_date(raw: str, expected: date) -> None:
 def test_impossible_dates_are_errors(raw: str) -> None:
     with pytest.raises(ValueError):
         parse_date(raw)
+
+
+def test_inter_global_account_takes_the_sign_from_debit_or_credit() -> None:
+    st = read_csv(INTER_GLOBAL.encode())
+    assert st.bank == "Inter"
+    assert st.errors == []
+    assert [(r.date, r.amount, r.currency, r.description, r.is_transfer) for r in st.rows] == [
+        (date(2026, 11, 11), Decimal("-626.23"), "USD", "LOJA EXEMPLO SL", False),
+        (date(2026, 11, 11), Decimal("8.56"), "USD", "Carregamento recebido", True),
+        (date(2026, 10, 11), Decimal("-49.85"), "USD", "Resgate enviado", True),
+    ]
+
+
+def test_generic_debit_credit_column_signs_positive_amounts() -> None:
+    csv_text = (
+        "Fecha;Concepto;Importe;D/C\n"
+        "01/10/2026;Mercadona;45,20;D\n"
+        "02/10/2026;Nómina;1500,00;C\n"
+        "03/10/2026;Ya negativo;-10,00;Débito\n"
+    )
+    st = read_csv(csv_text.encode(), default_currency="EUR")
+    assert [r.amount for r in st.rows] == [
+        Decimal("-45.20"),
+        Decimal("1500.00"),
+        Decimal("-10.00"),
+    ]
+
+
+def test_unknown_debit_credit_value_is_a_row_error() -> None:
+    csv_text = "Fecha;Concepto;Importe;D/C\n01/10/2026;Mercadona;45,20;?\n02/10/2026;Bar;3,00;D\n"
+    st = read_csv(csv_text.encode(), default_currency="EUR")
+    assert [r.amount for r in st.rows] == [Decimal("-3.00")]
+    assert "entrada ou saída" in st.errors[0].message

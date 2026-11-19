@@ -96,3 +96,15 @@ def test_inter_ofx_bank_name_and_pix_bank_code_removed() -> None:
     st = read_statement("inter.ofx", ofx)
     assert st.bank == "Inter"
     assert st.rows[0].description == "Pix recebido: Fulano de Tal"
+
+
+def test_a_transfer_flagged_by_the_file_wins_over_the_investment_words() -> None:
+    from decimal import Decimal
+
+    data = (
+        "Data da Transação;Valor da Transação;Tipo da Operação;Tipo da Transação;"
+        "Nome do Beneficiário;Estabelecimento\n"
+        "11/10/2026 08:44:22;US$ 49,85;Débito;Resgate enviado;;\n"
+    ).encode()
+    st = read_statement("extrato.csv", data)
+    assert [(r.amount, r.kind) for r in st.rows] == [(Decimal("-49.85"), "transfer")]

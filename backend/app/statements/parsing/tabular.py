@@ -28,6 +28,13 @@ _ROLE_PATTERNS: dict[str, re.Pattern[str]] = {
     "fee": re.compile(r"comisi|comiss|\bfees?\b|tarifa|encargo"),
     "balance": re.compile(r"saldo|balance"),
     "state": re.compile(r"^(state|estado|status|situação)$"),
+    # Files that write every amount as positive and say in another column whether
+    # the money came in or went out.
+    "direction": re.compile(
+        r"^tipo d[aeo] opera[çc][ãa]o$|^d[ée]bito ?/ ?cr[ée]dito$|^cr[ée]dito ?/ ?d[ée]bito$"
+        r"|^debit ?/ ?credit$|^credit ?/ ?debit$|^(d ?/ ?c|c ?/ ?d|dr ?/ ?cr|cr ?/ ?dr)$"
+        r"|^cargo ?/ ?abono$|^(direction|sentido|natureza)$"
+    ),
     "currency": re.compile(r"divisa|moneda|currency|moeda"),
     "date": re.compile(r"fecha|data|date"),
     "amount": re.compile(r"importe|monto|valor|amount|cantidad|montante|quantia"),
@@ -37,7 +44,11 @@ _ROLE_PATTERNS: dict[str, re.Pattern[str]] = {
     ),
 }
 # Specific roles first, so "amount" doesn't grab the fee or balance columns.
-_ROLE_ORDER = ("external_id", "fee", "balance", "state", "currency", "date", "amount")
+_ROLE_ORDER = (
+    "external_id", "fee", "balance", "state", "direction", "currency", "date", "amount",
+)  # fmt: skip
+_OUT = frozenset({"débito", "debito", "debit", "d", "dr", "saída", "saida", "cargo", "out"})
+_IN = frozenset({"crédito", "credito", "credit", "c", "cr", "entrada", "abono", "in"})
 _HEADER_SEARCH_ROWS = 30
 
 _MONTHS = {
@@ -55,6 +66,7 @@ class _Columns:
     currency: int | None = None
     external_id: int | None = None
     state: int | None = None
+    direction: int | None = None
 
 
 def read_csv(data: bytes, default_currency: str | None = None) -> ParsedStatement:
@@ -120,6 +132,8 @@ def _read_row(
     amount = _to_decimal(amount_cell, decimal_sep)
     if layout and layout.layout.invert_sign:
         amount = -amount
+    if columns.direction is not None:
+        amount = _apply_direction(amount, _text(_cell(cells, columns.direction)))
     if layout and layout.describe:
         description = layout.describe(texts)
     else:
@@ -212,6 +226,7 @@ def _infer_columns(headers: list[str], data_rows: list[list[Cell]]) -> _Columns:
         currency=roles.get("currency"),
         external_id=roles.get("external_id"),
         state=roles.get("state"),
+        direction=roles.get("direction"),
     )
 
 
@@ -296,6 +311,16 @@ def _parse_date(s: str) -> date:
     if m := re.search(r"(\d{1,2})\s+(?:de\s+)?([A-Za-zç]{3,})\.?\s+(?:de\s+)?(\d{4})", s):
         return date(int(m[3]), _MONTHS[m[2][:3].lower()], int(m[1]))
     raise ValueError(s)
+
+
+def _apply_direction(amount: Decimal, raw: str) -> Decimal:
+    """The sign from a debit/credit column; the file's own amount keeps only its size."""
+    value = raw.strip().lower()
+    if value in _OUT:
+        return -abs(amount)
+    if value in _IN:
+        return abs(amount)
+    raise ValueError(f"Não sei se é entrada ou saída: {raw!r}")
 
 
 def _to_date(cell: Cell) -> date:
