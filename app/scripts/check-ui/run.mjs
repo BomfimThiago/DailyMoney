@@ -437,7 +437,11 @@ async function checkScreens(page, tag) {
     await seen('TOTAL DO MÊS').waitFor();
     // A day of the calendar opens Transações on that day's spending.
     await tab('Início').click();
-    await page.getByLabel(/^20: .*Ver gastos do dia$/).filter({ visible: true }).first().click();
+    await page
+      .getByLabel(/^20: .*Ver gastos do dia$/)
+      .filter({ visible: true })
+      .first()
+      .click();
     await seen('Mercadona')
       .waitFor({ timeout: 3000 })
       .catch(() => flag('o dia do calendário não abriu Transações daquele dia'));
