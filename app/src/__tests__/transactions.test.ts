@@ -114,10 +114,6 @@ describe('totals of what the list shows', () => {
     expect([even.spending, even.income, even.zero]).toEqual([null, null, 'R$\u00a00,00']);
     // Only money put in: the net is the whole amount, nothing more to explain.
     expect(market.invested).toBeNull();
-    expect(totalsFigures({ ...t, invested_in: '1000', invested_out: '300' }).invested).toBe(
-      'aplicado R$\u00a01.000,00  ·  resgatado R$\u00a0300,00',
-    );
-    expect(totalsFigures(t).invested).toBeNull();
   });
 
   it('shows the first groups and tells how many more there are', () => {

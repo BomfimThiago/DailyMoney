@@ -184,14 +184,16 @@ function totals(items) {
       .sort((a, b) => b.spending - a.spending || b.income - a.income);
   };
   const all = sum(items, null, '');
+  const both = Math.min(Number(all.invested_in), Number(all.invested_out));
   if (!items.length) return { count: 0, currencies: [] };
   return {
     count: items.length,
     currencies: [
       {
         currency: 'BRL',
-        income: all.income,
-        spending: all.spending,
+        // The top follows the statement: what the groups net out shows on both sides.
+        income: (Number(all.income) + both).toFixed(2),
+        spending: (Number(all.spending) + both).toFixed(2),
         balance: (all.income - all.spending).toFixed(2),
         invested_in: all.invested_in,
         invested_out: all.invested_out,
@@ -489,7 +491,7 @@ async function checkScreens(page, tag) {
     await seen(investMenu).click();
     await page.waitForLoadState('networkidle');
     await page.getByTestId('totals').filter({ visible: true }).waitFor();
-    await seen('Investimentos contam pelo líquido')
+    await seen('aplicado R$')
       .waitFor({ timeout: 3000 })
       .catch(() => flag('o total não explicou o investimento líquido'));
     await seen('Resgate RDB').waitFor();

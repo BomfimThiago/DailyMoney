@@ -62,7 +62,8 @@ class CurrencyTotals(BaseModel):
     spending: Decimal
     # income − spending
     balance: Decimal
-    # Gross money put into / taken out of investments; only the net is in income/spending.
+    # Gross money put into / taken out of investments, already inside income/spending
+    # (which follow the statement); the groups count investments by their net.
     invested_in: Decimal
     invested_out: Decimal
     count: int

@@ -287,11 +287,16 @@ class _CurrencySum:
             self.by[dimension].setdefault(key, _Sum(key, name)).add(amount, investment)
 
     def totals(self, currency: Currency) -> CurrencyTotals:
+        # The top figures are what moved, like the bank statement: a resgate is an entrada
+        # and an aplicação a saída. Groups below count investments by their net.
+        flow = self.all.flow
+        income = flow.income + flow.taken_out
+        spending = flow.spending + flow.put_in
         return CurrencyTotals(
             currency=currency,
-            income=self.all.income,
-            spending=self.all.spending,
-            balance=self.all.income - self.all.spending,
+            income=income,
+            spending=spending,
+            balance=income - spending,
             invested_in=self.all.flow.put_in,
             invested_out=self.all.flow.taken_out,
             count=self.all.count,
