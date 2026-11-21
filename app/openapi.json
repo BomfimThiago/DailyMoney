@@ -3150,6 +3150,28 @@
               }
             ],
             "title": "Member Id"
+          },
+          "bill_close_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bill Close Day"
+          },
+          "bill_due_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bill Due Day"
           }
         },
         "type": "object",
@@ -3215,11 +3237,37 @@
               }
             ],
             "title": "Member Id"
+          },
+          "bill_close_day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bill Close Day"
+          },
+          "bill_due_day": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 31.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bill Due Day"
           }
         },
         "type": "object",
-        "required": ["member_id"],
-        "title": "AccountUpdate"
+        "title": "AccountUpdate",
+        "description": "Only the fields sent change; null is a real value for each of them."
       },
       "Analysis": {
         "properties": {
@@ -3569,6 +3617,12 @@
         "type": "object",
         "required": ["month", "bills_known", "cards"],
         "title": "CardBillsOverview"
+      },
+      "CardMonth": {
+        "type": "string",
+        "enum": ["bill", "purchase"],
+        "title": "CardMonth",
+        "description": "In which month a card purchase counts: the bill's (when the money leaves the\naccount) or the purchase's own day."
       },
       "CardPayment": {
         "properties": {
@@ -4275,6 +4329,9 @@
             "type": "boolean",
             "title": "Review Imports"
           },
+          "card_purchases_by": {
+            "$ref": "#/components/schemas/CardMonth"
+          },
           "members": {
             "items": {
               "$ref": "#/components/schemas/MemberOut"
@@ -4290,6 +4347,7 @@
           "display_currency",
           "month_start_day",
           "review_imports",
+          "card_purchases_by",
           "members"
         ],
         "title": "FamilyOut"
@@ -4342,6 +4400,16 @@
               }
             ],
             "title": "Review Imports"
+          },
+          "card_purchases_by": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardMonth"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6089,6 +6157,18 @@
             "type": "string",
             "format": "date",
             "title": "Date"
+          },
+          "counts_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Counts On"
           },
           "description": {
             "type": "string",

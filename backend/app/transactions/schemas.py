@@ -13,6 +13,8 @@ from app.transactions.models import ReviewStatus, TxKind
 class TransactionOut(BaseModel):
     id: uuid.UUID
     date: date
+    # The day it counts in the figures: a card purchase counts on its bill's due day.
+    counts_on: date_ | None = None
     description: str
     amount: Decimal
     currency: Currency

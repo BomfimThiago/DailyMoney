@@ -30,6 +30,14 @@ class Currency(enum.StrEnum):
     EUR = "EUR"
 
 
+class CardMonth(enum.StrEnum):
+    """In which month a card purchase counts: the bill's (when the money leaves the
+    account) or the purchase's own day."""
+
+    BILL = "bill"
+    PURCHASE = "purchase"
+
+
 class Family(UUIDPk, CreatedAt, Base):
     __tablename__ = "family"
 
@@ -41,6 +49,9 @@ class Family(UUIDPk, CreatedAt, Base):
     # Imported lines (statements and bank syncs) wait for the person's approval before
     # they count. On while the imports are new and not yet trusted.
     review_imports: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    card_purchases_by: Mapped[CardMonth] = mapped_column(
+        String(10), default=CardMonth.BILL, server_default=CardMonth.BILL.value
+    )
 
     users: Mapped[list["User"]] = relationship(back_populates="family")
     members: Mapped[list["Member"]] = relationship(

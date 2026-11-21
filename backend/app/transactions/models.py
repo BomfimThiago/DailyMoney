@@ -1,3 +1,4 @@
+import datetime
 import enum
 import uuid
 from datetime import date
@@ -50,6 +51,7 @@ class Transaction(UUIDPk, CreatedAt, Base):
         Index("ix_transaction_account_date", "account_id", "date"),
         Index("ix_transaction_family_review", "family_id", "review"),
         Index("ix_transaction_account_bill", "account_id", "card_bill"),
+        Index("ix_transaction_family_counts_on", "family_id", "counts_on"),
     )
 
     family_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("family.id", ondelete="CASCADE"))
@@ -64,6 +66,12 @@ class Transaction(UUIDPk, CreatedAt, Base):
         ForeignKey("statement_import.id", ondelete="SET NULL"), index=True
     )
     date: Mapped[date] = mapped_column(Date)
+    # The day the line counts in the month's figures. The same as `date`, except a card
+    # purchase while the family counts card purchases by the bill: then it is the day the
+    # bill is due (services/card_month.py).
+    counts_on: Mapped[datetime.date] = mapped_column(
+        Date, default=lambda ctx: ctx.get_current_parameters()["date"]
+    )
     description: Mapped[str] = mapped_column(String(500))
     # Signed and in the account's own currency: negative is money leaving.
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4))

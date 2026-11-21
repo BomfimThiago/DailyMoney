@@ -115,3 +115,17 @@ export function deleteMemberHint(memberId: string, accounts: Account[]): string 
   const which = n === 1 ? 'A conta passa' : `As ${n} contas passam`;
   return `${which} a ser da ${HOUSEHOLD}.`;
 }
+
+// A card's closing and due days: its purchases count in the month of their bill.
+export function setBillDays(accountId: string, closeDay: number | null, dueDay: number | null) {
+  return api<Account>(`/accounts/${accountId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ bill_close_day: closeDay, bill_due_day: dueDay }),
+  });
+}
+
+// A day of the month typed by the person (1–31), or null when empty or not a day.
+export function billDay(text: string): number | null {
+  const n = Number(text.trim());
+  return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null;
+}

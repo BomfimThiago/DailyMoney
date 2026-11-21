@@ -10,15 +10,27 @@ export interface FaqItem {
 export const CARD_FAQ: FaqItem[] = [
   {
     id: 'compra',
-    question: 'Quando uma compra no cartão conta como gasto?',
+    question: 'Em que mês uma compra no cartão conta como saída?',
     answer:
-      'No dia em que você comprou, na categoria da compra. Um mercado pago no cartão em 20 de outubro conta em outubro, em Mercado, mesmo que a fatura só seja paga em novembro.\n\nAssim o Início mostra quanto você gastou de verdade em cada mês, e não quanto saiu da conta.',
+      'No mês em que a fatura vence, que é quando o dinheiro sai da conta. A compra continua na categoria dela. Um mercado de 20 de outubro, num cartão que fecha no dia 3 e vence no dia 10, conta em 10 de novembro, em Mercado.\n\nAssim a saída do mês é o dinheiro que saiu de verdade, e você continua vendo onde ele foi gasto.\n\nPara isso o app precisa saber o dia de fechamento e o dia de vencimento de cada cartão. Você informa em Ajustes › Compras no cartão de crédito. Sem os dois dias, as compras daquele cartão contam no dia da compra.',
+  },
+  {
+    id: 'escolha',
+    question: 'Posso contar as compras no dia em que comprei?',
+    answer:
+      'Pode. Em Ajustes › Compras no cartão de crédito, escolha "No dia da compra". Aí cada compra conta no dia em que foi feita, mesmo que a fatura venha no mês seguinte. Esse jeito mostra quanto você gastou em cada mês, e não quanto saiu da conta.\n\nVocê pode trocar quando quiser: todas as telas mudam juntas.',
   },
   {
     id: 'fatura',
-    question: 'Por que pagar a fatura não conta como gasto?',
+    question: 'Por que o pagamento da fatura não aparece nas saídas?',
     answer:
-      'Porque as compras já contaram. Quando você paga a fatura, o dinheiro só sai da conta corrente e vai para o cartão. Se o pagamento também contasse, cada compra entraria duas vezes nos Gastos.\n\nPor isso o pagamento ganha a categoria Pago de Cartão de Crédito e fica fora dos Gastos, junto das transferências internas. Você continua vendo a linha, e ela diz para que o dinheiro foi usado.',
+      'Porque o valor dele já está nas saídas: são as compras da fatura, cada uma na sua categoria. Se o pagamento também contasse, cada compra entraria duas vezes.\n\nPor isso o pagamento ganha a categoria Pago de Cartão de Crédito e fica fora das saídas, junto das transferências internas. Você continua vendo a linha, e ela diz para que o dinheiro foi usado.',
+  },
+  {
+    id: 'data',
+    question: 'Por que uma compra aparece num mês diferente da data dela?',
+    answer:
+      'Porque conta no mês da fatura. Em Transações, a linha mostra a data da compra e, ao lado, o dia em que ela conta ("conta em 10 nov"). O calendário de gastos e as análises por dia também usam o dia do vencimento.',
   },
   {
     id: 'onde',
@@ -36,12 +48,12 @@ export const CARD_FAQ: FaqItem[] = [
     id: 'meio-do-mes',
     question: 'E se o cartão fecha no meio do mês?',
     answer:
-      'A fatura junta compras de dois meses, por exemplo de 25 de outubro a 24 de novembro. Não tem problema: cada compra conta no mês em que foi feita, então outubro fica com as compras de outubro e novembro com as de novembro.\n\nO total da fatura, como o banco cobra, aparece na página Cartões.',
+      'A fatura junta compras de dois meses, por exemplo de 25 de outubro a 24 de novembro. Não tem problema: todas contam juntas no mês em que a fatura vence, como o dinheiro sai da conta. Se você escolheu contar pelo dia da compra, outubro fica com as compras de outubro e novembro com as de novembro.\n\nO total da fatura, como o banco cobra, aparece na página Cartões.',
   },
   {
     id: 'fora',
     question: 'E se o cartão não estiver no app?',
     answer:
-      'Se o cartão não está conectado e você não enviou a fatura dele, as compras não aparecem em lugar nenhum. Aí o pagamento é o único registro desse dinheiro, e o app conta o pagamento como gasto (com a categoria Pago de Cartão de Crédito), para o mês não parecer mais barato do que foi.\n\nO app considera que o cartão está no app quando existe um cartão do mesmo banco, ou quando o pagamento bate com o crédito no cartão. Quando você conectar o cartão ou enviar a fatura, as compras passam a contar e o pagamento sai dos Gastos sozinho.',
+      'Se o cartão não está conectado e você não enviou a fatura dele, as compras não aparecem em lugar nenhum. Aí o pagamento é o único registro desse dinheiro, e o app conta o pagamento como saída (com a categoria Pago de Cartão de Crédito), para o mês não parecer mais barato do que foi.\n\nO app considera que o cartão está no app quando existe um cartão do mesmo banco, ou quando o pagamento bate com o crédito no cartão. Quando você conectar o cartão ou enviar a fatura, as compras passam a contar e o pagamento sai das saídas sozinho.',
   },
 ];

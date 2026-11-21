@@ -298,7 +298,7 @@ async def analysis(
     result = await db.execute(
         select(
             Transaction.currency,
-            Transaction.date,
+            Transaction.counts_on,
             Transaction.amount,
             Transaction.description,
             Category.name,
@@ -311,7 +311,7 @@ async def analysis(
             APPROVED,
             Transaction.kind.in_(COUNTED),
             or_(Transaction.amount < 0, Transaction.kind == TxKind.INVESTMENT),
-            Transaction.date.between(lo, hi),
+            Transaction.counts_on.between(lo, hi),
         )
     )
     conv = await converter(db, currency, lo, hi)

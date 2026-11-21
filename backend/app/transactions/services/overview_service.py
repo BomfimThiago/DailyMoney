@@ -64,10 +64,12 @@ async def month_summary(
     lo, hi = month_range(month, await month_start_day(db, family_id))
     conv = await converter(db, currency, lo, hi)
     rows = await db.execute(
-        select(Transaction.currency, Transaction.kind, Transaction.amount, Transaction.date).where(
+        select(
+            Transaction.currency, Transaction.kind, Transaction.amount, Transaction.counts_on
+        ).where(
             Transaction.family_id == family_id,
             APPROVED,
-            Transaction.date.between(lo, hi),
+            Transaction.counts_on.between(lo, hi),
             Transaction.kind.in_(COUNTED),
         )
     )
@@ -151,7 +153,7 @@ async def month_dashboard(
     rows = await db.execute(
         select(
             Transaction.currency,
-            Transaction.date,
+            Transaction.counts_on,
             Transaction.amount,
             Transaction.kind,
             Account.id,
@@ -170,7 +172,7 @@ async def month_dashboard(
             Transaction.family_id == family_id,
             APPROVED,
             Transaction.kind.in_(COUNTED),
-            Transaction.date.between(prev_lo, hi),
+            Transaction.counts_on.between(prev_lo, hi),
         )
     )
     # Index 0 is the period's first day (not always the 1st). Investment moves are netted

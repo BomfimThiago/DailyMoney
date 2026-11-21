@@ -20,6 +20,11 @@ function kindLabel(t: Transaction): string | null {
 }
 
 // "parcela 3/10" for a purchase split on the card.
+// A card purchase counted in its bill's month says the day it counts on.
+function countsOnLabel(t: Transaction): string | null {
+  return t.counts_on && t.counts_on !== t.date ? `conta em ${dayMonth(t.counts_on)}` : null;
+}
+
 function installmentLabel(t: Transaction): string | null {
   return t.installment ? `parcela ${t.installment}` : null;
 }
@@ -58,7 +63,7 @@ export function TxRow({
           {t.description}
         </Text>
         <Text style={styles.sub} numberOfLines={1}>
-          {[kindLabel(t), t.account_name, dayMonth(t.date), installmentLabel(t)]
+          {[kindLabel(t), t.account_name, dayMonth(t.date), countsOnLabel(t), installmentLabel(t)]
             .filter(Boolean)
             .join(' · ')}
         </Text>

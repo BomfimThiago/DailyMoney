@@ -19,6 +19,17 @@ async def list_accounts(user: CurrentUser, db: DbSession) -> list[AccountOut]:
 async def update_account(
     account_id: uuid.UUID, data: AccountUpdate, user: CurrentUser, db: DbSession
 ) -> AccountOut:
-    account = await account_service.set_owner(db, user.family_id, account_id, data.member_id)
+    account = await account_service.get_account(db, user.family_id, account_id)
+    sent = data.model_fields_set
+    if "member_id" in sent:
+        account = await account_service.set_owner(db, user.family_id, account_id, data.member_id)
+    if sent & {"bill_close_day", "bill_due_day"}:
+        account = await account_service.set_bill_days(
+            db,
+            user.family_id,
+            account_id,
+            data.bill_close_day if "bill_close_day" in sent else account.bill_close_day,
+            data.bill_due_day if "bill_due_day" in sent else account.bill_due_day,
+        )
     await db.commit()
     return AccountOut.model_validate(account)
