@@ -43,7 +43,7 @@ from app.statements.parsing.cards import installment_in_text
 from app.statements.parsing.reader import read_statement
 from app.statements.parsing.types import ParsedRow, ParsedStatement
 from app.transactions.models import ReviewStatus, Transaction, TxKind
-from app.transactions.services import card_payments, transaction_service
+from app.transactions.services import card_month, card_payments, transaction_service
 
 _CURRENCY_ERROR = "Não foi possível saber a moeda"
 # Reads of connected banks: shown on Conexões, never undone like a sent statement.
@@ -565,6 +565,9 @@ async def confirm(
     }
     counts = await _save(db, imp, await _plan(db, imp, accounts, since))
     await card_payments.recognize(db, imp.family_id, imp.id)
+    for account in accounts.values():
+        if account is not None and account.is_card:
+            await card_month.recount(db, imp.family_id, account.id)
     imp.imported_count = counts.new
     imp.duplicate_count = counts.duplicate
     imp.skipped_count = counts.skipped

@@ -29,6 +29,11 @@ const shown = async (t: Partial<Transaction>) => {
 };
 
 describe('TxRow', () => {
+  it('says when a card purchase counts on another day (its bill)', async () => {
+    expect((await shown({ counts_on: '2026-12-10' })).sub).toContain('4 nov · conta em 10 dez');
+    expect((await shown({ counts_on: '2026-11-04' })).sub).not.toContain('conta em');
+  });
+
   it('shows a spending value in red and income in green', async () => {
     const color = async (t: Partial<Transaction>) => {
       await render(<TxRow t={{ ...base, ...t }} />);

@@ -886,6 +886,10 @@ export interface components {
       is_card: boolean;
       /** Member Id */
       member_id: string | null;
+      /** Bill Close Day */
+      bill_close_day?: number | null;
+      /** Bill Due Day */
+      bill_due_day?: number | null;
     };
     /** AccountRef */
     AccountRef: {
@@ -908,10 +912,17 @@ export interface components {
       /** Error */
       error: string | null;
     };
-    /** AccountUpdate */
+    /**
+     * AccountUpdate
+     * @description Only the fields sent change; null is a real value for each of them.
+     */
     AccountUpdate: {
       /** Member Id */
-      member_id: string | null;
+      member_id?: string | null;
+      /** Bill Close Day */
+      bill_close_day?: number | null;
+      /** Bill Due Day */
+      bill_due_day?: number | null;
     };
     /** Analysis */
     Analysis: {
@@ -1064,6 +1075,13 @@ export interface components {
       /** Cards */
       cards: components['schemas']['CardBills'][];
     };
+    /**
+     * CardMonth
+     * @description In which month a card purchase counts: the bill's (when the money leaves the
+     *     account) or the purchase's own day.
+     * @enum {string}
+     */
+    CardMonth: 'bill' | 'purchase';
     /** CardPayment */
     CardPayment: {
       /**
@@ -1337,6 +1355,7 @@ export interface components {
       month_start_day: number;
       /** Review Imports */
       review_imports: boolean;
+      card_purchases_by: components['schemas']['CardMonth'];
       /** Members */
       members: components['schemas']['MemberOut'][];
     };
@@ -1349,6 +1368,7 @@ export interface components {
       month_start_day?: number | null;
       /** Review Imports */
       review_imports?: boolean | null;
+      card_purchases_by?: components['schemas']['CardMonth'] | null;
     };
     /** FinishIn */
     FinishIn: {
@@ -2056,6 +2076,8 @@ export interface components {
        * Format: date
        */
       date: string;
+      /** Counts On */
+      counts_on?: string | null;
       /** Description */
       description: string;
       /** Amount */

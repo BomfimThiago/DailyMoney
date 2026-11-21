@@ -175,6 +175,7 @@ const family = {
   display_currency: 'BRL',
   month_start_day: 1,
   review_imports: true,
+  card_purchases_by: 'bill',
   members: [
     { id: 'mem-1', name: 'Pessoa', color: '#8a8799', kind: 'me', user_id: 'user-1' },
     { id: 'mem-2', name: 'Ana', color: '#c7795a', kind: 'spouse', user_id: null },
@@ -299,6 +300,8 @@ const card = {
   currency: 'BRL',
   is_card: true,
   member_id: 'mem-1',
+  bill_close_day: 3,
+  bill_due_day: 10,
 };
 const prev = ym(-1);
 const next = ym(1);
@@ -351,7 +354,7 @@ export const fixtures = {
     family,
   },
   '/family': family,
-  '/accounts': Object.values(accounts),
+  '/accounts': [...Object.values(accounts), card],
   // Wise read through Enable Banking; Nubank through Meu Pluggy, its card unreadable.
   '/connections': {
     connections: [

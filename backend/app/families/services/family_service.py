@@ -9,6 +9,7 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.core.family_scope import get_in_family
 from app.families.models import Family, Member
 from app.families.schemas import FamilyUpdate, MemberCreate, MemberUpdate
+from app.transactions.services import card_month
 from app.transactions.services.months import normalize_start_day
 
 # Muted tones that sit well on the white UI; new members cycle through them.
@@ -35,9 +36,12 @@ async def month_start_day(db: AsyncSession, family_id: uuid.UUID) -> int:
 
 async def update_family(db: AsyncSession, family_id: uuid.UUID, data: FamilyUpdate) -> Family:
     family = await get_family(db, family_id)
+    before = family.card_purchases_by
     for field, value in data.model_dump(exclude_unset=True, exclude_none=True).items():
         setattr(family, field, value)
     await db.flush()
+    if family.card_purchases_by != before:
+        await card_month.recount(db, family_id)
     return family
 
 
