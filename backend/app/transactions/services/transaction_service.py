@@ -37,7 +37,7 @@ from app.transactions.schemas import (
     TransactionTotals,
     TransactionUpdate,
 )
-from app.transactions.services import card_payments
+from app.transactions.services import card_month, card_payments
 from app.transactions.services.flow import Flow
 from app.transactions.services.months import month_of, month_range
 
@@ -135,11 +135,11 @@ async def _where(
     where = [Transaction.family_id == family_id, Transaction.review == review]
     if f.month is not None:
         lo, hi = month_range(f.month, await month_start_day(db, family_id))
-        where.append(Transaction.date.between(lo, hi))
+        where.append(Transaction.counts_on.between(lo, hi))
     if f.date_from is not None:
-        where.append(Transaction.date >= f.date_from)
+        where.append(Transaction.counts_on >= f.date_from)
     if f.date_to is not None:
-        where.append(Transaction.date <= f.date_to)
+        where.append(Transaction.counts_on <= f.date_to)
     if f.direction == "out":
         where.append(Transaction.amount < 0)
     elif f.direction == "in":
@@ -195,7 +195,7 @@ async def list_transactions(
             .offset(offset)
         )
         found = list(rows)
-    dates = [tx.date for tx, _, _ in found]
+    dates = [tx.counts_on for tx, _, _ in found]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
     return TransactionPage(
         total=total or 0,
@@ -216,14 +216,14 @@ async def _by_converted_amount(
     """Every matching line's id, ordered by its amount in the chosen currency."""
     lines = list(
         await db.execute(
-            select(Transaction.id, Transaction.amount, Transaction.currency, Transaction.date)
+            select(Transaction.id, Transaction.amount, Transaction.currency, Transaction.counts_on)
             .where(*where)
             .order_by(Transaction.date.desc(), Transaction.id)
         )
     )
-    dates = [line.date for line in lines]
+    dates = [line.counts_on for line in lines]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
-    amount = {line.id: conv(line.amount, line.currency, line.date) for line in lines}
+    amount = {line.id: conv(line.amount, line.currency, line.counts_on) for line in lines}
     # A stable sort keeps the newest first among equal amounts.
     ordered = sorted(lines, key=lambda line: amount[line.id], reverse=descending)
     return [line.id for line in ordered]
@@ -329,7 +329,7 @@ async def totals(
             select(
                 Transaction.amount,
                 Transaction.currency,
-                Transaction.date,
+                Transaction.counts_on,
                 Transaction.kind,
                 Transaction.category_id,
                 Category.name,
@@ -344,7 +344,7 @@ async def totals(
             .where(*where)
         )
     )
-    dates = [row.date for row in rows]
+    dates = [row.counts_on for row in rows]
     conv = await converter(db, currency, min(dates, default=None), max(dates, default=None))
     sums: dict[Currency, _CurrencySum] = {}
     for amount, original, day, kind, cat_id, cat, member_id, person, acc_id, acc in rows:
@@ -414,6 +414,7 @@ async def update_transaction(
         tx.description = data.description
     if data.date is not None:
         tx.date = data.date
+        await card_month.recount_line(db, tx)
     if data.amount is not None:
         await _change_amount(db, tx, data.amount)
     if data.category_id is not None:
@@ -587,10 +588,11 @@ def to_out(
 ) -> TransactionOut:
     converted = conv is not None and conv.target is not None
     return TransactionOut(
-        display_amount=conv(tx.amount, tx.currency, tx.date) if conv and converted else None,
+        display_amount=conv(tx.amount, tx.currency, tx.counts_on) if conv and converted else None,
         display_currency=conv.target if conv else None,
         id=tx.id,
         date=tx.date,
+        counts_on=tx.counts_on,
         description=tx.description,
         amount=tx.amount,
         currency=tx.currency,

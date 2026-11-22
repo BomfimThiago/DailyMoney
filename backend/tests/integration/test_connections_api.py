@@ -439,7 +439,9 @@ async def test_sync_all_reads_every_connection(
 ) -> None:
     h = auth(await login(client))
     await _connect_wise(client, h, fake_eb)
-    fake_eb.transactions["acc-eur"].append(_tx("r9", "2026-10-20", "5.00", "DBIT", "Kiosko"))
+    # A recent day: a later sync only reads back OVERLAP_DAYS before the last one.
+    recent = (date.today() - timedelta(days=2)).isoformat()
+    fake_eb.transactions["acc-eur"].append(_tx("r9", recent, "5.00", "DBIT", "Kiosko"))
     [result] = await connection_service.sync_all(db)
     assert result.accounts[0].new == 1
 

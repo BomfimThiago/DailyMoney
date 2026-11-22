@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, Enum, ForeignKey, SmallInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, CreatedAt, UUIDPk
@@ -20,6 +20,10 @@ class Account(UUIDPk, CreatedAt, Base):
     bank: Mapped[str] = mapped_column(String(80))
     currency: Mapped[Currency] = mapped_column(Enum(Currency, name="currency", create_type=False))
     is_card: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Cards only: the day the bill closes and the day it is due (1–31; a short month uses
+    # its last day). Both are needed to count a purchase in the month of its bill.
+    bill_close_day: Mapped[int | None] = mapped_column(SmallInteger)
+    bill_due_day: Mapped[int | None] = mapped_column(SmallInteger)
     # Owner of the account; empty means it belongs to the household ("Casa").
     member_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("member.id", ondelete="SET NULL")

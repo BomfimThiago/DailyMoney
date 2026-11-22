@@ -5,10 +5,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.accounts.models import Account
-from app.core.exceptions import ConflictError
+from app.core.exceptions import AppError, ConflictError
 from app.core.family_scope import get_in_family
 from app.families.models import Currency, Member
 from app.transactions.models import Transaction
+from app.transactions.services import card_month
 
 
 async def list_accounts(db: AsyncSession, family_id: uuid.UUID) -> list[Account]:
@@ -70,4 +71,26 @@ async def set_owner(
         .values(member_id=member_id)
     )
     await db.flush()
+    return account
+
+
+class NotACardError(AppError):
+    status_code = 422
+    code = "NOT_A_CARD"
+
+
+async def set_bill_days(
+    db: AsyncSession,
+    family_id: uuid.UUID,
+    account_id: uuid.UUID,
+    close_day: int | None,
+    due_day: int | None,
+) -> Account:
+    """The card's closing and due days; its purchases move to the month of their bill."""
+    account = await get_account(db, family_id, account_id)
+    if not account.is_card and (close_day is not None or due_day is not None):
+        raise NotACardError("Só cartões de crédito têm dia de fechamento e de vencimento")
+    account.bill_close_day, account.bill_due_day = close_day, due_day
+    await db.flush()
+    await card_month.recount(db, family_id, account.id)
     return account

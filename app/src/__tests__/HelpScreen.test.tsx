@@ -21,13 +21,15 @@ describe('Dúvidas', () => {
     await render(<HelpScreen />);
     expect(screen.getByText('Dúvidas')).toBeTruthy();
     // The first answer starts open.
-    expect(screen.getByText(/No dia em que você comprou/)).toBeTruthy();
-    expect(screen.queryByText(/Porque as compras já contaram/)).toBeNull();
-    await fireEvent.press(screen.getByText('Por que pagar a fatura não conta como gasto?'));
-    expect(screen.getByText(/Porque as compras já contaram/)).toBeTruthy();
+    expect(screen.getByText(/No mês em que a fatura vence/)).toBeTruthy();
+    expect(screen.queryByText(/Porque o valor dele já está nas saídas/)).toBeNull();
+    await fireEvent.press(
+      screen.getByText('Por que o pagamento da fatura não aparece nas saídas?'),
+    );
+    expect(screen.getByText(/Porque o valor dele já está nas saídas/)).toBeTruthy();
     await fireEvent.press(screen.getByText('E se o cartão não estiver no app?'));
-    expect(screen.getByText(/o app conta o pagamento como gasto/)).toBeTruthy();
-    await fireEvent.press(screen.getByText('Quando uma compra no cartão conta como gasto?'));
-    expect(screen.queryByText(/No dia em que você comprou/)).toBeNull();
+    expect(screen.getByText(/o app conta o pagamento como saída/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Em que mês uma compra no cartão conta como saída?'));
+    expect(screen.queryByText(/No mês em que a fatura vence/)).toBeNull();
   });
 });

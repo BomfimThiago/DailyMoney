@@ -856,7 +856,7 @@ async function checkScreens(page, tag) {
     await shot('cartoes-proxima');
     // Dúvidas: how the credit card counts.
     await page.goto(`${base}/duvidas`);
-    await seen('Quando uma compra no cartão conta como gasto?').waitFor();
+    await seen('Em que mês uma compra no cartão conta como saída?').waitFor();
     await page.getByRole('button', { name: 'E se o cartão não estiver no app?' }).click();
     await page.waitForLoadState('networkidle');
     await shot('duvidas');
@@ -864,6 +864,9 @@ async function checkScreens(page, tag) {
     await page.goto(`${base}/ajustes`);
     await seen('O mês começa no dia').waitFor();
     await shot('ajustes');
+    await page.getByTestId('card-month-bill').scrollIntoViewIfNeeded();
+    await seen('Dias de cada cartão').waitFor();
+    await shot('ajustes-cartao');
     await page.getByTestId('month-start-27').click();
     await page.getByRole('button', { name: 'Salvar início do mês' }).click();
     await seen('O mês agora começa no dia 27.').waitFor({ timeout: 5000 });
